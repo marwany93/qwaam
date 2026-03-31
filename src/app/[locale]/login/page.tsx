@@ -1,0 +1,156 @@
+'use client';
+
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useTranslations, useLocale } from 'next-intl';
+import { Link } from '@/i18n/navigation';
+import Image from 'next/image';
+import { auth } from '@/lib/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+
+function LoginForm() {
+  const t = useTranslations('auth');
+  const locale = useLocale();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Extract redirect target directly from the URL or fallback to the coach portal
+  const redirectUrl = searchParams.get('redirect') || '/admin';
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      // 1. Authenticate with Firebase Client SDK natively
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      // 2. Extract JWT token securely
+      const idToken = await userCredential.user.getIdToken();
+      
+      // Decode the Firebase JWT Custom Claims locally to assess role before Server redirect
+      const idTokenResult = await userCredential.user.getIdTokenResult();
+      const role = idTokenResult.claims.role;
+
+      // 3. Trade it with our Server logic to forge a persistent session cookie
+      const res = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      });
+
+      if (!res.ok) {
+        throw new Error('فشل إنشاء الجلسة / Session creation failed');
+      }
+      
+      // 4. Role-based localized routing delegation 
+      // Hard refresh ensures Server Side Cookie Extraction is natively parsed by Layouts
+      if (role === 'coach') {
+        window.location.href = `/${locale}/admin`;
+      } else {
+        window.location.href = `/${locale}/client`;
+      }
+      
+    } catch (err: any) {
+      console.error('Firebase Login Blocked:', err);
+      // Fallback safe error
+      setError('بيانات الدخول غير صحيحة. تأكد من البريد وكلمة المرور.');
+      setLoading(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleLogin} className="space-y-6">
+      
+      {/* Email Input */}
+      <div>
+        <label className="block text-sm font-bold text-text-main mb-2">{t('email')}</label>
+        <input
+          type="email"
+          required
+          disabled={loading}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          dir="ltr"
+          className="w-full px-4 py-4 text-left rounded-xl border-2 border-border-light focus:border-qwaam-pink focus:ring-0 outline-none transition-all font-medium text-text-main bg-gray-50/50"
+          placeholder="coach@qwaam.com"
+        />
+      </div>
+
+      {/* Password Input */}
+      <div>
+        <label className="block text-sm font-bold text-text-main mb-2">{t('password')}</label>
+        <input
+          type="password"
+          required
+          disabled={loading}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          dir="ltr"
+          className="w-full px-4 py-4 text-left rounded-xl border-2 border-border-light focus:border-qwaam-pink focus:ring-0 outline-none transition-all font-medium text-text-main tracking-widest bg-gray-50/50"
+          placeholder="••••••••"
+        />
+      </div>
+
+      {/* Dynamic Error State */}
+      {error && (
+        <div className="p-4 bg-red-50 text-red-600 rounded-xl text-sm font-bold border border-red-100 flex items-center justify-center text-center shadow-sm animate-in zoom-in duration-200">
+          {error}
+        </div>
+      )}
+
+      {/* Execution Trigger */}
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full inline-flex justify-center items-center gap-2 rounded-xl bg-qwaam-pink px-4 py-4 text-lg font-bold text-white hover:bg-pink-600 shadow-lg shadow-qwaam-pink/30 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none"
+      >
+        {loading ? <span className="animate-pulse">جاري التحقق...</span> : t('loginBtn')}
+      </button>
+
+    </form>
+  );
+}
+
+export default function LoginPage() {
+  const t = useTranslations('auth');
+  const tBrand = useTranslations('brand');
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-qwaam-white relative overflow-hidden px-6">
+      
+      {/* Immersive Qwaam Gradients */}
+      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-qwaam-pink/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-qwaam-yellow/10 rounded-full blur-3xl pointer-events-none" />
+
+      {/* Authentication Card */}
+      <div className="w-full max-w-md bg-white p-10 rounded-3xl shadow-2xl shadow-qwaam-pink/5 border border-border-light relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
+        
+        {/* Brand Core Identity */}
+        <div className="text-center mb-10">
+          <Link href="/" className="inline-block mb-6 hover:opacity-80 transition-opacity">
+             <Image src="/brand/logo-pink.png" alt="Qwaam" width={160} height={53} priority className="w-auto h-auto mx-auto" />
+          </Link>
+          <h1 className="text-3xl font-extrabold text-text-main mb-2 tracking-tight">
+            {t('login')}
+          </h1>
+          <p className="text-text-muted font-bold text-sm">
+            {tBrand('tagline')}
+          </p>
+        </div>
+
+        {/* Client-side form boundaries wrapped for static export safety */}
+        <Suspense fallback={<div className="h-64 flex items-center justify-center"><div className="w-8 h-8 rounded-full border-4 border-qwaam-pink border-t-transparent animate-spin" /></div>}>
+          <LoginForm />
+        </Suspense>
+
+      </div>
+    </div>
+  );
+}

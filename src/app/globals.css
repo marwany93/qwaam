@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@theme {
+  /* The Qwaam Palette */
+  --color-qwaam-pink: #EC4899;       /* Vibrant Pink for Primary UI */
+  --color-qwaam-pink-light: #FDF2F8; /* Very faint pink for soft backgrounds */
+  --color-qwaam-yellow: #FBBF24;     /* Energetic Yellow for accents/highlights */
+  --color-qwaam-white: #FFFFFF;      /* Pure White */
+  
+  /* Text & Readability */
+  --color-text-main: #111827;        /* Very dark gray for readability */
+  --color-text-muted: #4B5563;       /* Medium gray for secondary text */
+
+  /* Global Borders */
+  --color-border-light: #F3F4F6;
+
+  --font-sans: 'Cairo', sans-serif;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-qwaam-white);
+    color: var(--color-text-main);
+    -webkit-font-smoothing: antialiased;
+  }
+}

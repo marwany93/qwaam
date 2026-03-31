@@ -1,0 +1,90 @@
+{
+  "nav": {
+    "home": "Home",
+    "packages": "Packages",
+    "classes": "Classes",
+    "meals": "Meal Plans",
+    "science": "The Science",
+    "admin": "Coach Dashboard",
+    "client": "Client Portal",
+    "login": "Login",
+    "logout": "Logout"
+  },
+  "brand": {
+    "name": "Qwaam",
+    "tagline": "Your journey to a better body starts here"
+  },
+  "home": {
+    "hero": {
+      "title": "Transform your body,",
+      "titleAccent": "change your life",
+      "subtitle": "Custom training and nutrition programs designed for you — because every body has a different story.",
+      "cta": "Start Your Journey",
+      "ctaSecondary": "Explore Packages"
+    },
+    "features": {
+      "title": "Why Qwaam?",
+      "coaching": {
+        "title": "Expert Coaching",
+        "desc": "Certified coaches with years of experience in body transformation."
+      },
+      "nutrition": {
+        "title": "Precision Nutrition",
+        "desc": "Meticulously calculated meals tailored to your goal — cutting or bulking."
+      },
+      "tracking": {
+        "title": "Real-Time Tracking",
+        "desc": "The client portal lets you see your progress and connect with your coach anytime."
+      }
+    }
+  },
+  "packages": {
+    "title": "Packages & Pricing",
+    "subtitle": "Choose the package that fits your goal and budget"
+  },
+  "classes": {
+    "title": "Class Schedule",
+    "subtitle": "Live sessions and recordings available around the clock"
+  },
+  "meals": {
+    "title": "Meal Plans",
+    "subtitle": "Scientifically designed meals to achieve your goals"
+  },
+  "science": {
+    "title": "The Science Behind Qwaam",
+    "subtitle": "Everything we do is backed by documented scientific evidence"
+  },
+  "admin": {
+    "title": "Coach Dashboard",
+    "welcome": "Welcome back, Coach",
+    "trainees": "Trainees",
+    "sessions": "Sessions",
+    "plans": "Plans",
+    "library": "Content Library",
+    "messages": "Messages",
+    "settings": "Settings"
+  },
+  "client": {
+    "title": "Client Portal",
+    "welcome": "Welcome back,",
+    "myPlan": "My Training Plan",
+    "myMeals": "My Meal Plan",
+    "progress": "My Progress"
+  },
+  "auth": {
+    "login": "Login",
+    "email": "Email Address",
+    "password": "Password",
+    "loginBtn": "Sign In",
+    "unauthorized": "You are not authorized to access this page."
+  },
+  "footer": {
+    "rights": "All rights reserved",
+    "tagline": "Qwaam — Your best self"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "backHome": "Back to Home"
+  }
+}
