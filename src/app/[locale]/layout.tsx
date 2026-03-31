@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, getTranslations, setRequestLocale } from 'next-intl/server';
 import { Cairo, Inter } from 'next/font/google';
 import { routing } from '@/i18n/routing';
+import '../globals.css';
 
 // ── Google Fonts ────────────────────────────────────────────────────────────
 // Cairo: Arabic-first font (RTL-optimized)
