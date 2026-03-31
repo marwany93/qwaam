@@ -16,6 +16,9 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { getAdminAuth } from '@/lib/firebase-admin';
 
+// Explicitly use Node.js runtime — firebase-admin requires Node APIs (not Edge compatible)
+export const runtime = 'nodejs';
+
 const SESSION_COOKIE_NAME = 'qwaam_session';
 const SESSION_DURATION_MS = 60 * 60 * 24 * 14 * 1000; // 14 days
 

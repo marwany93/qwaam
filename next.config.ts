@@ -7,10 +7,15 @@ const nextConfig = {
   // Enable strict mode for React
   reactStrictMode: true,
 
-  // Experimental features
-  experimental: {
-    // Server Actions are enabled by default in Next.js 14+
-  },
+  // Prevent firebase-admin and its native WASM binaries from being
+  // bundled by the Next.js/Webpack edge bundler. Must stay as external
+  // Node.js require() calls resolved at runtime by the Node process.
+  serverExternalPackages: [
+    'firebase-admin',
+    'firebase-admin/app',
+    'firebase-admin/auth',
+    'firebase-admin/firestore',
+  ],
 };
 
 export default withNextIntl(nextConfig);

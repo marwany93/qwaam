@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin';
 
+// Explicitly use Node.js runtime — firebase-admin requires Node APIs (not Edge compatible)
+export const runtime = 'nodejs';
+
 /**
  * UTILITY DEVELOPER ROUTE (Setup Configuration)
  * Promotes a standard Firebase Auth user account securely to the "coach" role via Custom Claims.
