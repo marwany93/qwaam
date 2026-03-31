@@ -1,6 +1,8 @@
 import { setRequestLocale } from 'next-intl/server';
 import { getCurrentTrainee, fetchMyWorkouts, fetchMyMeals } from '@/actions/client-actions';
+import { getMyProgressLogsByDate } from '@/actions/progress-actions';
 import ClientChat from '@/components/client/ClientChat';
+import ProgressToggleButton from '@/components/client/ProgressToggleButton';
 
 type PageProps = { params: Promise<{ locale: string }> };
 
@@ -25,10 +27,13 @@ export default async function ClientDashboard({ params }: PageProps) {
   const assignedMealIds = trainee.traineeData?.assignedMeals || [];
   const coachUid = trainee.traineeData?.assignedCoachUid || '';
 
+  const todayDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
+
   // Parallel Document Materializations
-  const [workouts, meals] = await Promise.all([
+  const [workouts, meals, progressLogs] = await Promise.all([
     fetchMyWorkouts(assignedWorkoutIds),
-    fetchMyMeals(assignedMealIds)
+    fetchMyMeals(assignedMealIds),
+    getMyProgressLogsByDate(todayDate)
   ]);
 
   const firstName = trainee.name.split(' ')[0] || 'بطل';
@@ -79,10 +84,17 @@ export default async function ClientDashboard({ params }: PageProps) {
                             </div>
                             <p className="font-bold text-xs text-text-muted mb-6 truncate" dir="ltr" style={{textAlign:"right"}}>{w.titleEn}</p>
                             
-                            <div className="flex items-center justify-between text-sm bg-gray-50 px-5 py-3.5 rounded-2xl border border-border-light/50">
+                            <div className="flex items-center justify-between text-sm bg-gray-50 px-5 py-3.5 rounded-2xl border border-border-light/50 mb-4">
                                <div className="font-black text-text-main flex items-center gap-2"><span className="text-qwaam-pink text-lg text-shadow-sm">⏱</span> {w.duration} دقيقة</div>
                                <div className="font-extrabold text-text-muted px-3 py-1 bg-white rounded-lg border border-border-light">{w.exercises?.length || 0} حركات</div>
                             </div>
+                            
+                            <ProgressToggleButton 
+                               itemId={w.id} 
+                               type="workout" 
+                               date={todayDate} 
+                               initialState={progressLogs.some(log => log.itemId === w.id && log.type === 'workout')} 
+                            />
                          </div>
                       ))}
                    </div>
@@ -117,7 +129,7 @@ export default async function ClientDashboard({ params }: PageProps) {
                                 <span className="font-black text-xl text-text-main bg-white px-3 py-1.5 rounded-xl border border-border-light shadow-sm">{m.calories} <span className="text-[10px] uppercase text-text-muted ml-0.5">Kcal</span></span>
                               </div>
                               
-                              <div className="grid grid-cols-3 gap-2">
+                              <div className="grid grid-cols-3 gap-2 mb-5">
                                  <div className="bg-red-50 text-red-700 py-2.5 rounded-xl text-center leading-tight">
                                     <span className="block text-[9px] uppercase font-black opacity-60 mb-1">PROTEIN</span>
                                     <span className="font-black text-sm">{m.macros.protein}g</span>
@@ -131,6 +143,13 @@ export default async function ClientDashboard({ params }: PageProps) {
                                     <span className="font-black text-sm">{m.macros.fats}g</span>
                                  </div>
                               </div>
+                              
+                              <ProgressToggleButton 
+                                 itemId={m.id} 
+                                 type="meal" 
+                                 date={todayDate} 
+                                 initialState={progressLogs.some(log => log.itemId === m.id && log.type === 'meal')} 
+                              />
                             </div>
                          </div>
                       ))}

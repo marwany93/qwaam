@@ -8,6 +8,7 @@ import {
   getAssignedMeals,
 } from '@/actions/assignment-actions';
 import { getWorkouts, getMeals } from '@/actions/library-actions';
+import { getTraineeProgressLogsByDate } from '@/actions/progress-actions';
 import {
   UserCircleIcon,
   CalendarDaysIcon,
@@ -42,10 +43,13 @@ export default async function TraineeDetailPage({ params }: PageProps) {
   const assignedWorkoutIds = trainee.traineeData?.assignedWorkouts ?? [];
   const assignedMealIds = trainee.traineeData?.assignedMeals ?? [];
 
+  const todayDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
+
   // Resolve IDs to full objects for the Assignments Tab
-  const [assignedWorkouts, assignedMeals] = await Promise.all([
+  const [assignedWorkouts, assignedMeals, progressLogs] = await Promise.all([
     getAssignedWorkouts(assignedWorkoutIds),
     getAssignedMeals(assignedMealIds),
+    getTraineeProgressLogsByDate(traineeUid, todayDate)
   ]);
 
   const joinDate = new Date(trainee.createdAt as number).toLocaleDateString('ar-SA', {
@@ -112,6 +116,7 @@ export default async function TraineeDetailPage({ params }: PageProps) {
         allWorkouts={allWorkouts}
         allMeals={allMeals}
         coachUid={coachUid}
+        progressLogs={progressLogs}
       />
 
     </div>

@@ -17,6 +17,7 @@ interface Props {
   allWorkouts: Workout[];
   allMeals: Meal[];
   coachUid: string;
+  progressLogs: any[];
 }
 
 export default function TraineeTabsWrapper({
@@ -27,6 +28,7 @@ export default function TraineeTabsWrapper({
   allWorkouts,
   allMeals,
   coachUid,
+  progressLogs,
 }: Props) {
   return (
     <TabGroup>
@@ -56,6 +58,30 @@ export default function TraineeTabsWrapper({
 
         {/* ── Overview Panel ── */}
         <TabPanel className="space-y-5 outline-none focus:outline-none mt-2">
+          
+          {/* Daily Progress Widget */}
+          <div className="bg-white rounded-2xl p-6 border border-border-light shadow-sm" dir="rtl">
+            <h3 className="text-lg font-extrabold text-text-main mb-4 flex items-center gap-2">
+              <span className="text-qwaam-pink">🎯</span> إنجاز اليوم
+            </h3>
+            <div className="flex flex-col sm:flex-row gap-4">
+               <div className="flex-1 bg-qwaam-pink-light/30 border border-qwaam-pink/20 rounded-xl p-4 flex justify-between items-center">
+                 <div>
+                   <p className="text-text-muted font-bold text-xs uppercase tracking-widest mb-1">التمارين</p>
+                   <p className="text-xl font-black text-qwaam-pink">{progressLogs.filter(p => p.type === 'workout').length} <span className="text-sm font-bold opacity-70">/ {assignedWorkouts.length}</span></p>
+                 </div>
+                 <span className="text-3xl grayscale opacity-40">🏋️‍♂️</span>
+               </div>
+               <div className="flex-1 bg-yellow-50 border border-yellow-200/50 rounded-xl p-4 flex justify-between items-center">
+                 <div>
+                   <p className="text-text-muted font-bold text-xs uppercase tracking-widest mb-1">الوجبات</p>
+                   <p className="text-xl font-black text-yellow-600">{progressLogs.filter(p => p.type === 'meal').length} <span className="text-sm font-bold opacity-70">/ {assignedMeals.length}</span></p>
+                 </div>
+                 <span className="text-3xl grayscale opacity-40">🥗</span>
+               </div>
+            </div>
+          </div>
+          
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             {[
               { label: 'إجمالي التمارين المعينة', value: assignedWorkouts.reduce((a, w) => a + (w.exercises?.length || 0), 0), suffix: 'حركة', color: 'text-qwaam-pink', bg: 'bg-qwaam-pink-light' },
