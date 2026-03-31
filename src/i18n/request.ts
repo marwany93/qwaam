@@ -1,11 +1,9 @@
 import { getRequestConfig } from 'next-intl/server';
 import { routing } from './routing';
 
-// Static dictionary mapping to avoid Webpack dynamic require context (__dirname)
-const messagesMap: Record<string, () => Promise<any>> = {
-  ar: () => import('../../messages/ar.json').then((mod) => mod.default),
-  en: () => import('../../messages/en.json').then((mod) => mod.default)
-};
+// 1. Static Synchronous Imports (ZERO Webpack Dynamic Chunking = ZERO __dirname)
+import arMessages from '../../messages/ar.json';
+import enMessages from '../../messages/en.json';
 
 export default getRequestConfig(async ({ requestLocale }) => {
   let locale = await requestLocale;
@@ -16,6 +14,7 @@ export default getRequestConfig(async ({ requestLocale }) => {
 
   return {
     locale,
-    messages: await messagesMap[locale]()
+    // 2. Direct memory assignment
+    messages: locale === 'en' ? enMessages : arMessages
   };
 });
