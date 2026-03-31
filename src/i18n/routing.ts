@@ -7,6 +7,6 @@ export const routing = defineRouting({
   // Arabic is the primary/default locale
   defaultLocale: 'ar',
 
-  // Use locale prefix always (e.g. /ar/packages, /en/packages)
-  localePrefix: 'always',
+  // Use locale prefix only when necessary (e.g. /en/packages but /packages for Arabic)
+  localePrefix: 'as-needed',
 });

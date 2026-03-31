@@ -18,10 +18,16 @@ export default function middleware(req: NextRequest) {
     
     if (!sessionCookie?.value) {
       // Find the requested locale or fallback to default
-      const localeMatch = pathname.match(/^\/(ar|en)/);
-      const locale = localeMatch ? localeMatch[1] : routing.defaultLocale;
+      const localeMatch = pathname.match(/^\/(ar|en)(\/|$)/);
+      const isExplicitLocale = !!localeMatch;
+      const locale = isExplicitLocale ? localeMatch[1] : routing.defaultLocale;
       
-      const loginUrl = new URL(`/${locale}/login`, req.url);
+      // Prevent recursive /ar/login by using relative root-based default locale routing 
+      const loginPath = locale === routing.defaultLocale && !isExplicitLocale 
+        ? '/login' 
+        : `/${locale}/login`;
+        
+      const loginUrl = new URL(loginPath, req.url);
       loginUrl.searchParams.set('redirect', pathname);
       
       return NextResponse.redirect(loginUrl);
