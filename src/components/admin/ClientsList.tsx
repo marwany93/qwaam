@@ -19,6 +19,7 @@ export default function ClientsList({ coachUid }: Props) {
     if (!coachUid) return;
 
     console.log("💡 The Coach UID searching for trainees is:", coachUid);
+    console.log("📍 Connected to Project ID:", (db as any).app?.options?.projectId);
 
     // 🚨 الضربة القاضية: هنجيب كوليكشن الـ users بالكامل من غير أي فلاتر
     const q = query(collection(db, 'users'));
