@@ -76,3 +76,4 @@ export async function DELETE() {
   });
   return response;
 }
+console.log("Busting Vercel Cache - v2");
