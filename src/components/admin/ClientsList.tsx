@@ -18,6 +18,9 @@ export default function ClientsList({ coachUid }: Props) {
   useEffect(() => {
     if (!coachUid) return;
 
+    // 1. هنطبع الـ ID بتاع المدرب اللي فاتح دلوقتي عشان نقارنه بالداتا بيز
+    console.log("💡 The Coach UID searching for trainees is:", coachUid);
+
     const q = query(
       collection(db, 'users'),
       where('role', '==', 'trainee'),
@@ -34,11 +37,15 @@ export default function ClientsList({ coachUid }: Props) {
           createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now()
         } as QwaamUser);
       });
-      // Sort to establish stable UX (Newest First) treating creation bounds as hard numbers
       roster.sort((a, b) => (b.createdAt as number) - (a.createdAt as number));
       setClients(roster);
       setLoading(false);
-    });
+    },
+      // 2. 🚨 سطر اصطياد الإيرور (ده اللي كان ناقص) 🚨
+      (error) => {
+        console.error("🔥 Firebase Query Error:", error);
+        setLoading(false);
+      });
 
     return () => unsubscribe();
   }, [coachUid]);
