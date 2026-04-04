@@ -1,12 +1,15 @@
 import { defineRouting } from 'next-intl/routing';
 
 export const routing = defineRouting({
-  // All supported locales
+  // اللغات المدعومة
   locales: ['ar', 'en'],
 
-  // Arabic is the primary/default locale
+  // اللغة الأساسية
   defaultLocale: 'ar',
 
-  // Use locale prefix only when necessary (e.g. /en/packages but /packages for Arabic)
+  // إخفاء الـ Prefix مع اللغة الأساسية (عشان اللينكات تبقى نضيفة)
   localePrefix: 'as-needed',
+
+  // 👈 التريكة هنا: إجبار الموقع يبدأ بالعربي للكل وتجاهل لغة المتصفح
+  localeDetection: false,
 });
