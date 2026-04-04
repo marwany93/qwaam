@@ -13,16 +13,6 @@ const nextConfig = {
     'firebase-admin/auth',
     'firebase-admin/firestore',
   ],
-
-  // 🚀 البديل الرسمي للـ .htaccess (توجيه مخفي من السيرفر مباشرة)
-  async rewrites() {
-    return [
-      {
-        source: '/',
-        destination: '/ar',
-      },
-    ];
-  },
 };
 
 export default withNextIntl(nextConfig);

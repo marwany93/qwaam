@@ -1,12 +1,8 @@
 import createMiddleware from 'next-intl/middleware';
+import { routing } from './src/i18n/routing'; // 👈 التعديل هنا
 
-export default createMiddleware({
-  locales: ['ar', 'en'],
-  defaultLocale: 'ar',
-  localePrefix: 'as-needed'
-});
+export default createMiddleware(routing);
 
 export const config = {
-  // ده الـ Matcher الرسمي المعتمد اللي بيمسك كل المسارات صح
   matcher: ['/((?!api|_next|_vercel|.*\\..*).*)']
 };
