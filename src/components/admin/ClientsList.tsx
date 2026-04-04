@@ -23,7 +23,10 @@ export default function ClientsList({ coachUid }: Props) {
 
     const q = query(
       collection(db, 'users'),
-      where('role', '==', 'trainee'),
+      // ❌ امسح السطر ده خالص عشان منطلبش Composite Index
+      // where('role', '==', 'trainee'), 
+      
+      // ✅ خلي السطر ده بس، ده كافي جداً وسريع جداً
       where('traineeData.assignedCoachUid', '==', coachUid)
     );
 
