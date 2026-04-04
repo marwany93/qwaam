@@ -18,33 +18,39 @@ export default function ClientsList({ coachUid }: Props) {
   useEffect(() => {
     if (!coachUid) return;
 
-    // 1. هنطبع الـ ID بتاع المدرب اللي فاتح دلوقتي عشان نقارنه بالداتا بيز
     console.log("💡 The Coach UID searching for trainees is:", coachUid);
 
-    const q = query(
-      collection(db, 'users'),
-      // ❌ امسح السطر ده خالص عشان منطلبش Composite Index
-      // where('role', '==', 'trainee'), 
-      
-      // ✅ خلي السطر ده بس، ده كافي جداً وسريع جداً
-      where('traineeData.assignedCoachUid', '==', coachUid)
-    );
+    // 🚨 الضربة القاضية: هنجيب كوليكشن الـ users بالكامل من غير أي فلاتر
+    const q = query(collection(db, 'users'));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      // 1. هنشوف الداتا بيز فيها كام يوزر أصلاً (عشان نتأكد إننا في المشروع الصح)
+      console.log("📦 Total docs found in users collection:", snapshot.size);
+
       const roster: QwaamUser[] = [];
+      
       snapshot.forEach(doc => {
         const data = doc.data();
-        roster.push({
-          uid: doc.id,
-          ...data,
-          createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now()
-        } as QwaamUser);
+        // 2. هنطبع كل داتا بتيجي عشان نشوفها بعنينا
+        console.log(`🔍 Examining Doc [${doc.id}]:`, data);
+
+        // 3. الفلتر اليدوي (عشان نتجاوز أي مشاكل في الفهارس بتاعت فايربيس)
+        const isTrainee = data.role === 'trainee';
+        const isMyTrainee = data.traineeData?.assignedCoachUid === coachUid;
+
+        if (isTrainee && isMyTrainee) {
+          roster.push({
+            uid: doc.id,
+            ...data,
+            createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now()
+          } as QwaamUser);
+        }
       });
+
       roster.sort((a, b) => (b.createdAt as number) - (a.createdAt as number));
       setClients(roster);
       setLoading(false);
     },
-      // 2. 🚨 سطر اصطياد الإيرور (ده اللي كان ناقص) 🚨
       (error) => {
         console.error("🔥 Firebase Query Error:", error);
         setLoading(false);
