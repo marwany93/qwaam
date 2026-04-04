@@ -2,16 +2,16 @@
  * Firebase Admin SDK — SERVER ONLY
  * ─────────────────────────────────────────────────────────────────────────────
  * ⚠️  NEVER import this file in Client Components or pages marked 'use client'.
- *     It uses Node.js APIs and will crash in the browser.
+ * It uses Node.js APIs and will crash in the browser.
  *
  * Usage:
- *   - Server Components (layout.tsx, page.tsx without 'use client')
- *   - Route Handlers (app/api/**)
- *   - Server Actions
+ * - Server Components (layout.tsx, page.tsx without 'use client')
+ * - Route Handlers (app/api/**)
+ * - Server Actions
  *
  * Credentials:
- *   Set FIREBASE_SERVICE_ACCOUNT_KEY in .env.local as a single-line
- *   stringified JSON of your Firebase service account key file.
+ * Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY 
+ * in .env.local and Vercel.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 import { getApps, initializeApp, cert, type App } from 'firebase-admin/app';
@@ -24,27 +24,29 @@ function getAdminApp(): App {
     return getApps()[0];
   }
 
-  const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  // قراءة المفاتيح الثلاثة الجديدة
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
-  if (!serviceAccountKey) {
+  // التأكد من وجودهم كلهم
+  if (!projectId || !clientEmail || !privateKey) {
     throw new Error(
-      '[firebase-admin] Missing FIREBASE_SERVICE_ACCOUNT_KEY environment variable. ' +
-      'Add it to your .env.local file. See .env.local.example for instructions.'
+      '[firebase-admin] Missing required Firebase Admin environment variables. ' +
+      'Ensure FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY are set.'
     );
   }
 
-  let serviceAccount: Record<string, unknown>;
-  try {
-    serviceAccount = JSON.parse(serviceAccountKey);
-  } catch {
-    throw new Error(
-      '[firebase-admin] FIREBASE_SERVICE_ACCOUNT_KEY is not valid JSON. ' +
-      'Ensure it is a single-line stringified JSON object.'
-    );
-  }
+  // ⚠️ التريكة السحرية: فك شفرة Vercel لعلامات السطر الجديد
+  const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
 
+  // تهيئة فايربيس بالطريقة الآمنة
   return initializeApp({
-    credential: cert(serviceAccount as Parameters<typeof cert>[0]),
+    credential: cert({
+      projectId,
+      clientEmail,
+      privateKey: formattedPrivateKey,
+    }),
   });
 }
 
