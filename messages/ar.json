@@ -86,5 +86,131 @@
     "loading": "جارٍ التحميل...",
     "error": "حدث خطأ ما",
     "backHome": "العودة للرئيسية"
+  },
+  "onboarding": {
+    "title": "أهلاً بكِ في قوام",
+    "subtitle": "أكملي بياناتك لبدء رحلتك",
+    "steps": {
+      "email": "البريد الإلكتروني",
+      "personal": "البيانات الشخصية",
+      "health": "الحالة الصحية",
+      "goals": "الأهداف",
+      "body": "التقييم الجسدي",
+      "account": "إنشاء الحساب"
+    },
+    "step1": {
+      "heading": "ما هو بريدكِ الإلكتروني؟",
+      "subheading": "سيكون بريدكِ هو وسيلة دخولكِ للمنصة.",
+      "emailLabel": "البريد الإلكتروني",
+      "emailPlaceholder": "example@email.com",
+      "checkingEmail": "جارٍ التحقق...",
+      "emailExists": "هذا البريد مسجل مسبقاً. هل تريدين تسجيل الدخول؟",
+      "emailInvalid": "أدخلي بريداً إلكترونياً صحيحاً."
+    },
+    "step2": {
+      "heading": "معلوماتكِ الشخصية",
+      "nameLabel": "الاسم الكامل",
+      "namePlaceholder": "أدخلي اسمكِ",
+      "dobLabel": "تاريخ الميلاد",
+      "phoneLabel": "رقم الجوال",
+      "phonePlaceholder": "05XXXXXXXX",
+      "maritalLabel": "الحالة الاجتماعية",
+      "single": "عزباء",
+      "married": "متزوجة",
+      "pregnantLabel": "حامل",
+      "nursingLabel": "مرضعة",
+      "hasChildrenLabel": "لديها أطفال"
+    },
+    "step3": {
+      "heading": "حالتكِ الصحية",
+      "injuriesQuestion": "هل تعانين من إصابات؟",
+      "injuriesDetails": "اذكري تفاصيل الإصابات",
+      "injuriesPlaceholder": "صفي الإصابات وموقعها...",
+      "chronicQuestion": "هل تعانين من أمراض مزمنة؟",
+      "chronicOptions": {
+        "diabetes": "ضغط / سكر",
+        "anemia": "أنيميا",
+        "stomachGerms": "ميكروب المعدة",
+        "colon": "قولون",
+        "stomachUlcers": "حموضة / قرحة",
+        "insulinResistance": "مقاومة الأنسولين",
+        "pcos": "تكيسات مبايض",
+        "thyroid": "غدة درقية",
+        "heart": "أمراض قلب",
+        "other": "أخرى"
+      },
+      "smokingQuestion": "هل تدخنين؟",
+      "yes": "نعم",
+      "no": "لا"
+    },
+    "step4": {
+      "heading": "أهدافكِ ونمط حياتكِ",
+      "goalLabel": "ما هو هدفكِ الأساسي؟",
+      "goals": {
+        "fatBurn": "حرق الدهون",
+        "gainMuscle": "بناء العضلات",
+        "gainWeight": "زيادة الوزن"
+      },
+      "workoutDaysLabel": "كم يوم في الأسبوع متاح للتدريب؟",
+      "experienceLabel": "هل لديكِ تجربة رياضية سابقة؟",
+      "experiencePlaceholder": "اذكري أي خبرة رياضية سابقة (اختياري)...",
+      "supplementsLabel": "المكملات الغذائية الحالية",
+      "supplements": {
+        "whey": "بروتين واي",
+        "creatine": "كرياتين",
+        "preWorkout": "ما قبل التمرين",
+        "vitamins": "فيتامينات",
+        "none": "لا شيء"
+      }
+    },
+    "step5": {
+      "heading": "التقييم الجسدي",
+      "weightLabel": "الوزن (كيلو)",
+      "heightLabel": "الطول (سم)",
+      "bodyDescLabel": "صفي جسدكِ ومناطق القلق",
+      "bodyDescPlaceholder": "صفي شكل جسمكِ والمناطق التي تودين التحسين فيها...",
+      "inbodyLabel": "صورة تقرير الـ InBody (مطلوبة)",
+      "inbodyHint": "ارفعي صورة واضحة لتقرير قياس جسمكِ",
+      "photoLabel": "صورة شخصية للجسم (اختيارية)",
+      "photoHint": "صورة من الأمام أو الجانب تساعد المدربة في التقييم",
+      "measurementsTitle": "القياسات التفصيلية (اختيارية)",
+      "measurements": {
+        "chest": "الصدر",
+        "shoulders": "الأكتاف",
+        "waist": "الخصر",
+        "abdomen": "البطن",
+        "glutes": "الأرداف",
+        "rightThigh": "الفخذ الأيمن",
+        "leftThigh": "الفخذ الأيسر",
+        "rightCalf": "الساق اليمنى",
+        "leftCalf": "الساق اليسرى",
+        "rightArm": "الذراع اليمنى",
+        "leftArm": "الذراع اليسرى"
+      },
+      "unit": "سم"
+    },
+    "step6": {
+      "heading": "إنشاء حسابكِ",
+      "emailReadonly": "البريد الإلكتروني",
+      "passwordLabel": "كلمة المرور",
+      "passwordPlaceholder": "8 أحرف على الأقل",
+      "passwordHint": "الحد الأدنى 8 أحرف",
+      "submitting": "جارٍ إنشاء حسابكِ...",
+      "submitBtn": "إنشاء الحساب والبدء 🎉",
+      "successMessage": "تم إنشاء حسابكِ بنجاح! جارٍ تحويلكِ..."
+    },
+    "nav": {
+      "next": "التالي",
+      "back": "السابق",
+      "step": "الخطوة"
+    },
+    "errors": {
+      "required": "هذا الحقل مطلوب",
+      "emailFormat": "صيغة البريد غير صحيحة",
+      "passwordMin": "كلمة المرور يجب أن تكون 8 أحرف على الأقل",
+      "uploadFailed": "فشل رفع الملف، حاولي مرة أخرى",
+      "accountCreationFailed": "فشل إنشاء الحساب. تأكدي من البيانات وحاولي مرة أخرى.",
+      "inbodyRequired": "يرجى رفع تقرير الـ InBody"
+    }
   }
 }

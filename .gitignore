@@ -12,6 +12,7 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
+firebase-key.json
 
 # Debug logs
 npm-debug.log*

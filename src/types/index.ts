@@ -57,3 +57,53 @@ export interface ChatMessage {
   text: string;
   timestamp: number | Timestamp;
 }
+
+// ── Onboarding Wizard ─────────────────────────────────────────────────────────
+
+export type MaritalStatus = 'single' | 'married';
+export type PrimaryGoal = 'fatBurn' | 'gainMuscle' | 'gainWeight';
+
+export interface OnboardingFormData {
+  // Step 1
+  email: string;
+  // Step 2
+  name: string;
+  dateOfBirth: string;
+  phone: string;
+  maritalStatus: MaritalStatus;
+  isPregnant?: boolean;
+  isNursing?: boolean;
+  hasChildren?: boolean;
+  // Step 3
+  hasInjuries: boolean;
+  injuryDetails?: string;
+  hasChronicDiseases: boolean;
+  chronicDiseases?: string[];
+  isSmoker: boolean;
+  // Step 4
+  primaryGoal: PrimaryGoal;
+  workoutDaysPerWeek: number;
+  sportsExperience?: string;
+  currentSupplements: string[];
+  // Step 5
+  weight: number;
+  height: number;
+  bodyDescription: string;
+  inbodyFile: FileList;
+  bodyPhotoFile?: FileList;
+  measurements?: {
+    chest?: number;
+    shoulders?: number;
+    waist?: number;
+    abdomen?: number;
+    glutes?: number;
+    rightThigh?: number;
+    leftThigh?: number;
+    rightCalf?: number;
+    leftCalf?: number;
+    rightArm?: number;
+    leftArm?: number;
+  };
+  // Step 6
+  password: string;
+}

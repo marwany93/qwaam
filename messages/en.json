@@ -86,5 +86,131 @@
     "loading": "Loading...",
     "error": "Something went wrong",
     "backHome": "Back to Home"
+  },
+  "onboarding": {
+    "title": "Welcome to Qwaam",
+    "subtitle": "Complete your profile to start your journey",
+    "steps": {
+      "email": "Email",
+      "personal": "Personal Info",
+      "health": "Health Status",
+      "goals": "Goals",
+      "body": "Body Assessment",
+      "account": "Create Account"
+    },
+    "step1": {
+      "heading": "What is your email address?",
+      "subheading": "Your email will be your login to the platform.",
+      "emailLabel": "Email Address",
+      "emailPlaceholder": "example@email.com",
+      "checkingEmail": "Checking availability...",
+      "emailExists": "This email is already registered. Would you like to log in?",
+      "emailInvalid": "Please enter a valid email address."
+    },
+    "step2": {
+      "heading": "Your Personal Information",
+      "nameLabel": "Full Name",
+      "namePlaceholder": "Enter your name",
+      "dobLabel": "Date of Birth",
+      "phoneLabel": "Phone Number",
+      "phonePlaceholder": "+1234567890",
+      "maritalLabel": "Marital Status",
+      "single": "Single",
+      "married": "Married",
+      "pregnantLabel": "Pregnant",
+      "nursingLabel": "Nursing",
+      "hasChildrenLabel": "Has Children"
+    },
+    "step3": {
+      "heading": "Your Health Status",
+      "injuriesQuestion": "Do you have any injuries?",
+      "injuriesDetails": "Please describe your injuries",
+      "injuriesPlaceholder": "Describe the injuries and their location...",
+      "chronicQuestion": "Do you have any chronic diseases?",
+      "chronicOptions": {
+        "diabetes": "Diabetes / Blood Pressure",
+        "anemia": "Anemia",
+        "stomachGerms": "Stomach Germs (H. pylori)",
+        "colon": "Colon Issues",
+        "stomachUlcers": "Acid Reflux / Ulcers",
+        "insulinResistance": "Insulin Resistance",
+        "pcos": "PCOS",
+        "thyroid": "Thyroid Disease",
+        "heart": "Heart Diseases",
+        "other": "Other"
+      },
+      "smokingQuestion": "Do you smoke?",
+      "yes": "Yes",
+      "no": "No"
+    },
+    "step4": {
+      "heading": "Your Goals & Lifestyle",
+      "goalLabel": "What is your primary goal?",
+      "goals": {
+        "fatBurn": "Fat Burn",
+        "gainMuscle": "Build Muscle",
+        "gainWeight": "Gain Weight"
+      },
+      "workoutDaysLabel": "How many days per week can you train?",
+      "experienceLabel": "Do you have any previous sports experience?",
+      "experiencePlaceholder": "Describe any previous sports experience (optional)...",
+      "supplementsLabel": "Current Supplements",
+      "supplements": {
+        "whey": "Whey Protein",
+        "creatine": "Creatine",
+        "preWorkout": "Pre-workout",
+        "vitamins": "Vitamins",
+        "none": "None"
+      }
+    },
+    "step5": {
+      "heading": "Body Assessment",
+      "weightLabel": "Weight (kg)",
+      "heightLabel": "Height (cm)",
+      "bodyDescLabel": "Describe your body and problem areas",
+      "bodyDescPlaceholder": "Describe your body shape and areas you want to improve...",
+      "inbodyLabel": "InBody Scan Report (Required)",
+      "inbodyHint": "Upload a clear photo of your body composition scan",
+      "photoLabel": "Body Photo (Optional)",
+      "photoHint": "A front or side photo helps the coach assess your needs",
+      "measurementsTitle": "Detailed Measurements (Optional)",
+      "measurements": {
+        "chest": "Chest",
+        "shoulders": "Shoulders",
+        "waist": "Waist",
+        "abdomen": "Abdomen",
+        "glutes": "Glutes",
+        "rightThigh": "Right Thigh",
+        "leftThigh": "Left Thigh",
+        "rightCalf": "Right Calf",
+        "leftCalf": "Left Calf",
+        "rightArm": "Right Arm",
+        "leftArm": "Left Arm"
+      },
+      "unit": "cm"
+    },
+    "step6": {
+      "heading": "Create Your Account",
+      "emailReadonly": "Email Address",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "Minimum 8 characters",
+      "passwordHint": "At least 8 characters required",
+      "submitting": "Creating your account...",
+      "submitBtn": "Create Account & Start 🎉",
+      "successMessage": "Your account has been created! Redirecting you..."
+    },
+    "nav": {
+      "next": "Next",
+      "back": "Back",
+      "step": "Step"
+    },
+    "errors": {
+      "required": "This field is required",
+      "emailFormat": "Please enter a valid email",
+      "passwordMin": "Password must be at least 8 characters",
+      "uploadFailed": "File upload failed, please try again",
+      "accountCreationFailed": "Account creation failed. Please check your details and try again.",
+      "inbodyRequired": "Please upload your InBody scan report"
+    }
   }
 }

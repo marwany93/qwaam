@@ -2,6 +2,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 /**
  * 💡 ملاحظة هندسية:
@@ -19,8 +20,9 @@ const firebaseConfig = {
 // تشغيل فايربيس (Singleton Pattern) لمنع تكرار الـ Apps في الـ Dev Mode
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// تصدير (Export) الـ Auth والـ DB للاستخدام في المشروع
+// تصدير (Export) الـ Auth والـ DB والـ Storage للاستخدام في المشروع
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const storage = getStorage(app);
 
 export default app;

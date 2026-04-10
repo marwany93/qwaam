@@ -55,12 +55,9 @@ export async function POST(request: NextRequest) {
     });
 
     return response;
-  } catch (error) {
-    console.error('[/api/auth/session POST]', error);
-    return NextResponse.json(
-      { error: 'Failed to create session. Token may be invalid or expired.' },
-      { status: 401 }
-    );
+  } catch (error: any) {
+    console.error("🚨 🔥 SERVER ERROR DETAILS:", error.message || error);
+    return NextResponse.json({ error: 'فشل إنشاء الجلسة / Session creation failed' }, { status: 401 });
   }
 }
 
