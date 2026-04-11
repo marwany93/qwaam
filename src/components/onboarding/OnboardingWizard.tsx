@@ -10,7 +10,7 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslations, useLocale } from 'next-intl';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
 import {
   createUserWithEmailAndPassword,
   updateProfile,
@@ -20,11 +20,11 @@ import {
   uploadBytes,
   getDownloadURL,
 } from 'firebase/storage';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, storage } from '@/lib/firebase';
 import { checkEmailExists } from '@/actions/onboarding-actions';
 import { fullOnboardingSchema, type FullOnboardingData } from '@/lib/onboarding-schema';
 import { setTraineeCustomClaim } from '@/actions/onboarding-actions';
+import { submitOnboarding } from '@/actions/client-actions';
 
 // Fields belonging to each step — used to scope trigger() calls
 const STEP_FIELDS: (keyof FullOnboardingData)[][] = [
@@ -205,13 +205,11 @@ export default function OnboardingWizard() {
         bodyPhotoUrl = await uploadFile(data.bodyPhotoFile[0], uid, 'body_photo');
       }
 
-      // 6. Write complete Firestore document
+      // 6. Write complete document via Server Action
       const docPayload = sanitizeForFirestore({
-        uid,
         role: 'trainee',
         name: data.name,
         email: data.email,
-        createdAt: serverTimestamp(),
         onboarding: {
           // Step 2
           dateOfBirth: data.dateOfBirth,
@@ -248,21 +246,25 @@ export default function OnboardingWizard() {
         },
       });
 
-      await setDoc(doc(db, 'users', uid), docPayload);
+      const res = await submitOnboarding(uid, docPayload);
+
+      if (!res.success) {
+        throw new Error(res.error || 'Failed to submit onboarding');
+      }
 
       setIsSuccess(true);
 
-      // Redirect to client portal after brief success state
+      // Redirect to client portal after brief success state using next-intl router
       setTimeout(() => {
-        router.push(`/${locale === 'ar' ? '' : locale + '/'}client`);
+        router.push('/client');
       }, 2000);
 
     } catch (err: any) {
       console.error('[Onboarding] Final submit error:', err);
-      setSubmitError(t('errors.accountCreationFailed'));
-    } finally {
+      // Ensure we stop the loader explicitly so the UI doesn't hang
       setIsSubmitting(false);
-    }
+      setSubmitError(t('errors.accountCreationFailed'));
+    } 
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────

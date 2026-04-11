@@ -102,3 +102,26 @@ export async function updateTraineeProfile(uid: string, data: Record<string, any
   
   return { success: true };
 }
+
+/**
+ * Creates the initial user document in Firestore.
+ * Handles the server-side write to bypass client-side rules and serialization bugs.
+ */
+export async function submitOnboarding(uid: string, docPayload: Record<string, any>) {
+  try {
+    const db = getAdminDb();
+    
+    // Server actions must use native Dates or Admin SDK timestamps
+    const payload = {
+      ...docPayload,
+      createdAt: new Date(),
+    };
+
+    await db.collection('users').doc(uid).set(payload);
+
+    return { success: true, uid };
+  } catch (err: any) {
+    console.error('Error in submitOnboarding:', err);
+    return { success: false, error: err.message };
+  }
+}
