@@ -7,39 +7,26 @@ function getAdminApp(): App {
     return getApps()[0];
   }
 
+  const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+
+  if (!serviceAccountEnv) {
+    throw new Error('[firebase-admin] Missing FIREBASE_SERVICE_ACCOUNT_KEY environment variable.');
+  }
+
   try {
-    // 1. المحاولة الأولى: التشغيل المحلي (Local) باستخدام ملف الـ JSON
-    // المسار ده بيفترض إن الملف جنب package.json
-    const serviceAccount = require('../../firebase-key.json');
-    console.log("✅ [Local Mode] Loaded Firebase Admin from JSON file.");
+    const serviceAccount = JSON.parse(serviceAccountEnv);
+    
+    // Handle Vercel environment variable newlines safely
+    if (serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    }
 
     return initializeApp({
       credential: cert(serviceAccount),
     });
-
   } catch (error) {
-    // 2. المحاولة الثانية: التشغيل على السيرفر (Vercel) باستخدام المتغيرات
-    console.log("☁️ [Production Mode] Attempting to load from Vercel Env Variables...");
-
-    const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-
-    if (!projectId || !clientEmail || !privateKey) {
-      console.error("❌ Missing Env Vars:");
-      console.error("- ProjectID:", !!projectId);
-      console.error("- ClientEmail:", !!clientEmail);
-      console.error("- PrivateKey:", !!privateKey);
-      throw new Error('[firebase-admin] Missing required Firebase Admin environment variables.');
-    }
-
-    return initializeApp({
-      credential: cert({
-        projectId,
-        clientEmail,
-        privateKey,
-      }),
-    });
+    console.error("❌ Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY or initialize Firebase Admin.");
+    throw error;
   }
 }
 
