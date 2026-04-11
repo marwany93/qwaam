@@ -67,6 +67,22 @@ async function uploadFile(
   return getDownloadURL(storageRef);
 }
 
+export function sanitizeForFirestore(obj: any): any {
+  if (obj === undefined) return null;
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(sanitizeForFirestore);
+  
+  const sanitized: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value === undefined) {
+      sanitized[key] = null;
+    } else {
+      sanitized[key] = sanitizeForFirestore(value);
+    }
+  }
+  return sanitized;
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function OnboardingWizard() {
   const t = useTranslations('onboarding');
@@ -190,7 +206,7 @@ export default function OnboardingWizard() {
       }
 
       // 6. Write complete Firestore document
-      await setDoc(doc(db, 'users', uid), {
+      const docPayload = sanitizeForFirestore({
         uid,
         role: 'trainee',
         name: data.name,
@@ -231,6 +247,8 @@ export default function OnboardingWizard() {
           progress: {},
         },
       });
+
+      await setDoc(doc(db, 'users', uid), docPayload);
 
       setIsSuccess(true);
 

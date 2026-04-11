@@ -53,6 +53,22 @@ export async function fetchMyMeals(mealIds: string[]): Promise<Meal[]> {
   });
 }
 
+function sanitizeForFirestore(obj: any): any {
+  if (obj === undefined) return null;
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(sanitizeForFirestore);
+  
+  const sanitized: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value === undefined) {
+      sanitized[key] = null;
+    } else {
+      sanitized[key] = sanitizeForFirestore(value);
+    }
+  }
+  return sanitized;
+}
+
 export async function updateTraineeProfile(uid: string, data: Record<string, any>) {
   // Ensure the user only updates their own profile
   const decodedToken = await verifyClientAccess();
@@ -62,20 +78,20 @@ export async function updateTraineeProfile(uid: string, data: Record<string, any
 
   const db = getAdminDb();
   
+  // Recursively sanitize undefined -> null since Firestore rejects undefined deeply
+  const sanitizedData = sanitizeForFirestore(data);
+  
   // Construct update payload using dot-notation to ONLY update 'onboarding' fields
   // and the top-level 'name' field if provided.
   const updatePayload: Record<string, any> = {};
   
-  if (data.name) {
-    updatePayload['name'] = data.name;
-    // Note: We don't update Firebase Auth displayName here because Server Actions 
-    // shouldn't mix Admin SDK Auth updates if we can help it, but wait, updating
-    // the Firestore doc is enough for the UI.
+  if (sanitizedData.name) {
+    updatePayload['name'] = sanitizedData.name;
   }
   
-  for (const [key, value] of Object.entries(data)) {
-    // Skip name as it's handled above, and skip undefined
-    if (key === 'name' || value === undefined) continue;
+  for (const [key, value] of Object.entries(sanitizedData)) {
+    // Skip name as it's handled above
+    if (key === 'name') continue;
     
     updatePayload[`onboarding.${key}`] = value;
   }
