@@ -139,6 +139,7 @@
       "injuriesQuestion": "هل تعانين من إصابات؟",
       "injuriesDetails": "اذكري تفاصيل الإصابات",
       "injuriesPlaceholder": "صفي الإصابات وموقعها...",
+      "chronicQuestion": "هل تعانين من أمراض مزمنة؟",
       "chronicDiseasesQuestion": "هل تعانين من أمراض مزمنة؟",
       "chronicOptions": {
         "diabetes": "ضغط / سكر",
@@ -152,6 +153,7 @@
         "heart": "أمراض قلب",
         "other": "أخرى"
       },
+      "smokingQuestion": "هل تدخنين؟",
       "smokerQuestion": "هل تدخنين؟",
       "yes": "نعم",
       "no": "لا"
@@ -168,6 +170,13 @@
       "experienceLabel": "هل لديكِ تجربة رياضية سابقة؟",
       "experiencePlaceholder": "اذكري أي خبرة رياضية سابقة (اختياري)...",
       "supplementsLabel": "المكملات الغذائية الحالية",
+      "supplements": {
+        "whey": "بروتين واي",
+        "creatine": "كرياتين",
+        "preWorkout": "ما قبل التمرين",
+        "vitamins": "فيتامينات",
+        "none": "لا شيء"
+      },
       "supplementsList": {
         "whey": "بروتين واي",
         "creatine": "كرياتين",
