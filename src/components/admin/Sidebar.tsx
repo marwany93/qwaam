@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import {
   UsersIcon,
+  UserPlusIcon,
   BookOpenIcon,
   ChatBubbleLeftRightIcon,
   Cog6ToothIcon
@@ -43,6 +44,7 @@ export default function Sidebar({ coachUid }: { coachUid: string }) {
   // Navigation Items focusing on core Admin tools
   const navItems = [
     { name: t('trainees') || 'المتدربون', href: '/admin', icon: UsersIcon, badge: totalUnread },
+    { name: t('traineesList') || 'إدارة المتدربين', href: '/admin/trainees', icon: UserPlusIcon },
     { name: t('library') || 'المكتبة', href: '/admin/library', icon: BookOpenIcon },
     { name: t('messages') || 'الرسائل', href: '/admin/messages', icon: ChatBubbleLeftRightIcon, badge: totalUnread },
     { name: t('settings') || 'الإعدادات', href: '/admin/settings', icon: Cog6ToothIcon },

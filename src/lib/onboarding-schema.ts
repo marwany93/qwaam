@@ -36,7 +36,11 @@ export const step4Schema = z.object({
   currentSupplements: z.array(z.string()).min(1, 'الرجاء اختيار خيار واحد على الأقل'),
 });
 
-// ── Step 5: Body Assessment ───────────────────────────────────────────────────
+const optNum = z.preprocess((val) => {
+  if (val === '' || val === null || val === undefined || Number.isNaN(Number(val))) return undefined;
+  return Number(val);
+}, z.number().optional());
+
 export const step5Schema = z.object({
   weight: z.coerce.number({ message: 'الوزن يجب أن يكون رقماً' }).min(20, 'الوزن غير منطقي').max(300, 'الوزن غير منطقي'),
   height: z.coerce.number({ message: 'الطول يجب أن يكون رقماً' }).min(100, 'الطول غير منطقي').max(250, 'الطول غير منطقي'),
@@ -46,17 +50,17 @@ export const step5Schema = z.object({
   bodyPhotoFile: z.any().optional(),
   measurements: z
     .object({
-      chest: z.coerce.number().optional(),
-      shoulders: z.coerce.number().optional(),
-      waist: z.coerce.number().optional(),
-      abdomen: z.coerce.number().optional(),
-      glutes: z.coerce.number().optional(),
-      rightThigh: z.coerce.number().optional(),
-      leftThigh: z.coerce.number().optional(),
-      rightCalf: z.coerce.number().optional(),
-      leftCalf: z.coerce.number().optional(),
-      rightArm: z.coerce.number().optional(),
-      leftArm: z.coerce.number().optional(),
+      chest: optNum,
+      shoulders: optNum,
+      waist: optNum,
+      abdomen: optNum,
+      glutes: optNum,
+      rightThigh: optNum,
+      leftThigh: optNum,
+      rightCalf: optNum,
+      leftCalf: optNum,
+      rightArm: optNum,
+      leftArm: optNum,
     })
     .optional(),
 });
@@ -75,6 +79,14 @@ export const fullOnboardingSchema = step1Schema
   .merge(step6Schema);
 
 export type FullOnboardingData = z.infer<typeof fullOnboardingSchema>;
+
+// ── Profile Update Schema (Steps 2-5) ─────────────────────────────────────────
+export const profileUpdateSchema = step2Schema
+  .merge(step3Schema)
+  .merge(step4Schema)
+  .merge(step5Schema);
+
+export type ProfileUpdateData = z.infer<typeof profileUpdateSchema>;
 
 // ── Step schemas array for programmatic per-step resolver lookup ──────────────
 export const STEP_SCHEMAS = [

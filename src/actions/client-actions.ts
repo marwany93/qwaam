@@ -52,3 +52,37 @@ export async function fetchMyMeals(mealIds: string[]): Promise<Meal[]> {
     } as Meal;
   });
 }
+
+export async function updateTraineeProfile(uid: string, data: Record<string, any>) {
+  // Ensure the user only updates their own profile
+  const decodedToken = await verifyClientAccess();
+  if (decodedToken.uid !== uid) {
+    throw new Error('Unauthorized');
+  }
+
+  const db = getAdminDb();
+  
+  // Construct update payload using dot-notation to ONLY update 'onboarding' fields
+  // and the top-level 'name' field if provided.
+  const updatePayload: Record<string, any> = {};
+  
+  if (data.name) {
+    updatePayload['name'] = data.name;
+    // Note: We don't update Firebase Auth displayName here because Server Actions 
+    // shouldn't mix Admin SDK Auth updates if we can help it, but wait, updating
+    // the Firestore doc is enough for the UI.
+  }
+  
+  for (const [key, value] of Object.entries(data)) {
+    // Skip name as it's handled above, and skip undefined
+    if (key === 'name' || value === undefined) continue;
+    
+    updatePayload[`onboarding.${key}`] = value;
+  }
+
+  if (Object.keys(updatePayload).length > 0) {
+    await db.collection('users').doc(uid).update(updatePayload);
+  }
+  
+  return { success: true };
+}

@@ -97,3 +97,56 @@ export async function addClient(formData: FormData) {
     return { error: msg };
   }
 }
+
+/**
+ * Fetches all trainees.
+ */
+export async function getTrainees(): Promise<QwaamUser[]> {
+  await verifyAdminAccess();
+  const db = getAdminDb();
+  const snapshot = await db.collection('users').where('role', '==', 'trainee').get();
+  
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      uid: doc.id,
+      ...data,
+      createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now()
+    } as QwaamUser;
+  });
+}
+
+/**
+ * Fetches all coaches. Returns minimal data for dropdowns.
+ */
+export async function getCoaches(): Promise<{ uid: string; name: string }[]> {
+  await verifyAdminAccess();
+  const db = getAdminDb();
+  const snapshot = await db.collection('users').where('role', '==', 'coach').get();
+  
+  return snapshot.docs.map(doc => ({
+    uid: doc.id,
+    name: doc.data().name || 'Unnnamed Coach',
+  }));
+}
+
+/**
+ * Assigns a coach to a trainee.
+ */
+export async function assignCoach(traineeUid: string, coachUid: string) {
+  await verifyAdminAccess();
+  const db = getAdminDb();
+  
+  try {
+    await db.collection('users').doc(traineeUid).update({
+      'traineeData.assignedCoachUid': coachUid
+    });
+    // Revalidate the entire layout to ensure both Admin and Client routes are synced across any locale
+    revalidatePath('/', 'layout');
+    return { success: true };
+  } catch (error) {
+    console.error('Error assigning coach:', error);
+    return { error: 'Failed to assign coach' };
+  }
+}
+

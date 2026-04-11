@@ -5,6 +5,7 @@ import { setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import Image from 'next/image';
 import ClientLogoutButton from '@/components/client/ClientLogoutButton';
+import { User } from 'lucide-react';
 
 type ClientLayoutProps = {
   children: React.ReactNode;
@@ -47,14 +48,18 @@ export default async function ClientLayout({ children, params }: ClientLayoutPro
               
               <div className="flex items-center gap-2 sm:gap-4">
                  
+                 {/* Profile link */}
+                 <Link
+                   href="/client/profile"
+                   className="w-10 h-10 rounded-full bg-qwaam-yellow text-text-main border-2 border-border-light flex items-center justify-center font-black text-sm uppercase shadow-sm hover:border-qwaam-pink hover:shadow-md transition-all"
+                   title="ملفي الشخصي"
+                 >
+                   {decodedClaims.email?.charAt(0).toUpperCase() || <User className="w-5 h-5" />}
+                 </Link>
+
                  {/* Trainee Sign Out Tool */}
                  <ClientLogoutButton />
 
-                 <button 
-                  className="w-10 h-10 rounded-full bg-qwaam-yellow text-text-main border-2 border-border-light flex items-center justify-center font-black text-sm uppercase shadow-sm"
-                 >
-                    {decodedClaims.email?.charAt(0) || 'U'}
-                 </button>
               </div>
 
            </div>

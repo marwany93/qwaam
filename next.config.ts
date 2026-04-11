@@ -1,18 +1,26 @@
 import createNextIntlPlugin from 'next-intl/plugin';
+import type { NextConfig } from 'next';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+const nextConfig: NextConfig = {
   reactStrictMode: true,
 
-  // حماية Firebase زي ما اتفقنا
   serverExternalPackages: [
     'firebase-admin',
     'firebase-admin/app',
     'firebase-admin/auth',
     'firebase-admin/firestore',
   ],
+
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'firebasestorage.googleapis.com',
+      },
+    ],
+  },
 };
 
 export default withNextIntl(nextConfig);

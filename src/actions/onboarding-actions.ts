@@ -25,3 +25,12 @@ export async function checkEmailExists(email: string): Promise<{ exists: boolean
     return { exists: false };
   }
 }
+export async function setTraineeCustomClaim(uid: string) {
+  try {
+    await getAdminAuth().setCustomUserClaims(uid, { role: 'trainee' });
+    return { success: true };
+  } catch (error) {
+    console.error('🚨 Error setting custom claim:', error);
+    throw new Error('Failed to set custom claim');
+  }
+}

@@ -24,6 +24,7 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, storage } from '@/lib/firebase';
 import { checkEmailExists } from '@/actions/onboarding-actions';
 import { fullOnboardingSchema, type FullOnboardingData } from '@/lib/onboarding-schema';
+import { setTraineeCustomClaim } from '@/actions/onboarding-actions';
 
 // Fields belonging to each step — used to scope trigger() calls
 const STEP_FIELDS: (keyof FullOnboardingData)[][] = [
@@ -162,15 +163,22 @@ export default function OnboardingWizard() {
       // Update display name immediately
       await updateProfile(credential.user, { displayName: data.name });
 
-      // 2. Get ID token and create session cookie so the user is logged in
-      const idToken = await credential.user.getIdToken();
+      // 🚨 2. إضافة الـ Custom Claim (ختم المتدربة) عن طريق السيرفر
+      // ⚠️ متنساش تضيف سطر الـ import ده في أول الملف فوق خالص:
+      // import { setTraineeCustomClaim } from '@/actions/onboarding-actions';
+      await setTraineeCustomClaim(uid);
+
+      // 🚨 3. إجبار المتصفح على سحب Token جديد بالختم الجديد (لاحظ تمرير true)
+      const idToken = await credential.user.getIdToken(true);
+
+      // 4. إنشاء الـ Session Cookie بالـ Token المحدث
       await fetch('/api/auth/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken }),
       });
 
-      // 3. Upload files to Firebase Storage
+      // 5. Upload files to Firebase Storage
       let inbodyUrl = '';
       let bodyPhotoUrl = '';
 
@@ -181,10 +189,7 @@ export default function OnboardingWizard() {
         bodyPhotoUrl = await uploadFile(data.bodyPhotoFile[0], uid, 'body_photo');
       }
 
-      // 4. Write complete Firestore document
-      // Note: role claim is set by the coach via Admin SDK when they assign the trainee.
-      // For now we set role in Firestore but the coach must setCustomUserClaims
-      // separately (or we use a Cloud Function trigger).
+      // 6. Write complete Firestore document
       await setDoc(doc(db, 'users', uid), {
         uid,
         role: 'trainee',
@@ -307,9 +312,8 @@ export default function OnboardingWizard() {
             {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
               <div
                 key={i}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  i <= currentStep ? 'bg-white flex-1' : 'bg-white/30 w-4'
-                }`}
+                className={`h-1.5 rounded-full transition-all duration-300 ${i <= currentStep ? 'bg-white flex-1' : 'bg-white/30 w-4'
+                  }`}
               />
             ))}
           </div>
