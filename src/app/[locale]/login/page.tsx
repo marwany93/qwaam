@@ -9,6 +9,7 @@ import { auth } from '@/lib/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 
 import { requestPasswordReset } from '@/actions/client-actions';
+import { PasswordInput } from '@/components/ui/PasswordInput';
 
 function LoginForm() {
   const t = useTranslations('auth');
@@ -179,14 +180,11 @@ function LoginForm() {
             {t('forgotPasswordLink')}
           </button>
         </div>
-        <input
-          type="password"
+        <PasswordInput
           required
           disabled={loading}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          dir="ltr"
-          className="w-full px-4 py-4 text-left rounded-xl border-2 border-border-light focus:border-qwaam-pink focus:ring-0 outline-none transition-all font-medium text-text-main tracking-widest bg-gray-50/50"
           placeholder="••••••••"
         />
       </div>
