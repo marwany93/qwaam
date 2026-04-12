@@ -5,6 +5,7 @@ import { verifyAdminAccess } from '@/lib/auth-utils';
 import type { QwaamUser, Workout, Meal } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { FieldValue } from 'firebase-admin/firestore';
+import { notificationService } from '@/lib/notification-service';
 
 // ── Trainee Query ────────────────────────────────────────
 
@@ -34,6 +35,16 @@ export async function assignWorkout(traineeUid: string, workoutId: string) {
   });
 
   revalidatePath(`/admin/client/${traineeUid}`);
+
+  // Fetch trainee document for notification safely
+  const doc = await db.collection('users').doc(traineeUid).get();
+  if (doc.exists) {
+    const data = doc.data();
+    if (data?.email && data?.name) {
+      notificationService.notifyNewWorkout(data.email, data.name);
+    }
+  }
+
   return { success: true };
 }
 

@@ -89,7 +89,13 @@
     "email": "Email Address",
     "password": "Password",
     "loginBtn": "Sign In",
-    "unauthorized": "You are not authorized to access this page."
+    "unauthorized": "You are not authorized to access this page.",
+    "forgotPasswordLink": "Forgot Password?",
+    "forgotPasswordTitle": "Reset Password",
+    "forgotPasswordDesc": "Enter your email address and we will send you a password reset link.",
+    "sendResetLink": "Send Reset Link",
+    "backToLogin": "Back to Login",
+    "resetSuccessMessage": "Password reset link sent to your email successfully."
   },
   "footer": {
     "rights": "All rights reserved",

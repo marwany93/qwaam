@@ -4,6 +4,7 @@ import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin';
 import { verifyAdminAccess } from '@/lib/auth-utils';
 import type { QwaamUser } from '@/types';
 import { revalidatePath } from 'next/cache';
+import { notificationService } from '@/lib/notification-service';
 
 /**
  * Retrieves the list of all active trainees.
@@ -138,11 +139,36 @@ export async function assignCoach(traineeUid: string, coachUid: string) {
   const db = getAdminDb();
   
   try {
-    await db.collection('users').doc(traineeUid).update({
+    const batch = db.batch();
+    const traineeRef = db.collection('users').doc(traineeUid);
+    batch.update(traineeRef, {
       'traineeData.assignedCoachUid': coachUid
     });
+    
+    await batch.commit();
+
     // Revalidate the entire layout to ensure both Admin and Client routes are synced across any locale
     revalidatePath('/', 'layout');
+
+    // Fetch details for the notification
+    const [traineeDoc, coachDoc] = await Promise.all([
+      traineeRef.get(),
+      db.collection('users').doc(coachUid).get()
+    ]);
+
+    if (traineeDoc.exists && coachDoc.exists) {
+      const traineeData = traineeDoc.data();
+      const coachData = coachDoc.data();
+      
+      if (traineeData?.email && traineeData?.name && coachData?.name) {
+        notificationService.notifyCoachAssigned(
+          traineeData.email,
+          traineeData.name,
+          coachData.name
+        );
+      }
+    }
+
     return { success: true };
   } catch (error) {
     console.error('Error assigning coach:', error);

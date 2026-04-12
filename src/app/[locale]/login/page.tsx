@@ -8,6 +8,8 @@ import Image from 'next/image';
 import { auth } from '@/lib/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 
+import { requestPasswordReset } from '@/actions/client-actions';
+
 function LoginForm() {
   const t = useTranslations('auth');
   const locale = useLocale();
@@ -18,6 +20,8 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState('');
 
   // Extract redirect target directly from the URL or fallback to the coach portal
   const redirectUrl = searchParams.get('redirect') || '/admin';
@@ -65,8 +69,87 @@ function LoginForm() {
     }
   }
 
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setResetSuccess('');
+
+    try {
+      const res = await requestPasswordReset(email);
+      if (res.success) {
+        setResetSuccess(t('resetSuccessMessage') || res.message);
+      } else {
+        setError(res.message);
+      }
+    } catch (err: any) {
+      console.error('Reset Error:', err);
+      setError('حدث خطأ غير متوقع، يرجى المحاولة لاحقاً.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (isForgotPassword) {
+    return (
+      <form onSubmit={handleResetPassword} className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+        <div className="text-center mb-6">
+          <h2 className="text-xl font-bold text-text-main mb-2">{t('forgotPasswordTitle')}</h2>
+          <p className="text-sm text-text-muted">{t('forgotPasswordDesc')}</p>
+        </div>
+
+        {/* Email Input */}
+        <div>
+          <label className="block text-sm font-bold text-text-main mb-2">{t('email')}</label>
+          <input
+            type="email"
+            required
+            disabled={loading}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            dir="ltr"
+            className="w-full px-4 py-4 text-left rounded-xl border-2 border-border-light focus:border-qwaam-pink focus:ring-0 outline-none transition-all font-medium text-text-main bg-gray-50/50"
+            placeholder="coach@qwaam.com"
+          />
+        </div>
+
+        {/* Dynamic States */}
+        {error && (
+          <div className="p-4 bg-red-50 text-red-600 rounded-xl text-sm font-bold border border-red-100 flex items-center justify-center text-center shadow-sm">
+            {error}
+          </div>
+        )}
+        
+        {resetSuccess && (
+          <div className="p-4 bg-green-50 text-green-700 rounded-xl text-sm font-bold border border-green-100 flex items-center justify-center text-center shadow-sm">
+            {resetSuccess}
+          </div>
+        )}
+
+        <div className="flex justify-between items-center gap-4 mt-2">
+          <button
+            type="button"
+            onClick={() => { setIsForgotPassword(false); setError(''); setResetSuccess(''); }}
+            disabled={loading}
+            className="inline-block text-sm font-bold text-text-muted hover:text-qwaam-pink transition-colors disabled:opacity-50"
+          >
+            {t('backToLogin')}
+          </button>
+
+          <button
+            type="submit"
+            disabled={loading || !!resetSuccess}
+            className="inline-flex justify-center items-center gap-2 rounded-xl bg-qwaam-pink px-6 py-3 text-sm font-bold text-white hover:bg-pink-600 shadow-lg shadow-qwaam-pink/30 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none"
+          >
+            {loading ? <span className="animate-pulse">جاري الإرسال...</span> : t('sendResetLink')}
+          </button>
+        </div>
+      </form>
+    );
+  }
+
   return (
-    <form onSubmit={handleLogin} className="space-y-6">
+    <form onSubmit={handleLogin} className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
       
       {/* Email Input */}
       <div>
@@ -85,7 +168,17 @@ function LoginForm() {
 
       {/* Password Input */}
       <div>
-        <label className="block text-sm font-bold text-text-main mb-2">{t('password')}</label>
+        <div className="flex justify-between items-center mb-2">
+          <label className="block text-sm font-bold text-text-main">{t('password')}</label>
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => { setIsForgotPassword(true); setError(''); }}
+            className="text-xs font-bold text-qwaam-pink hover:text-pink-600 transition-colors"
+          >
+            {t('forgotPasswordLink')}
+          </button>
+        </div>
         <input
           type="password"
           required

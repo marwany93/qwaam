@@ -1,5 +1,6 @@
-import { getAdminAuth } from '@/lib/firebase-admin';
+import { getAdminAuth, getAdminDb } from './firebase-admin';
 import { cookies } from 'next/headers';
+
 
 /**
  * Reusable auth check utility for all Admin Server Actions.
@@ -34,10 +35,27 @@ export async function verifyClientAccess() {
     throw new Error('Unauthorized: Session not found.');
   }
 
-  const decodedClaims = await getAdminAuth().verifySessionCookie(sessionCookie, true);
-  if (decodedClaims.role !== 'trainee') {
-    throw new Error('Forbidden: Trainee portal access required.');
-  }
+  try {
+    const decodedClaims = await getAdminAuth().verifySessionCookie(sessionCookie, true);
 
-  return decodedClaims;
+    if (decodedClaims.role !== 'trainee') {
+      // 🚀 ميزة الشفاء الذاتي (Auto-Heal)
+      const db = getAdminDb();
+      const userDoc = await db.collection('users').doc(decodedClaims.uid).get();
+
+      if (userDoc.exists) {
+        // بما إن بياناتها موجودة في جدول المتدربين، هنرجّع الصلاحية فوراً
+        await getAdminAuth().setCustomUserClaims(decodedClaims.uid, { role: 'trainee' });
+      } else {
+        // لو مش موجودة في الداتا بيز أصلاً، ده يوزر غريب ونمنعه
+        throw new Error('Forbidden: Trainee portal access required.');
+      }
+    }
+
+    return decodedClaims;
+  } catch (error) {
+    // لو الكوكي منتهية أو فيها مشكلة، نرفض الدخول بهدوء
+    console.error('Session verification failed:', error);
+    throw new Error('Unauthorized');
+  }
 }

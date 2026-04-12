@@ -1,16 +1,23 @@
 'use server';
 
-import { getAdminDb } from '@/lib/firebase-admin';
+import { getAdminDb, getAdminAuth } from '@/lib/firebase-admin';
 import { verifyClientAccess } from '@/lib/auth-utils';
 import type { QwaamUser, Workout, Meal } from '@/types';
+import { Resend } from 'resend';
+import { ResetPasswordTemplate } from '@/emails/ResetPasswordTemplate';
+import { sendNotification } from '@/actions/notification-actions';
+import { WelcomeTemplate } from '@/emails/WelcomeTemplate';
+
+// تهيئة Resend
+//const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function getCurrentTrainee(): Promise<QwaamUser | null> {
   const decodedToken = await verifyClientAccess();
   const db = getAdminDb();
-  
+
   const doc = await db.collection('users').doc(decodedToken.uid).get();
   if (!doc.exists) return null;
-  
+
   const data = doc.data()!;
   return {
     uid: doc.id,
@@ -22,10 +29,10 @@ export async function getCurrentTrainee(): Promise<QwaamUser | null> {
 export async function fetchMyWorkouts(workoutIds: string[]): Promise<Workout[]> {
   await verifyClientAccess();
   if (!workoutIds || workoutIds.length === 0) return [];
-  
+
   const db = getAdminDb();
   const snapshot = await db.collection('workouts').where('__name__', 'in', workoutIds).get();
-  
+
   return snapshot.docs.map(doc => {
     const data = doc.data();
     return {
@@ -39,10 +46,10 @@ export async function fetchMyWorkouts(workoutIds: string[]): Promise<Workout[]> 
 export async function fetchMyMeals(mealIds: string[]): Promise<Meal[]> {
   await verifyClientAccess();
   if (!mealIds || mealIds.length === 0) return [];
-  
+
   const db = getAdminDb();
   const snapshot = await db.collection('meals').where('__name__', 'in', mealIds).get();
-  
+
   return snapshot.docs.map(doc => {
     const data = doc.data();
     return {
@@ -57,7 +64,7 @@ function sanitizeForFirestore(obj: any): any {
   if (obj === undefined) return null;
   if (obj === null || typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(sanitizeForFirestore);
-  
+
   const sanitized: any = {};
   for (const [key, value] of Object.entries(obj)) {
     if (value === undefined) {
@@ -77,29 +84,29 @@ export async function updateTraineeProfile(uid: string, data: Record<string, any
   }
 
   const db = getAdminDb();
-  
+
   // Recursively sanitize undefined -> null since Firestore rejects undefined deeply
   const sanitizedData = sanitizeForFirestore(data);
-  
+
   // Construct update payload using dot-notation to ONLY update 'onboarding' fields
   // and the top-level 'name' field if provided.
   const updatePayload: Record<string, any> = {};
-  
+
   if (sanitizedData.name) {
     updatePayload['name'] = sanitizedData.name;
   }
-  
+
   for (const [key, value] of Object.entries(sanitizedData)) {
     // Skip name as it's handled above
     if (key === 'name') continue;
-    
+
     updatePayload[`onboarding.${key}`] = value;
   }
 
   if (Object.keys(updatePayload).length > 0) {
     await db.collection('users').doc(uid).update(updatePayload);
   }
-  
+
   return { success: true };
 }
 
@@ -110,7 +117,7 @@ export async function updateTraineeProfile(uid: string, data: Record<string, any
 export async function submitOnboarding(uid: string, docPayload: Record<string, any>) {
   try {
     const db = getAdminDb();
-    
+
     // Server actions must use native Dates or Admin SDK timestamps
     const payload = {
       ...docPayload,
@@ -119,9 +126,76 @@ export async function submitOnboarding(uid: string, docPayload: Record<string, a
 
     await db.collection('users').doc(uid).set(payload);
 
+    // 🚀 إرسال إيميل الترحيب في الخلفية (بدون await عشان منأخرش المتدربة)
+    if (docPayload.email && docPayload.name) {
+      sendNotification({
+        to: docPayload.email,
+        subject: 'أهلاً بكِ في عائلة قوام! 🌸',
+        template: WelcomeTemplate({ userName: docPayload.name }),
+      }).catch((err) => console.error('Failed to send welcome email:', err));
+    }
+
     return { success: true, uid };
   } catch (err: any) {
     console.error('Error in submitOnboarding:', err);
     return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Handles the "Forgot Password" request by generating a Firebase reset link
+ * and sending it via Resend using a React Email template.
+ */
+export async function requestPasswordReset(email: string) {
+  try {
+    const auth = getAdminAuth();
+    const db = getAdminDb();
+
+    // 1. التحقق من وجود المستخدم في Firebase Auth
+    let userRecord;
+    try {
+      userRecord = await auth.getUserByEmail(email);
+    } catch (error: any) {
+      if (error.code === 'auth/user-not-found') {
+        return { success: false, message: 'هذا البريد غير مسجل لدينا.' };
+      }
+      throw error;
+    }
+
+    // 2. محاولة جلب اسم المتدربة من الداتا بيز عشان شكل الإيميل
+    let userName = 'متدربتنا';
+    const userDoc = await db.collection('users').doc(userRecord.uid).get();
+    if (userDoc.exists) {
+      userName = userDoc.data()?.name || 'متدربتنا';
+    }
+
+    // 3. توليد الرابط من Firebase واستخراج الكود السري منه
+    const firebaseLink = await auth.generatePasswordResetLink(email, {
+      url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/login`,
+    });
+
+    const url = new URL(firebaseLink);
+    const oobCode = url.searchParams.get('oobCode');
+    const customResetLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?oobCode=${oobCode}`;
+
+    // 4. تهيئة Resend وإرسال الإيميل (هذا هو السطر الذي كان مفقوداً)
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    const { error } = await resend.emails.send({
+      from: process.env.NEXT_PUBLIC_FROM_EMAIL || 'Qwaam <onboarding@resend.dev>',
+      to: [email],
+      subject: 'إعادة تعيين كلمة المرور - قوام',
+      react: ResetPasswordTemplate({ userName, resetLink: customResetLink }),
+    });
+
+    if (error) {
+      console.error('Resend API Error:', error);
+      return { success: false, message: 'حدث خطأ أثناء إرسال البريد الإلكتروني.' };
+    }
+
+    return { success: true, message: 'تم إرسال رابط إعادة التعيين إلى بريدك الإلكتروني.' };
+  } catch (err: any) {
+    console.error('Error in requestPasswordReset:', err);
+    return { success: false, message: 'حدث خطأ غير متوقع، يرجى المحاولة لاحقاً.' };
   }
 }

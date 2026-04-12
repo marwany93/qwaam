@@ -12,6 +12,7 @@
     "@headlessui/react": "^2.2.9",
     "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^5.2.2",
+    "@react-email/components": "^1.0.12",
     "firebase": "^11.10.0",
     "firebase-admin": "^13.2.0",
     "framer-motion": "^12.38.0",
@@ -21,6 +22,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.72.1",
+    "resend": "^6.10.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
