@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
