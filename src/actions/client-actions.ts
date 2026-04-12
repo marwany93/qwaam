@@ -7,6 +7,7 @@ import { Resend } from 'resend';
 import { ResetPasswordTemplate } from '@/emails/ResetPasswordTemplate';
 import { sendNotification } from '@/actions/notification-actions';
 import { WelcomeTemplate } from '@/emails/WelcomeTemplate';
+import { headers } from 'next/headers';
 
 // تهيئة Resend
 //const resend = new Resend(process.env.RESEND_API_KEY);
@@ -151,36 +152,40 @@ export async function requestPasswordReset(email: string) {
     const auth = getAdminAuth();
     const db = getAdminDb();
 
-    // 1. التحقق من وجود المستخدم في Firebase Auth
+    // 1. التحقق من وجود المستخدم (نفس الكود القديم)
     let userRecord;
     try {
       userRecord = await auth.getUserByEmail(email);
     } catch (error: any) {
-      if (error.code === 'auth/user-not-found') {
-        return { success: false, message: 'هذا البريد غير مسجل لدينا.' };
-      }
+      if (error.code === 'auth/user-not-found') return { success: false, message: 'هذا البريد غير مسجل لدينا.' };
       throw error;
     }
 
-    // 2. محاولة جلب اسم المتدربة من الداتا بيز عشان شكل الإيميل
+    // --- 🚀 بداية التعديل الذكي للدومين ---
+    const headerList = await headers();
+    const host = headerList.get('host'); // بيجيب الدومين الحالي (مثلاً qwaam-xyz.vercel.app)
+    const protocol = host?.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
+    // --- نهاية التعديل الذكي ---
+
+    // 2. جلب الاسم (نفس الكود القديم)
     let userName = 'متدربتنا';
     const userDoc = await db.collection('users').doc(userRecord.uid).get();
-    if (userDoc.exists) {
-      userName = userDoc.data()?.name || 'متدربتنا';
-    }
+    if (userDoc.exists) userName = userDoc.data()?.name || 'متدربتنا';
 
-    // 3. توليد الرابط من Firebase واستخراج الكود السري منه
+    // 3. توليد الرابط باستخدام الدومين الجديد
     const firebaseLink = await auth.generatePasswordResetLink(email, {
-      url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/login`,
+      url: `${baseUrl}/login`, // الرابط اللي هيرجع عليه بعد التغيير
     });
 
     const url = new URL(firebaseLink);
     const oobCode = url.searchParams.get('oobCode');
-    const customResetLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?oobCode=${oobCode}`;
 
-    // 4. تهيئة Resend وإرسال الإيميل (هذا هو السطر الذي كان مفقوداً)
+    // الرابط المخصص دلوقتي هيتبني بالدومين اللي السيرفر شغال عليه فعلياً
+    const customResetLink = `${baseUrl}/reset-password?oobCode=${oobCode}`;
+
+    // 4. إرسال الإيميل عبر Resend
     const resend = new Resend(process.env.RESEND_API_KEY);
-
     const { error } = await resend.emails.send({
       from: process.env.NEXT_PUBLIC_FROM_EMAIL || 'Qwaam <onboarding@resend.dev>',
       to: [email],
@@ -188,14 +193,10 @@ export async function requestPasswordReset(email: string) {
       react: ResetPasswordTemplate({ userName, resetLink: customResetLink }),
     });
 
-    if (error) {
-      console.error('Resend API Error:', error);
-      return { success: false, message: 'حدث خطأ أثناء إرسال البريد الإلكتروني.' };
-    }
-
-    return { success: true, message: 'تم إرسال رابط إعادة التعيين إلى بريدك الإلكتروني.' };
+    if (error) throw error;
+    return { success: true, message: 'تم إرسال رابط إعادة التعيين بنجاح.' };
   } catch (err: any) {
-    console.error('Error in requestPasswordReset:', err);
-    return { success: false, message: 'حدث خطأ غير متوقع، يرجى المحاولة لاحقاً.' };
+    console.error('Reset Error:', err);
+    return { success: false, message: 'حدث خطأ غير متوقع.' };
   }
 }
