@@ -36,13 +36,12 @@ function FileUploadBox({ label, hint, name, required, error }: FilePreviewProps)
   return (
     <FormField label={label} hint={hint} error={error} required={required}>
       <label
-        className={`relative flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-dashed cursor-pointer transition-all ${
-          error
-            ? 'border-red-400 bg-red-50/30'
-            : preview
+        className={`relative flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 border-dashed cursor-pointer transition-all ${error
+          ? 'border-red-400 bg-red-50/30'
+          : preview
             ? 'border-qwaam-pink bg-qwaam-pink-light/50'
             : 'border-border-light bg-gray-50/50 hover:border-qwaam-pink/50 hover:bg-qwaam-pink-light/20'
-        }`}
+          }`}
       >
         {preview ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -143,7 +142,6 @@ export default function StepBody() {
         name="inbodyFile"
         label={t('step5.inbodyLabel')}
         hint={t('step5.inbodyHint')}
-        required
         error={inbodyError}
       />
 

@@ -26,6 +26,8 @@ export const step3Schema = z.object({
   hasChronicDiseases: z.boolean({ message: 'الرجاء الإجابة على هذا السؤال' }).catch(false),
   chronicDiseases: z.array(z.string()).optional(),
   isSmoker: z.boolean({ message: 'الرجاء الإجابة على هذا السؤال' }).catch(false),
+  thyroidStatus: z.enum(['active', 'inactive']).optional(),
+  otherDiseaseDetails: z.string().optional(),
 });
 
 // ── Step 4: Goals ─────────────────────────────────────────────────────────────
@@ -46,7 +48,7 @@ export const step5Schema = z.object({
   height: z.coerce.number({ message: 'الطول يجب أن يكون رقماً' }).min(100, 'الطول غير منطقي').max(250, 'الطول غير منطقي'),
   bodyDescription: z.string().min(1, 'الرجاء وصف جسدكِ'),
   // FileList can't be serialized — validated manually in the component
-  inbodyFile: z.any(),
+  inbodyFile: z.any().optional(),
   bodyPhotoFile: z.any().optional(),
   measurements: z
     .object({

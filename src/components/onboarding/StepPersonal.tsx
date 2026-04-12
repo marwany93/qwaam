@@ -48,7 +48,7 @@ export default function StepPersonal() {
         <input
           type="date"
           {...register('dateOfBirth')}
-          className={`${inputCls(!!errors.dateOfBirth)}`}
+          className={`${inputCls(!!errors.dateOfBirth)} text-left`}
           dir="ltr"
           max={new Date().toISOString().split('T')[0]}
         />

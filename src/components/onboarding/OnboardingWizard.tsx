@@ -71,7 +71,7 @@ export function sanitizeForFirestore(obj: any): any {
   if (obj === undefined) return null;
   if (obj === null || typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(sanitizeForFirestore);
-  
+
   const sanitized: any = {};
   for (const [key, value] of Object.entries(obj)) {
     if (value === undefined) {
@@ -111,7 +111,41 @@ export default function OnboardingWizard() {
     mode: 'onTouched',
   });
 
-  const { handleSubmit, trigger, getValues, setError } = methods;
+  const { handleSubmit, trigger, getValues, setError, watch, reset } = methods;
+  const [showRestoredDraft, setShowRestoredDraft] = useState(false);
+
+  // ── Draft Persistence (Auto-save / Hydrate) ──────────────────────────────────
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const draft = localStorage.getItem('qwaam_onboarding_draft');
+      if (draft) {
+        const parsed = JSON.parse(draft);
+        reset({ ...getValues(), ...parsed });
+        setShowRestoredDraft(true);
+        setTimeout(() => setShowRestoredDraft(false), 5000);
+      }
+    } catch (e) {
+      console.error('Failed to parse onboarding draft:', e);
+      localStorage.removeItem('qwaam_onboarding_draft'); // Clear corrupted storage
+    }
+  }, [reset]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const subscription = watch((value) => {
+      try {
+        const draftToSave = { ...value };
+        // Strip out non-serializable File objects
+        delete draftToSave.inbodyFile;
+        delete draftToSave.bodyPhotoFile;
+        localStorage.setItem('qwaam_onboarding_draft', JSON.stringify(draftToSave));
+      } catch (e) {
+        console.error('Failed to save onboarding draft:', e);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [watch]);
 
   // ── Scroll to top on step change ─────────────────────────────────────────────
   useEffect(() => {
@@ -143,6 +177,8 @@ export default function OnboardingWizard() {
 
     // Step 4 (body): manually validate inbodyFile presence since FileList can't go through Zod
     if (currentStep === 4) {
+      // تم إيقاف الفحص الإجباري لملف الـ InBody ليكون (اختياري)
+      /*
       const files = getValues('inbodyFile');
       if (!files || files.length === 0) {
         setError('inbodyFile' as any, {
@@ -151,6 +187,7 @@ export default function OnboardingWizard() {
         });
         return;
       }
+      */
     }
 
     setDirection(1);
@@ -253,6 +290,7 @@ export default function OnboardingWizard() {
       }
 
       setIsSuccess(true);
+      if (typeof window !== 'undefined') localStorage.removeItem('qwaam_onboarding_draft');
 
       // Redirect to client portal after brief success state using next-intl router
       setTimeout(() => {
@@ -264,7 +302,7 @@ export default function OnboardingWizard() {
       // Ensure we stop the loader explicitly so the UI doesn't hang
       setIsSubmitting(false);
       setSubmitError(t('errors.accountCreationFailed'));
-    } 
+    }
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -293,7 +331,21 @@ export default function OnboardingWizard() {
 
   return (
     <FormProvider {...methods}>
-      <div className="bg-white rounded-3xl shadow-2xl shadow-qwaam-pink/5 border border-border-light overflow-hidden max-w-xl w-full mx-auto">
+      <div className="bg-white rounded-3xl shadow-2xl shadow-qwaam-pink/5 border border-border-light overflow-hidden max-w-xl w-full mx-auto relative relative">
+
+        {/* ── Draft Restored Banner ── */}
+        <AnimatePresence>
+          {showRestoredDraft && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="bg-green-50 border-b border-green-100 text-green-700 text-xs font-bold px-6 py-2 text-center"
+            >
+              ✨ تم استعادة بياناتك السابقة
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ── Progress Header ── */}
         <div className="bg-gradient-to-br from-qwaam-pink to-pink-600 p-6 pb-8 text-white relative overflow-hidden">

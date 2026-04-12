@@ -28,11 +28,23 @@ export default function StepHealth() {
   const isSmoker = watch('isSmoker');
   const chronicDiseases: string[] = watch('chronicDiseases') || [];
 
+  // مراقبة هل تم اختيار الغدة أو أخرى
+  const isThyroidSelected = chronicDiseases.includes('thyroid');
+  const isOtherSelected = chronicDiseases.includes('other');
+
   function toggleChronic(key: string) {
     const next = chronicDiseases.includes(key)
       ? chronicDiseases.filter((k) => k !== key)
       : [...chronicDiseases, key];
     setValue('chronicDiseases', next, { shouldValidate: true });
+
+    // تنظيف الحقول الفرعية لو المستخدم لغى التحديد
+    if (key === 'thyroid' && chronicDiseases.includes('thyroid')) {
+      setValue('thyroidStatus', undefined);
+    }
+    if (key === 'other' && chronicDiseases.includes('other')) {
+      setValue('otherDiseaseDetails', undefined);
+    }
   }
 
   return (
@@ -71,7 +83,11 @@ export default function StepHealth() {
           value={!!hasChronicDiseases}
           onChange={(val) => {
             setValue('hasChronicDiseases', val, { shouldValidate: true });
-            if (!val) setValue('chronicDiseases', []);
+            if (!val) {
+              setValue('chronicDiseases', []);
+              setValue('thyroidStatus', undefined);
+              setValue('otherDiseaseDetails', undefined);
+            }
           }}
           yesLabel={t('step3.yes')}
           noLabel={t('step3.no')}
@@ -79,16 +95,63 @@ export default function StepHealth() {
       </FormField>
 
       {hasChronicDiseases && (
-        <div className="grid grid-cols-2 gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
-          {CHRONIC_KEYS.map((key) => (
-            <CheckboxItem
-              key={key}
-              id={`chronic_${key}`}
-              label={t(`step3.chronicOptions.${key}`)}
-              checked={chronicDiseases.includes(key)}
-              onChange={() => toggleChronic(key)}
-            />
-          ))}
+        <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="grid grid-cols-2 gap-2">
+            {CHRONIC_KEYS.map((key) => (
+              <CheckboxItem
+                key={key}
+                id={`chronic_${key}`}
+                label={t(`step3.chronicOptions.${key}`)}
+                checked={chronicDiseases.includes(key)}
+                onChange={() => toggleChronic(key)}
+              />
+            ))}
+          </div>
+
+          {/* حقل حالة الغدة الدرقية */}
+          {isThyroidSelected && (
+            <div className="p-4 bg-gray-50/80 rounded-xl border border-border-light animate-in fade-in zoom-in-95 duration-200">
+              <FormField label={t('step3.thyroidStatusLabel')}>
+                <div className="flex gap-6 mt-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      value="active"
+                      {...register('thyroidStatus')}
+                      className="w-4 h-4 text-qwaam-pink border-gray-300 focus:ring-qwaam-pink"
+                    />
+                    <span className="text-sm font-bold text-text-main">{t('step3.thyroidActive')}</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      value="inactive"
+                      {...register('thyroidStatus')}
+                      className="w-4 h-4 text-qwaam-pink border-gray-300 focus:ring-qwaam-pink"
+                    />
+                    <span className="text-sm font-bold text-text-main">{t('step3.thyroidInactive')}</span>
+                  </label>
+                </div>
+              </FormField>
+            </div>
+          )}
+
+          {/* حقل تفاصيل المرض الآخر */}
+          {isOtherSelected && (
+            <div className="p-4 bg-gray-50/80 rounded-xl border border-border-light animate-in fade-in zoom-in-95 duration-200">
+              <FormField
+                label={t('step3.otherDiseaseLabel')}
+                error={errors.otherDiseaseDetails?.message}
+              >
+                <input
+                  type="text"
+                  {...register('otherDiseaseDetails')}
+                  placeholder={t('step3.otherDiseasePlaceholder')}
+                  className={inputCls(!!errors.otherDiseaseDetails)}
+                />
+              </FormField>
+            </div>
+          )}
         </div>
       )}
 
