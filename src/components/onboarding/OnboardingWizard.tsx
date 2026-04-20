@@ -89,6 +89,8 @@ export interface InitialSubscription {
   planId: string;
   totalPrice: string;
   hasDiet: boolean;
+  email?: string;
+  phone?: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -115,7 +117,8 @@ export default function OnboardingWizard({ initialSubscription }: { initialSubsc
   const methods = useForm<FullOnboardingData>({
     resolver: zodResolver(fullOnboardingSchema as any),
     defaultValues: {
-      email: '',
+      email: initialSubscription?.email || '',
+      phone: initialSubscription?.phone || '',
       maritalStatus: 'single',
       hasInjuries: false,
       hasChronicDiseases: false,
@@ -449,8 +452,8 @@ export default function OnboardingWizard({ initialSubscription }: { initialSubsc
               exit="exit"
               transition={{ duration: 0.25, ease: 'easeInOut' }}
             >
-              {currentStep === 0 && <StepEmail isChecking={isCheckingEmail} />}
-              {currentStep === 1 && <StepPersonal />}
+              {currentStep === 0 && <StepEmail isChecking={isCheckingEmail} isLocked={!!initialSubscription?.email} />}
+              {currentStep === 1 && <StepPersonal isLocked={!!initialSubscription?.phone} />}
               {currentStep === 2 && <StepHealth />}
               {currentStep === 3 && <StepGoals maxWorkoutDays={maxWorkoutDays} />}
               {currentStep === 4 && <StepBody />}

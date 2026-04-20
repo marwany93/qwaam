@@ -5,7 +5,7 @@
 import { type ReactNode } from 'react';
 
 interface FormFieldProps {
-  label: string;
+  label: ReactNode;
   error?: string;
   hint?: string;
   required?: boolean;
@@ -15,7 +15,7 @@ interface FormFieldProps {
 export function FormField({ label, error, hint, required, children }: FormFieldProps) {
   return (
     <div className="space-y-1.5">
-      <label className="block text-sm font-bold text-text-main">
+      <label className="flex items-center text-sm font-bold text-text-main w-full">
         {label}
         {required && <span className="text-qwaam-pink ms-1">*</span>}
       </label>

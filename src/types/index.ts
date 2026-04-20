@@ -167,3 +167,12 @@ export interface OnboardingFormData {
   // Step 6
   password: string;
 }
+
+// ── Discount / Gamification ───────────────────────────────────────────────────
+
+export interface DiscountLead {
+  email: string;
+  phone: string;
+  discountPercentage: number;
+  createdAt: number | Timestamp;
+}

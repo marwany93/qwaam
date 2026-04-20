@@ -6,7 +6,11 @@ import { useTranslations } from 'next-intl';
 import { FormField, inputCls, CheckboxItem } from './ui/FormField';
 import type { FullOnboardingData } from '@/lib/onboarding-schema';
 
-export default function StepPersonal() {
+interface Props {
+  isLocked?: boolean;
+}
+
+export default function StepPersonal({ isLocked }: Props) {
   const t = useTranslations('onboarding');
   const {
     register,
@@ -56,7 +60,17 @@ export default function StepPersonal() {
 
       {/* Phone */}
       <FormField
-        label={t('step2.phoneLabel')}
+        label={
+          <div className="flex items-center gap-2">
+            <span>{t('step2.phoneLabel')}</span>
+            {isLocked && (
+              <span className="flex items-center gap-1 px-2 py-0.5 bg-green-50 rounded-md border border-green-100">
+                <span className="w-3.5 h-3.5 bg-green-500 text-white rounded-full flex items-center justify-center text-[9px] font-bold pb-px">✓</span>
+                <span className="text-[10px] font-black text-green-700">تم التأكيد</span>
+              </span>
+            )}
+          </div>
+        }
         error={errors.phone?.message}
         required
       >
@@ -65,7 +79,11 @@ export default function StepPersonal() {
           {...register('phone')}
           placeholder={t('step2.phonePlaceholder')}
           dir="ltr"
-          className={`${inputCls(!!errors.phone)} text-left`}
+          readOnly={isLocked}
+          className={`
+            ${inputCls(!!errors.phone)} text-left
+            ${isLocked ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200 shadow-inner' : ''}
+          `}
           autoComplete="tel"
         />
       </FormField>

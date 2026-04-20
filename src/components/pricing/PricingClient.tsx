@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect, Fragment } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
+import { Dialog, Transition } from '@headlessui/react';
+import { spinDiscountWheel } from '@/actions/discount-actions';
 import {
   getPlans,
   NUTRITION_ADDON_PRICE,
@@ -60,6 +62,14 @@ function SparklesIcon({ className = 'w-5 h-5' }: { className?: string }) {
   );
 }
 
+function XMarkIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  );
+}
+
 // ── Toggle Switch Component ─────────────────────────────────────
 function ToggleSwitch<T extends string>({
   options,
@@ -102,17 +112,20 @@ function PlanCard({
   isSelected,
   onSelect,
   isLive,
+  discount,
   t,
 }: {
   plan: Plan;
   isSelected: boolean;
   onSelect: () => void;
   isLive: boolean;
+  discount: number;
   t: ReturnType<typeof useTranslations>;
 }) {
   const label = isLive
     ? `${plan.sessions} ${t('sessions')}`
     : `${plan.days} ${t('days')}`;
+  const discountedPrice = discount > 0 ? Math.round(plan.price * (1 - discount / 100)) : null;
 
   return (
     <div
@@ -128,7 +141,7 @@ function PlanCard({
         ${plan.popular ? 'ring-2 ring-qwaam-yellow/50' : ''}
       `}
     >
-      {/* Popular badge - عايم في النص على الخط العلوي بالظبط */}
+      {/* Popular badge */}
       {plan.popular && (
         <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-4 py-1 rounded-full bg-qwaam-yellow text-[11px] font-black text-text-main shadow-md whitespace-nowrap z-20 flex items-center gap-1">
           <SparklesIcon className="w-3.5 h-3.5" />
@@ -155,14 +168,293 @@ function PlanCard({
         {isLive ? t('perMonth') : t('perWeek')}
       </p>
 
-      {/* Price */}
-      <div className="flex items-baseline gap-1 mt-auto">
-        <span className={`text-3xl font-black ${isSelected ? 'text-qwaam-pink' : 'text-text-main'} transition-colors`}>
-          {plan.price}
-        </span>
-        <span className="text-sm font-bold text-text-muted">{t('currency')}</span>
+      {/* Price — shows strike-through if discount active */}
+      <div className="flex flex-col items-center gap-0.5 mt-auto">
+        {discountedPrice !== null ? (
+          <>
+            <span className="text-sm font-bold text-text-muted line-through">{plan.price} {t('currency')}</span>
+            <div className="flex items-baseline gap-1">
+              <span className={`text-3xl font-black ${isSelected ? 'text-qwaam-pink' : 'text-green-600'} transition-colors`}>
+                {discountedPrice}
+              </span>
+              <span className="text-sm font-bold text-text-muted">{t('currency')}</span>
+            </div>
+          </>
+        ) : (
+          <div className="flex items-baseline gap-1">
+            <span className={`text-3xl font-black ${isSelected ? 'text-qwaam-pink' : 'text-text-main'} transition-colors`}>
+              {plan.price}
+            </span>
+            <span className="text-sm font-bold text-text-muted">{t('currency')}</span>
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+// ── Spin Wheel Modal ────────────────────────────────────────────
+type SpinPhase = 'idle' | 'spinning' | 'result';
+
+function SpinWheelModal({
+  open,
+  onClose,
+  onDiscountWon,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onDiscountWon: (discount: number, email: string, phone: string) => void;
+}) {
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [phase, setPhase] = useState<SpinPhase>('idle');
+  const [discount, setDiscount] = useState(0);
+  const [isRepeat, setIsRepeat] = useState(false);
+  const [error, setError] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input when modal opens
+  useEffect(() => {
+    if (open) {
+      setPhase('idle');
+      setError('');
+      setDiscount(0);
+      setIsRepeat(false);
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [open]);
+
+  async function handleSpin() {
+    const trimmedEmail = email.trim();
+    const trimmedPhone = phone.trim();
+
+    if (!trimmedEmail || !trimmedPhone) {
+      setError('يرجى إدخال البريد الإلكتروني ورقم الهاتف مجتمعين');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setError('يرجى إدخال بريد إلكتروني صحيح (مثال: name@gmail.com)');
+      return;
+    }
+
+    const phoneDigits = trimmedPhone.replace(/\D/g, '');
+    if (phoneDigits.length < 10) {
+      setError('يرجى إدخال رقم هاتف صحيح');
+      return;
+    }
+
+    setError('');
+    setPhase('spinning');
+
+    const startTime = Date.now();
+    const res = await spinDiscountWheel(trimmedEmail, trimmedPhone);
+
+    if (!res.success) {
+      setPhase('idle');
+      setError(res.error);
+      return;
+    }
+
+    if (res.isRepeat) {
+      setIsRepeat(true);
+      setDiscount(res.discount);
+      setPhase('result');
+      onDiscountWon(res.discount, trimmedEmail, trimmedPhone);
+      return;
+    }
+
+    const elapsed = Date.now() - startTime;
+    const remainingTime = 3000 - elapsed;
+    if(remainingTime > 0) {
+      await new Promise(r => setTimeout(r, remainingTime));
+    }
+
+    setIsRepeat(false);
+    setDiscount(res.discount);
+    setPhase('result');
+    onDiscountWon(res.discount, trimmedEmail, trimmedPhone);
+  }
+
+  // Discount → color mapping
+  const discountColor =
+    discount >= 40 ? 'text-purple-600' :
+    discount >= 30 ? 'text-orange-500' :
+    discount >= 25 ? 'text-blue-500'   :
+    'text-green-600';
+
+  const discountBg =
+    discount >= 40 ? 'from-purple-50 to-purple-100/50 border-purple-200' :
+    discount >= 30 ? 'from-orange-50 to-orange-100/50 border-orange-200' :
+    discount >= 25 ? 'from-blue-50 to-blue-100/50 border-blue-200'       :
+    'from-green-50 to-green-100/50 border-green-200';
+
+  return (
+    <Transition appear show={open} as={Fragment}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
+        {/* Backdrop */}
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-200" enterFrom="opacity-0" enterTo="opacity-100"
+          leave="ease-in duration-150" leaveFrom="opacity-100" leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+        </Transition.Child>
+
+        {/* Modal */}
+        <div className="fixed inset-0 overflow-y-auto" dir="rtl">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-250" enterFrom="opacity-0 scale-90 translate-y-4"
+              enterTo="opacity-100 scale-100 translate-y-0"
+              leave="ease-in duration-150" leaveFrom="opacity-100 scale-100 translate-y-0"
+              leaveTo="opacity-0 scale-90 translate-y-4"
+            >
+              <Dialog.Panel className="w-full max-w-sm rounded-3xl bg-white shadow-2xl border border-border-light overflow-hidden text-right">
+
+                {/* Header */}
+                <div className="relative bg-gradient-to-br from-qwaam-pink to-pink-600 px-6 pt-8 pb-10 text-white overflow-hidden">
+                  {/* Decorative blobs */}
+                  <div className="absolute -top-6 -start-6 w-28 h-28 bg-white/10 rounded-full" />
+                  <div className="absolute -bottom-4 -end-4 w-20 h-20 bg-white/10 rounded-full" />
+
+                  <button onClick={onClose} className="absolute top-4 start-4 p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors">
+                    <XMarkIcon className="w-4 h-4 text-white" />
+                  </button>
+
+                  <div className="relative z-10">
+                    <p className="text-pink-200 text-xs font-black uppercase tracking-widest mb-2">عرض حصري 🎁</p>
+                    <Dialog.Title className="text-2xl font-black leading-tight mb-1">
+                      لفي العجلة واكسبي خصم!
+                    </Dialog.Title>
+                    <p className="text-pink-100 text-sm font-medium">
+                      خصم فوري يصل لـ <span className="font-black text-white">40%</span> على باقتك ✨
+                    </p>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="px-6 py-6 -mt-4">
+
+                  {/* ── Phase: Idle ── */}
+                  {phase === 'idle' && (
+                    <div className="space-y-4">
+                      <div className="bg-white rounded-2xl border-2 border-border-light p-4 -mt-2 shadow-sm space-y-4">
+                        <div>
+                          <label className="block text-xs font-black text-text-muted mb-2 uppercase tracking-wider">
+                            بريدك الإلكتروني
+                          </label>
+                          <input
+                            ref={inputRef}
+                            type="email"
+                            value={email}
+                            onChange={e => { setEmail(e.target.value); setError(''); }}
+                            placeholder="example@email.com"
+                            dir="ltr"
+                            className="w-full text-sm font-bold text-text-main placeholder:text-gray-300 outline-none bg-transparent"
+                          />
+                        </div>
+                        <div className="pt-4 border-t border-border-light">
+                          <label className="block text-xs font-black text-text-muted mb-2 uppercase tracking-wider">
+                            رقم الهاتف <span className="text-[10px] text-gray-400 font-medium">(للتأكيد فقط)</span>
+                          </label>
+                          <input
+                            type="tel"
+                            value={phone}
+                            onChange={e => { setPhone(e.target.value); setError(''); }}
+                            onKeyDown={e => e.key === 'Enter' && handleSpin()}
+                            placeholder="01xxxxxxxxx"
+                            dir="ltr"
+                            className="w-full text-sm font-bold text-text-main placeholder:text-gray-300 outline-none bg-transparent"
+                          />
+                        </div>
+                      </div>
+
+                      {error && (
+                        <p className="text-xs font-bold text-red-500 bg-red-50 px-4 py-2 rounded-xl border border-red-100">
+                          {error}
+                        </p>
+                      )}
+
+                      <button
+                        onClick={handleSpin}
+                        className="w-full py-4 rounded-2xl bg-qwaam-pink text-white font-black text-base shadow-lg shadow-qwaam-pink/25 hover:-translate-y-0.5 hover:shadow-xl transition-all active:translate-y-0 flex items-center justify-center gap-2"
+                      >
+                        <span className="text-xl">🎡</span>
+                        ألفي العجلة!
+                      </button>
+
+                      <p className="text-center text-[11px] text-text-muted font-medium">
+                        خصم واحد فقط للتسجيل الجديد. الخصم محفوظ ولا يمكن تغييره.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* ── Phase: Spinning ── */}
+                  {phase === 'spinning' && (
+                    <div className="flex flex-col items-center justify-center py-8 gap-5">
+                      {/* CSS wheel animation */}
+                      <div className="relative w-28 h-28">
+                        {/* Outer ring */}
+                        <div className="absolute inset-0 rounded-full border-8 border-qwaam-pink/20" />
+                        {/* Spinning arc */}
+                        <div className="absolute inset-0 rounded-full border-8 border-transparent border-t-qwaam-pink animate-spin" />
+                        {/* Emoji center */}
+                        <div className="absolute inset-4 rounded-full bg-qwaam-pink-light flex items-center justify-center">
+                          <span className="text-3xl animate-bounce">🎡</span>
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <p className="font-black text-text-main text-lg">جاري اختيار خصمك...</p>
+                        <p className="text-xs text-text-muted font-medium mt-1">لحظة واحدة ✨</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Phase: Result ── */}
+                  {phase === 'result' && (
+                    <div className="space-y-4">
+                      {/* Confetti-style result card */}
+                      <div className={`rounded-2xl bg-gradient-to-br ${discountBg} border-2 p-6 text-center`}>
+                        <p className="text-3xl mb-2">🎉</p>
+                        {isRepeat ? (
+                          <p className={`text-lg font-black ${discountColor} leading-snug break-words`}>
+                            لقد حصلت على نسبة الخصم الخاصة بك مسبقاً وهي {discount}%! سيتم تطبيقها الآن.
+                          </p>
+                        ) : (
+                          <>
+                            <p className={`text-4xl font-black ${discountColor} leading-tight mb-2`}>
+                              مبروك! كسبت خصم {discount}%
+                            </p>
+                            <p className={`text-sm font-black ${discountColor}`}>
+                              خصم حصري على سعر باقتك
+                            </p>
+                          </>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-text-muted text-center font-medium leading-relaxed">
+                        ✅ تم حفظ خصمك تلقائياً. سيُطبَّق على باقتك في صفحة التسجيل.
+                      </p>
+
+                      <button
+                        onClick={onClose}
+                        className="w-full py-4 rounded-2xl bg-qwaam-pink text-white font-black text-base shadow-lg shadow-qwaam-pink/25 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
+                      >
+                        <CheckIcon className="w-5 h-5" />
+                        رائع، اشتركي الآن بالخصم!
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
+        </div>
+      </Dialog>
+    </Transition>
   );
 }
 
@@ -174,27 +466,36 @@ export default function PricingClient() {
   const [type, setType] = useState<PlanType>('live');
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [addDiet, setAddDiet] = useState(false);
+  const [appliedDiscount, setAppliedDiscount] = useState<number>(0);
+  const [leadData, setLeadData] = useState<{ email: string; phone: string } | null>(null);
+  const [spinModalOpen, setSpinModalOpen] = useState(false);
 
   const plans = useMemo(() => getPlans(location, type), [location, type]);
 
-  // Reset plan when location/type changes
-  const handleLocationChange = (v: PlanLocation) => {
-    setLocation(v);
-    setSelectedPlan(null);
-  };
-  const handleTypeChange = (v: PlanType) => {
-    setType(v);
-    setSelectedPlan(null);
-  };
+  const handleLocationChange = (v: PlanLocation) => { setLocation(v); setSelectedPlan(null); };
+  const handleTypeChange     = (v: PlanType)     => { setType(v);     setSelectedPlan(null); };
 
-  const totalPrice = useMemo(() => {
+  // Base price (before discount)
+  const baseTotal = useMemo(() => {
     if (!selectedPlan) return 0;
     return selectedPlan.price + (addDiet ? NUTRITION_ADDON_PRICE : 0);
   }, [selectedPlan, addDiet]);
 
-  const subscribeHref = selectedPlan
-    ? `/onboarding?plan=${selectedPlan.id}&total=${totalPrice}&diet=${addDiet}`
-    : '/onboarding';
+  // Final price after discount
+  const finalTotal = appliedDiscount > 0
+    ? Math.round(baseTotal * (1 - appliedDiscount / 100))
+    : baseTotal;
+
+  let subscribeHref = '/onboarding';
+  if (selectedPlan) {
+    subscribeHref = `/onboarding?plan=${selectedPlan.id}&total=${finalTotal}&diet=${addDiet}`;
+    if (appliedDiscount > 0) {
+      subscribeHref += `&discount=${appliedDiscount}`;
+      if (leadData) {
+        subscribeHref += `&email=${encodeURIComponent(leadData.email)}&phone=${encodeURIComponent(leadData.phone)}`;
+      }
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-qwaam-pink-light via-white to-white pb-32">
@@ -214,6 +515,39 @@ export default function PricingClient() {
 
       <div className="container mx-auto px-6 max-w-3xl">
 
+        {/* ── 🎁 Spin the Wheel Banner ─────────── */}
+        <button
+          type="button"
+          onClick={() => setSpinModalOpen(true)}
+          className="w-full mb-10 group relative overflow-hidden flex items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-l from-qwaam-pink to-pink-500 text-white shadow-lg shadow-qwaam-pink/25 hover:shadow-xl hover:-translate-y-0.5 transition-all"
+        >
+          {/* Decorative blob */}
+          <div className="absolute -top-4 -end-4 w-24 h-24 bg-white/10 rounded-full pointer-events-none" />
+          <div className="absolute -bottom-6 -start-6 w-20 h-20 bg-white/10 rounded-full pointer-events-none" />
+
+          <div className="flex items-center gap-4 relative z-10">
+            <span className="text-4xl group-hover:scale-110 transition-transform">🎡</span>
+            <div className="text-right">
+              <p className="font-black text-base leading-tight">لفي العجلة واكسبي خصمك!</p>
+              <p className="text-pink-200 text-xs font-medium mt-0.5">
+                {appliedDiscount > 0
+                  ? `🎉 تم تطبيق خصم ${appliedDiscount}% على سعرك!`
+                  : 'خصم فوري يصل لـ 40% على باقتك ✨'}
+              </p>
+            </div>
+          </div>
+
+          {appliedDiscount > 0 ? (
+            <div className="relative z-10 shrink-0 bg-white text-qwaam-pink font-black text-lg rounded-xl px-4 py-2 shadow-sm">
+              -{appliedDiscount}%
+            </div>
+          ) : (
+            <div className="relative z-10 shrink-0 bg-white/20 border border-white/30 font-bold text-sm rounded-xl px-4 py-2">
+              ألفي الآن ←
+            </div>
+          )}
+        </button>
+
         {/* ── Step 1: Location Toggle ─────────── */}
         <div className="mb-10">
           <p className="text-sm font-bold text-text-muted mb-3 flex items-center gap-2">
@@ -224,7 +558,7 @@ export default function PricingClient() {
             <ToggleSwitch
               options={[
                 { value: 'home' as PlanLocation, label: t('home'), icon: <HomeIcon className="w-4 h-4" /> },
-                { value: 'gym' as PlanLocation, label: t('gym'), icon: <GymIcon className="w-4 h-4" /> },
+                { value: 'gym'  as PlanLocation, label: t('gym'),  icon: <GymIcon  className="w-4 h-4" /> },
               ]}
               value={location}
               onChange={handleLocationChange}
@@ -241,7 +575,7 @@ export default function PricingClient() {
           <div className="flex justify-center">
             <ToggleSwitch
               options={[
-                { value: 'live' as PlanType, label: t('live'), icon: <VideoIcon className="w-4 h-4" /> },
+                { value: 'live'     as PlanType, label: t('live'),     icon: <VideoIcon    className="w-4 h-4" /> },
                 { value: 'schedule' as PlanType, label: t('schedule'), icon: <CalendarIcon className="w-4 h-4" /> },
               ]}
               value={type}
@@ -267,6 +601,7 @@ export default function PricingClient() {
                 isSelected={selectedPlan?.id === plan.id}
                 onSelect={() => setSelectedPlan(plan)}
                 isLive={type === 'live'}
+                discount={appliedDiscount}
                 t={t}
               />
             ))}
@@ -314,11 +649,11 @@ export default function PricingClient() {
       {/* ── Sticky Summary Bar ───────────────── */}
       <div
         className={`
-          fixed bottom-0 inset-x-0 z-50 transition-all duration-500
+          fixed bottom-0 inset-x-0 z-40 transition-all duration-500
           ${selectedPlan ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}
         `}
       >
-        <div className="bg-white/80 backdrop-blur-xl border-t border-border-light shadow-[0_-8px_30px_rgba(0,0,0,0.08)]">
+        <div className="bg-white/85 backdrop-blur-xl border-t border-border-light shadow-[0_-8px_30px_rgba(0,0,0,0.08)]">
           <div className="container mx-auto px-6 max-w-3xl py-4 flex items-center justify-between gap-4">
             {/* Summary */}
             <div className="flex flex-col">
@@ -336,9 +671,19 @@ export default function PricingClient() {
                     🥗 {t('nutritionAddon')}
                   </span>
                 )}
+                {appliedDiscount > 0 && (
+                  <span className="text-xs font-black bg-qwaam-yellow/20 text-yellow-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    🎉 خصم {appliedDiscount}%
+                  </span>
+                )}
               </div>
-              <div className="flex items-baseline gap-1 mt-1">
-                <span className="text-2xl font-black text-text-main">{totalPrice}</span>
+
+              {/* Price — strike-through original if discount active */}
+              <div className="flex items-baseline gap-2 mt-1">
+                {appliedDiscount > 0 && (
+                  <span className="text-sm font-bold text-text-muted line-through">{baseTotal}</span>
+                )}
+                <span className="text-2xl font-black text-text-main">{finalTotal}</span>
                 <span className="text-sm font-bold text-text-muted">{t('currency')}</span>
               </div>
             </div>
@@ -359,6 +704,18 @@ export default function PricingClient() {
           </div>
         </div>
       </div>
+
+      {/* ── Spin Wheel Modal ─────────────────── */}
+      <SpinWheelModal
+        open={spinModalOpen}
+        onClose={() => setSpinModalOpen(false)}
+        onDiscountWon={(d, e, p) => { 
+          setAppliedDiscount(d); 
+          setLeadData({ email: e, phone: p }); 
+          // Delay closing the modal by 4 seconds to let the user read the result
+          setTimeout(() => setSpinModalOpen(false), 4000); 
+        }}
+      />
     </div>
   );
 }

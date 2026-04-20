@@ -9,9 +9,10 @@ import type { FullOnboardingData } from '@/lib/onboarding-schema';
 
 interface Props {
   isChecking: boolean;
+  isLocked?: boolean;
 }
 
-export default function StepEmail({ isChecking }: Props) {
+export default function StepEmail({ isChecking, isLocked }: Props) {
   const t = useTranslations('onboarding');
   const {
     register,
@@ -27,7 +28,17 @@ export default function StepEmail({ isChecking }: Props) {
 
       <div className="space-y-4">
         <FormField
-          label={t('step1.emailLabel')}
+          label={
+            <div className="flex items-center gap-2">
+              <span>{t('step1.emailLabel')}</span>
+              {isLocked && (
+                <span className="flex items-center gap-1 px-2 py-0.5 bg-green-50 rounded-md border border-green-100">
+                  <span className="w-3.5 h-3.5 bg-green-500 text-white rounded-full flex items-center justify-center text-[9px] font-bold pb-px">✓</span>
+                  <span className="text-[10px] font-black text-green-700">تم التأكيد</span>
+                </span>
+              )}
+            </div>
+          }
           error={errors.email?.type === 'manual' ? undefined : errors.email?.message}
           required
         >
@@ -37,11 +48,15 @@ export default function StepEmail({ isChecking }: Props) {
               {...register('email')}
               placeholder={t('step1.emailPlaceholder')}
               dir="ltr"
-              className={`${inputCls(!!errors.email)} text-left ltr:placeholder:text-left rtl:placeholder:text-right`}
+              readOnly={isLocked}
+              className={`
+                ${inputCls(!!errors.email)} text-left ltr:placeholder:text-left rtl:placeholder:text-right
+                ${isLocked ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200 shadow-inner' : ''}
+              `}
               autoComplete="email"
-              autoFocus
+              autoFocus={!isLocked}
             />
-            {isChecking && (
+            {isChecking && !isLocked && (
               <div className="absolute inset-y-0 end-4 flex items-center">
                 <div className="w-4 h-4 rounded-full border-2 border-qwaam-pink border-t-transparent animate-spin" />
               </div>
