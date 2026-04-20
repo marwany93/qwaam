@@ -25,6 +25,7 @@ import { checkEmailExists } from '@/actions/onboarding-actions';
 import { fullOnboardingSchema, type FullOnboardingData } from '@/lib/onboarding-schema';
 import { setTraineeCustomClaim } from '@/actions/onboarding-actions';
 import { submitOnboarding } from '@/actions/client-actions';
+import { findPlanById, getMaxDaysFromPlan } from '@/lib/pricing-config';
 
 // Fields belonging to each step — used to scope trigger() calls
 const STEP_FIELDS: (keyof FullOnboardingData)[][] = [
@@ -83,8 +84,15 @@ export function sanitizeForFirestore(obj: any): any {
   return sanitized;
 }
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+export interface InitialSubscription {
+  planId: string;
+  totalPrice: string;
+  hasDiet: boolean;
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
-export default function OnboardingWizard() {
+export default function OnboardingWizard({ initialSubscription }: { initialSubscription?: InitialSubscription }) {
   const t = useTranslations('onboarding');
   const locale = useLocale();
   const router = useRouter();
@@ -96,6 +104,14 @@ export default function OnboardingWizard() {
   const [submitError, setSubmitError] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
 
+  // Derive plan constraints from subscription
+  const maxWorkoutDays = initialSubscription?.planId
+    ? getMaxDaysFromPlan(initialSubscription.planId)
+    : 7;
+  const resolvedPlan = initialSubscription?.planId
+    ? findPlanById(initialSubscription.planId)
+    : undefined;
+
   const methods = useForm<FullOnboardingData>({
     resolver: zodResolver(fullOnboardingSchema as any),
     defaultValues: {
@@ -104,7 +120,7 @@ export default function OnboardingWizard() {
       hasInjuries: false,
       hasChronicDiseases: false,
       isSmoker: false,
-      workoutDaysPerWeek: 3,
+      workoutDaysPerWeek: initialSubscription?.planId?.includes('sched') ? maxWorkoutDays : 3,
       currentSupplements: [],
       chronicDiseases: [],
     },
@@ -280,6 +296,14 @@ export default function OnboardingWizard() {
           assignedWorkouts: [],
           assignedMeals: [],
           progress: {},
+          // Subscription info from pricing page
+          subscription: initialSubscription ? {
+            planId: initialSubscription.planId,
+            amountPaid: initialSubscription.totalPrice,
+            dietAdded: initialSubscription.hasDiet,
+            status: 'pending_payment',
+            createdAt: new Date().toISOString(),
+          } : null,
         },
       });
 
@@ -331,7 +355,29 @@ export default function OnboardingWizard() {
 
   return (
     <FormProvider {...methods}>
-      <div className="bg-white rounded-3xl shadow-2xl shadow-qwaam-pink/5 border border-border-light overflow-hidden max-w-xl w-full mx-auto relative relative">
+      <div className="bg-white rounded-3xl shadow-2xl shadow-qwaam-pink/5 border border-border-light overflow-hidden max-w-xl w-full mx-auto relative">
+
+        {/* ── Subscription Summary ── */}
+        {initialSubscription && resolvedPlan && (
+          <div className="bg-gradient-to-r from-qwaam-pink-light to-qwaam-yellow/10 border-b border-qwaam-pink/10 px-6 py-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📋</span>
+              <div>
+                <p className="text-xs font-bold text-text-muted">{t('subscriptionBanner') || 'الباقة المختارة'}</p>
+                <p className="text-sm font-black text-qwaam-pink">
+                  {initialSubscription.planId.includes('live')
+                    ? `${resolvedPlan.sessions} ${t('bannerSessions') || 'حصة لايف'}`
+                    : `${resolvedPlan.days} ${t('bannerDays') || 'أيام / أسبوع'}`
+                  }
+                  {initialSubscription.hasDiet && ` + ${t('bannerDiet') || 'نظام غذائي'}`}
+                </p>
+              </div>
+            </div>
+            <span className="text-sm font-black text-text-main whitespace-nowrap">
+              {initialSubscription.totalPrice} {t('bannerCurrency') || 'ج.م'}
+            </span>
+          </div>
+        )}
 
         {/* ── Draft Restored Banner ── */}
         <AnimatePresence>
@@ -406,7 +452,7 @@ export default function OnboardingWizard() {
               {currentStep === 0 && <StepEmail isChecking={isCheckingEmail} />}
               {currentStep === 1 && <StepPersonal />}
               {currentStep === 2 && <StepHealth />}
-              {currentStep === 3 && <StepGoals />}
+              {currentStep === 3 && <StepGoals maxWorkoutDays={maxWorkoutDays} />}
               {currentStep === 4 && <StepBody />}
               {currentStep === 5 && <StepAccount />}
             </motion.div>

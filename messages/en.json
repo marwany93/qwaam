@@ -42,6 +42,31 @@
     "title": "Packages & Pricing",
     "subtitle": "Choose the package that fits your goal and budget"
   },
+  "pricing": {
+    "title": "Packages & Pricing",
+    "subtitle": "Choose the package that fits your goal and your budget",
+    "badge": "Exclusive Limited-Time Pricing",
+    "chooseLocation": "Choose your training location",
+    "home": "Home",
+    "gym": "Gym",
+    "chooseType": "Choose your training type",
+    "live": "Live (Video Call)",
+    "schedule": "Training Schedule",
+    "liveDesc": "Live sessions via video call with your coach",
+    "scheduleDesc": "Weekly custom workout schedule you follow on your own",
+    "choosePlan": "Choose the number of sessions or days",
+    "sessions": "sessions",
+    "days": "days / week",
+    "perMonth": "per month",
+    "perWeek": "per week",
+    "popular": "Most Popular",
+    "currency": "EGP",
+    "addonsTitle": "Add-ons (optional)",
+    "nutritionAddon": "Nutrition Plan",
+    "nutritionAddonDesc": "Custom meal plan designed for your goal",
+    "summary": "Order Summary",
+    "subscribe": "Subscribe Now"
+  },
   "classes": {
     "title": "Class Schedule",
     "subtitle": "Live sessions and recordings available around the clock"

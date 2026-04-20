@@ -2,25 +2,98 @@
 
 import { getAdminDb } from '@/lib/firebase-admin';
 import { verifyAdminAccess } from '@/lib/auth-utils';
-import type { Workout, Meal } from '@/types';
+import type { Workout, Meal, Exercise } from '@/types';
 import { revalidatePath } from 'next/cache';
 
-// ── Workouts Engine ─────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function toMillis(createdAt: any): number {
+  return createdAt?.toMillis ? createdAt.toMillis() : Date.now();
+}
+
+// ── Exercises CRUD ─────────────────────────────────────────────────────────────
+
+export async function getExercises(): Promise<Exercise[]> {
+  await verifyAdminAccess();
+  const db = getAdminDb();
+  const snapshot = await db.collection('exercises').orderBy('createdAt', 'desc').get();
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data(),
+    createdAt: toMillis(doc.data().createdAt),
+  } as Exercise));
+}
+
+export async function addExercise(payload: Omit<Exercise, 'id' | 'createdAt'>) {
+  await verifyAdminAccess();
+
+  if (!payload.nameAr || !payload.nameEn || !payload.targetMuscle || !payload.equipment) {
+    return { error: 'يرجى تعبئة جميع الحقول الإلزامية للتمرين.' };
+  }
+  if (!payload.defaultSets || payload.defaultSets < 1) {
+    return { error: 'عدد الجولات يجب أن يكون رقماً موجباً.' };
+  }
+  if (!payload.defaultReps) {
+    return { error: 'يرجى تحديد نطاق التكرارات.' };
+  }
+
+  try {
+    const db = getAdminDb();
+    await db.collection('exercises').add({
+      ...payload,
+      createdAt: new Date(),
+    });
+    revalidatePath('/admin/library');
+    return { success: true };
+  } catch (err: any) {
+    console.error('addExercise error:', err);
+    return { error: 'فشل حفظ التمرين. حاول مجدداً.' };
+  }
+}
+
+export async function updateExercise(id: string, payload: Partial<Omit<Exercise, 'id' | 'createdAt'>>) {
+  await verifyAdminAccess();
+
+  if (!id) return { error: 'معرّف التمرين مطلوب.' };
+
+  try {
+    const db = getAdminDb();
+    await db.collection('exercises').doc(id).update({ ...payload, updatedAt: new Date() });
+    revalidatePath('/admin/library');
+    return { success: true };
+  } catch (err: any) {
+    console.error('updateExercise error:', err);
+    return { error: 'فشل تحديث التمرين.' };
+  }
+}
+
+export async function deleteExercise(id: string) {
+  await verifyAdminAccess();
+
+  if (!id) return { error: 'معرّف التمرين مطلوب.' };
+
+  try {
+    const db = getAdminDb();
+    await db.collection('exercises').doc(id).delete();
+    revalidatePath('/admin/library');
+    return { success: true };
+  } catch (err: any) {
+    console.error('deleteExercise error:', err);
+    return { error: 'فشل حذف التمرين.' };
+  }
+}
+
+// ── Workouts CRUD ─────────────────────────────────────────────────────────────
 
 export async function getWorkouts(): Promise<Workout[]> {
   await verifyAdminAccess();
-
   const db = getAdminDb();
   const snapshot = await db.collection('workouts').orderBy('createdAt', 'desc').get();
-  
-  return snapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      ...data,
-      createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now()
-    } as Workout;
-  });
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data(),
+    createdAt: toMillis(doc.data().createdAt),
+  } as Workout));
 }
 
 export async function addWorkout(formData: FormData) {
@@ -33,7 +106,7 @@ export async function addWorkout(formData: FormData) {
   const exercisesRaw = formData.get('exercisesJson') as string;
 
   if (!titleAr || !titleEn || !difficulty || !duration || !exercisesRaw) {
-    return { error: 'يرجى تعبئة جميع الحقول المطلوبة الأساسية.' };
+    return { error: 'يرجى تعبئة جميع الحقول المطلوبة.' };
   }
 
   let exercises = [];
@@ -42,90 +115,101 @@ export async function addWorkout(formData: FormData) {
     if (!Array.isArray(exercises) || exercises.length === 0) {
       return { error: 'يجب إضافة تمرين واحد على الأقل.' };
     }
-    // Strict Database Mapping Validation
     for (const ex of exercises) {
-      if (!ex.name || !ex.sets || !ex.reps) {
-        return { error: 'تأكد من إدخال الجولات والتكرارات واسم التمرين لجميع حقول التمارين.' };
+      if (!ex.exerciseId) {
+        return { error: 'تأكد من اختيار تمرين من المكتبة لكل سطر.' };
       }
     }
-  } catch (e) {
-    return { error: 'خطأ في معالجة التمارين المدخلة.' };
+  } catch {
+    return { error: 'خطأ في معالجة قائمة التمارين.' };
   }
 
   try {
     const db = getAdminDb();
-    const docRef = db.collection('workouts').doc(); // Auto-gen unique ID
-    
-    await docRef.set({
-      titleAr,
-      titleEn,
-      difficulty,
-      duration,
-      exercises,
+    await db.collection('workouts').add({
+      titleAr, titleEn, difficulty, duration, exercises,
       createdAt: new Date(),
     });
-
     revalidatePath('/admin/library');
     return { success: true };
-  } catch (error: any) {
-    console.error('Add Workout Crash:', error);
-    return { error: 'حدث خطأ غير متوقع أثناء حفظ البرنامج.' };
+  } catch (err: any) {
+    console.error('addWorkout error:', err);
+    return { error: 'فشل حفظ البرنامج التدريبي.' };
   }
 }
 
-// ── Meals Engine ────────────────────────────────────────
+export async function deleteWorkout(id: string) {
+  await verifyAdminAccess();
+  if (!id) return { error: 'معرّف البرنامج مطلوب.' };
+  try {
+    const db = getAdminDb();
+    await db.collection('workouts').doc(id).delete();
+    revalidatePath('/admin/library');
+    return { success: true };
+  } catch (err: any) {
+    console.error('deleteWorkout error:', err);
+    return { error: 'فشل حذف البرنامج التدريبي.' };
+  }
+}
+
+// ── Meals CRUD ─────────────────────────────────────────────────────────────────
 
 export async function getMeals(): Promise<Meal[]> {
   await verifyAdminAccess();
-
   const db = getAdminDb();
   const snapshot = await db.collection('meals').orderBy('createdAt', 'desc').get();
-  
-  return snapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      ...data,
-      createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now()
-    } as Meal;
-  });
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data(),
+    createdAt: toMillis(doc.data().createdAt),
+  } as Meal));
 }
 
 export async function addMeal(formData: FormData) {
   await verifyAdminAccess();
 
-  const nameAr = formData.get('nameAr') as string;
-  const nameEn = formData.get('nameEn') as string;
-  const calories = parseInt(formData.get('calories') as string, 10);
-  const protein = parseInt(formData.get('protein') as string, 10);
-  const carbs = parseInt(formData.get('carbs') as string, 10);
-  const fats = parseInt(formData.get('fats') as string, 10);
+  const nameAr    = formData.get('nameAr')    as string;
+  const nameEn    = formData.get('nameEn')    as string;
+  const type      = formData.get('type')      as string;
+  const calories  = parseInt(formData.get('calories')  as string, 10);
+  const protein   = parseInt(formData.get('protein')   as string, 10);
+  const carbs     = parseInt(formData.get('carbs')     as string, 10);
+  const fats      = parseInt(formData.get('fats')      as string, 10);
+  const recipe    = (formData.get('recipe')   as string) || '';
 
-  // Strict Macro Constraints
-  if (!nameAr || !nameEn || isNaN(calories) || isNaN(protein) || isNaN(carbs) || isNaN(fats)) {
+  if (!nameAr || !nameEn || !type) {
+    return { error: 'يرجى تعبئة اسم الوجبة ونوعها.' };
+  }
+  if (isNaN(calories) || isNaN(protein) || isNaN(carbs) || isNaN(fats)) {
     return { error: 'بيانات الماكروز غير سليمة. يرجى إدخال جميع الأرقام بشكل صحيح.' };
   }
 
   try {
     const db = getAdminDb();
-    const docRef = db.collection('meals').doc();
-    
-    await docRef.set({
-      nameAr,
-      nameEn,
-      calories,
-      macros: {
-        protein,
-        carbs,
-        fats
-      },
+    await db.collection('meals').add({
+      nameAr, nameEn, type, calories,
+      macros: { protein, carbs, fats },
+      recipe: recipe || null,
       createdAt: new Date(),
     });
-
     revalidatePath('/admin/library');
     return { success: true };
-  } catch (error: any) {
-    console.error('Add Meal Crash:', error);
-    return { error: 'فشل حفظ الوجبة بالنظام.' };
+  } catch (err: any) {
+    console.error('addMeal error:', err);
+    return { error: 'فشل حفظ الوجبة.' };
+  }
+}
+
+export async function deleteMeal(id: string) {
+  await verifyAdminAccess();
+  if (!id) return { error: 'معرّف الوجبة مطلوب.' };
+  try {
+    const db = getAdminDb();
+    await db.collection('meals').doc(id).delete();
+    revalidatePath('/admin/library');
+    return { success: true };
+  } catch (err: any) {
+    console.error('deleteMeal error:', err);
+    return { error: 'فشل حذف الوجبة.' };
   }
 }

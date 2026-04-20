@@ -9,7 +9,7 @@ import type { FullOnboardingData } from '@/lib/onboarding-schema';
 const GOAL_KEYS = ['fatBurn', 'gainMuscle', 'gainWeight'] as const;
 const SUPPLEMENT_KEYS = ['whey', 'creatine', 'preWorkout', 'vitamins', 'none'] as const;
 
-export default function StepGoals() {
+export default function StepGoals({ maxWorkoutDays = 7 }: { maxWorkoutDays?: number }) {
   const t = useTranslations('onboarding');
   const { watch, setValue, register, formState: { errors } } = useFormContext<FullOnboardingData>();
 
@@ -29,6 +29,9 @@ export default function StepGoals() {
       : [...withoutNone, key];
     setValue('currentSupplements', next.length ? next : [], { shouldValidate: true });
   }
+
+  // تحديد هل الباقة "محددة الأيام" (جدول) أم "مفتوحة" (لايف)
+  const isFixedDaysPlan = maxWorkoutDays < 7;
 
   return (
     <div className="space-y-7">
@@ -51,11 +54,10 @@ export default function StepGoals() {
                 key={key}
                 type="button"
                 onClick={() => setValue('primaryGoal', key, { shouldValidate: true })}
-                className={`flex items-center gap-4 p-4 rounded-xl border-2 text-start transition-all ${
-                  isSelected
+                className={`flex items-center gap-4 p-4 rounded-xl border-2 text-start transition-all ${isSelected
                     ? 'bg-qwaam-pink-light border-qwaam-pink text-qwaam-pink shadow-sm'
                     : 'bg-gray-50/50 border-border-light text-text-muted hover:border-qwaam-pink/50'
-                }`}
+                  }`}
               >
                 <span className="text-2xl">{icons[key]}</span>
                 <span className="font-bold text-sm">{t(`step4.goals.${key}`)}</span>
@@ -72,22 +74,37 @@ export default function StepGoals() {
         </div>
       </FormField>
 
-      {/* Workout Days — Slider + Display */}
-      <FormField label={`${t('step4.workoutDaysLabel')} — ${workoutDays} ${workoutDays === 1 ? 'يوم' : 'أيام'}`} required>
-        <input
-          type="range"
-          {...register('workoutDaysPerWeek', { valueAsNumber: true })}
-          min={1}
-          max={7}
-          step={1}
-          className="w-full accent-qwaam-pink h-2 rounded-full cursor-pointer"
-        />
-        <div className="flex justify-between text-xs font-bold text-text-muted mt-1 px-0.5">
-          {[1, 2, 3, 4, 5, 6, 7].map((d) => (
-            <span key={d} className={d === workoutDays ? 'text-qwaam-pink' : ''}>{d}</span>
-          ))}
-        </div>
-      </FormField>
+      {/* Workout Days — Smart Logic Display */}
+      {isFixedDaysPlan ? (
+        // حالة الباقة المحددة (جدول) -> عرض كارت غير قابل للتعديل
+        <FormField label={t('step4.workoutDaysLabel')}>
+          <div className="bg-qwaam-pink-light/30 border-2 border-qwaam-pink/20 rounded-xl p-4 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-white border-2 border-qwaam-pink/30 text-qwaam-pink flex items-center justify-center font-black text-xl shrink-0 shadow-sm">
+              {maxWorkoutDays}
+            </div>
+            <p className="text-sm font-bold text-gray-700 leading-relaxed">
+              بناءً على باقتك المختارة، جدولك التدريبي مخصص لـ <span className="text-qwaam-pink font-black">{maxWorkoutDays === 2 ? 'يومين' : `${maxWorkoutDays} أيام`}</span> أسبوعياً.
+            </p>
+          </div>
+        </FormField>
+      ) : (
+        // حالة الباقة المفتوحة -> عرض الـ Slider العادي
+        <FormField label={`${t('step4.workoutDaysLabel')} — ${workoutDays} ${workoutDays === 1 ? 'يوم' : 'أيام'}`} required>
+          <input
+            type="range"
+            {...register('workoutDaysPerWeek', { valueAsNumber: true })}
+            min={1}
+            max={maxWorkoutDays}
+            step={1}
+            className="w-full accent-qwaam-pink h-2 rounded-full cursor-pointer"
+          />
+          <div className="flex justify-between text-xs font-bold text-text-muted mt-1 px-0.5">
+            {Array.from({ length: maxWorkoutDays }, (_, i) => i + 1).map((d) => (
+              <span key={d} className={d === workoutDays ? 'text-qwaam-pink' : ''}>{d}</span>
+            ))}
+          </div>
+        </FormField>
+      )}
 
       {/* Experience */}
       <FormField label={t('step4.experienceLabel')}>

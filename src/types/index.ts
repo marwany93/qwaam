@@ -15,13 +15,65 @@ export interface QwaamUser {
     assignedMeals: string[];
     // Expandable object mapping metric ID to values over time
     progress?: Record<string, any>;
+    subscription?: {
+      planId: string;
+      amountPaid: string;
+      dietAdded: boolean;
+      status: 'pending_payment' | 'active' | 'expired' | 'cancelled';
+      createdAt: string;
+    } | null;
   };
 }
 
+// ── Exercise Pool ──────────────────────────────────────────────────────────────
+// The atomic building block library — individual movements the coach curates.
+
+export type TargetMuscle =
+  | 'Chest'
+  | 'Back'
+  | 'Legs'
+  | 'Core'
+  | 'Arms'
+  | 'Shoulders'
+  | 'Glutes'
+  | 'Full Body';
+
+export type Equipment =
+  | 'Bodyweight'
+  | 'Dumbbell'
+  | 'Barbell'
+  | 'Machine'
+  | 'Cable'
+  | 'Resistance Band'
+  | 'Kettlebell';
+
+export type WeightLevel = 'bodyweight' | 'light' | 'medium' | 'heavy' | 'max';
+
+export interface Exercise {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+  targetMuscle: TargetMuscle;
+  equipment: Equipment;
+  videoUrl?: string; // YouTube / Shorts link
+  defaultSets: number;
+  defaultReps: string; // e.g., "10-12" or "AMRAP"
+  defaultWeightLevel: WeightLevel;
+  defaultRest: number; // seconds
+  createdAt: number | Timestamp;
+}
+
+// ── Workout Routines ───────────────────────────────────────────────────────────
+// A Workout is a named routine built from Exercise pool references.
+// The coach can override any Exercise default at the workout level.
+
 export interface WorkoutExercise {
-  name: string;
-  sets: number;
-  reps: string; // e.g., "10-12"
+  exerciseId: string;   // Reference → exercises/{id}
+  // Coach overrides (fall back to Exercise.default* if omitted)
+  sets?: number;
+  reps?: string;
+  weightLevel?: WeightLevel;
+  rest?: number;        // seconds
   notes?: string;
 }
 
@@ -35,19 +87,27 @@ export interface Workout {
   createdAt: number | Timestamp;
 }
 
+// ── Meals ─────────────────────────────────────────────────────────────────────
+
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
 export interface Meal {
   id: string;
   nameAr: string;
   nameEn: string;
+  type: MealType;
   calories: number;
-  macros: {
+  macros: {           // Required — no optional here
     protein: number;
     carbs: number;
     fats: number;
   };
+  recipe?: string;    // Optional ingredients / instructions
   imageUrl?: string;
   createdAt: number | Timestamp;
 }
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
 
 export interface ChatMessage {
   id: string;

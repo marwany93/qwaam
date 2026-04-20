@@ -2,9 +2,10 @@
 // Public page — no auth required. Accessible right after package selection.
 import { setRequestLocale, getTranslations } from 'next-intl/server';
 import type { Metadata } from 'next';
-import OnboardingWizard from '@/components/onboarding/OnboardingWizard';
 import Image from 'next/image';
 import { Link } from '@/i18n/navigation';
+import { Suspense } from 'react';
+import OnboardingWithParams from '@/components/onboarding/OnboardingWithParams';
 
 type PageProps = { params: Promise<{ locale: string }> };
 
@@ -42,9 +43,15 @@ export default async function OnboardingPage({ params }: PageProps) {
         </Link>
       </div>
 
-      {/* Wizard Card */}
+      {/* Wizard Card — Suspense required for useSearchParams */}
       <div className="relative z-10 max-w-xl mx-auto">
-        <OnboardingWizard />
+        <Suspense fallback={
+          <div className="bg-white rounded-3xl shadow-2xl p-12 text-center animate-pulse">
+            <div className="w-8 h-8 rounded-full border-4 border-qwaam-pink border-t-transparent animate-spin mx-auto" />
+          </div>
+        }>
+          <OnboardingWithParams />
+        </Suspense>
       </div>
 
       {/* Footer note */}
