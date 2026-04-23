@@ -9,10 +9,6 @@ type AdminLayoutProps = {
   params: Promise<{ locale: string }>;
 };
 
-/**
- * Admin Portal Layout — Server-Side Auth Guard + Sidebar Shell
- * Security: Validates Custom Claim (role === 'coach') via firebase-admin.
- */
 export default async function AdminLayout({ children, params }: AdminLayoutProps) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -24,33 +20,38 @@ export default async function AdminLayout({ children, params }: AdminLayoutProps
     redirect(`/${locale}/login?redirect=/${locale}/admin`);
   }
 
+  let decodedClaims;
   try {
-    const decodedClaims = await getAdminAuth().verifySessionCookie(sessionCookie, true);
-
-    if (decodedClaims.role !== 'coach') {
-      redirect(`/${locale}/unauthorized`);
-    }
-
-    // Auth passed — Render App Shell Architecture
-    return (
-      <div className="bg-background flex min-h-screen text-text-main">
-        {/* Persistent Desktop Sidebar */}
-        <Sidebar coachUid={decodedClaims.uid} />
-        
-        {/* Main Interface Area */}
-        <div className="flex-1 flex flex-col min-h-screen overflow-x-hidden relative">
-          
-          {/* Main Layout Container */}
-          <main className="flex-1 p-8 md:p-12 relative z-10 bg-[url('/ui/noise.png')]">
-            {children}
-          </main>
-          
-          {/* Global Ambient Background Decoration (optional) */}
-          <div className="absolute top-0 right-0 w-full h-96 bg-gradient-to-b from-qwaam-pink-light/60 to-transparent -z-0 pointer-events-none" />
-        </div>
-      </div>
-    );
+    // 1. Verify the session
+    decodedClaims = await getAdminAuth().verifySessionCookie(sessionCookie, true);
   } catch (error) {
+    // If verification fails (expired/invalid), redirect to login
     redirect(`/${locale}/login?redirect=/${locale}/admin&reason=session_expired`);
   }
+
+  // 2. Role Check (Outside the try-catch to avoid NEXT_REDIRECT being caught)
+  // Now we allow both 'coach' and 'admin'
+  if (decodedClaims.role !== 'coach' && decodedClaims.role !== 'admin') {
+    redirect(`/${locale}/unauthorized`);
+  }
+
+  // Auth passed — Render App Shell Architecture
+  return (
+    <div className="bg-background flex min-h-screen text-text-main">
+      {/* Persistent Desktop Sidebar */}
+      <Sidebar coachUid={decodedClaims.uid} />
+      
+      {/* Main Interface Area */}
+      <div className="flex-1 flex flex-col min-h-screen overflow-x-hidden relative">
+        
+        {/* Main Layout Container */}
+        <main className="flex-1 p-8 md:p-12 relative z-10 bg-[url('/ui/noise.png')]">
+          {children}
+        </main>
+        
+        {/* Global Ambient Background Decoration */}
+        <div className="absolute top-0 right-0 w-full h-96 bg-gradient-to-b from-qwaam-pink-light/60 to-transparent -z-0 pointer-events-none" />
+      </div>
+    </div>
+  );
 }

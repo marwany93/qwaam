@@ -14,7 +14,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 import { type NextRequest, NextResponse } from 'next/server';
-import { getAdminAuth } from '@/lib/firebase-admin';
+import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin';
 
 // Explicitly use Node.js runtime — firebase-admin requires Node APIs (not Edge compatible)
 export const runtime = 'nodejs';
@@ -37,12 +37,22 @@ export async function POST(request: NextRequest) {
       expiresIn: SESSION_DURATION_MS,
     });
 
-    // Verify the cookie to decode claims (for role validation)
+    // Verify the cookie to decode claims
     const decodedClaims = await getAdminAuth().verifySessionCookie(sessionCookie, true);
+    
+    // BULLETPROOF FIX: Always fetch the ultimate source of truth from Firestore
+    const db = getAdminDb();
+    const userDoc = await db.collection('users').doc(decodedClaims.uid).get();
+    const realRole = userDoc.data()?.role || decodedClaims.role || 'trainee';
+
+    // Self-healing: If custom claim is out of sync with the DB, fix it silently
+    if (realRole !== decodedClaims.role) {
+      await getAdminAuth().setCustomUserClaims(decodedClaims.uid, { role: realRole });
+    }
 
     const response = NextResponse.json({
       success: true,
-      role: decodedClaims.role ?? null,
+      role: realRole,
     });
 
     // Set the session cookie — HttpOnly prevents JS access (XSS protection)

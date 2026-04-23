@@ -176,3 +176,72 @@ export async function assignCoach(traineeUid: string, coachUid: string) {
   }
 }
 
+/**
+ * Deducts one session from a trainee's remaining sessions and logs the activity.
+ */
+export async function logTraineeSession(traineeUid: string, notes: string = '') {
+  await verifyAdminAccess();
+  const db = getAdminDb();
+  
+  try {
+    const traineeRef = db.collection('users').doc(traineeUid);
+    const traineeDoc = await traineeRef.get();
+    
+    if (!traineeDoc.exists) return { success: false, error: 'المتدرب غير موجود' };
+    
+    const sessionTracking = traineeDoc.data()?.sessionTracking;
+    const currentSessions = sessionTracking?.remainingSessions || 0;
+    
+    if (currentSessions <= 0) {
+      return { success: false, error: 'رصيد الحصص نفذ، يرجى تجديد الباقة' };
+    }
+
+    const batch = db.batch();
+    
+    // 1. Decrement session
+    batch.update(traineeRef, {
+      'sessionTracking.remainingSessions': currentSessions - 1,
+      'sessionTracking.planStatus': (currentSessions - 1) === 0 ? 'finished' : 'active'
+    });
+    
+    // 2. Log the session history
+    const logRef = db.collection('session_logs').doc();
+    batch.set(logRef, {
+      traineeUid,
+      date: new Date(),
+      notes,
+      type: 'workout_session'
+    });
+    
+    await batch.commit();
+    revalidatePath(`/admin/client/${traineeUid}`);
+    return { success: true, remaining: currentSessions - 1 };
+  } catch (error) {
+    console.error('Error logging session:', error);
+    return { success: false, error: 'حدث خطأ أثناء تسجيل الحصة' };
+  }
+}
+
+/**
+ * Renews or updates a trainee's package sessions (Admin Override).
+ */
+export async function renewTraineePlan(traineeUid: string, newTotalSessions: number) {
+  await verifyAdminAccess();
+  const db = getAdminDb();
+  
+  try {
+    const traineeRef = db.collection('users').doc(traineeUid);
+    await traineeRef.update({
+      'sessionTracking.totalSessions': newTotalSessions,
+      'sessionTracking.remainingSessions': newTotalSessions,
+      'sessionTracking.planStatus': 'active',
+      'sessionTracking.lastRenewedAt': new Date()
+    });
+    
+    revalidatePath(`/admin/client/${traineeUid}`);
+    return { success: true };
+  } catch (error) {
+    console.error('Error renewing plan:', error);
+    return { success: false, error: 'حدث خطأ أثناء تجديد الباقة' };
+  }
+}

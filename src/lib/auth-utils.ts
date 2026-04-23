@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 /**
  * Reusable auth check utility for all Admin Server Actions.
  * It enforces the presence of the qwaam_session cookie and 
- * ensures the JWT contains the `role: coach` custom claim.
+ * ensures the JWT contains the `role: coach` or `role: admin` custom claim.
  */
 export async function verifyAdminAccess() {
   const cookieStore = await cookies();
@@ -16,8 +16,8 @@ export async function verifyAdminAccess() {
   }
 
   const decodedClaims = await getAdminAuth().verifySessionCookie(sessionCookie, true);
-  if (decodedClaims.role !== 'coach') {
-    throw new Error('Forbidden: Coach administrative access required.');
+  if (decodedClaims.role !== 'coach' && decodedClaims.role !== 'admin') {
+    throw new Error('Forbidden: Admin or Coach access required.');
   }
 
   return decodedClaims;
