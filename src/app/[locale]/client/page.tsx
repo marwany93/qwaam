@@ -39,6 +39,18 @@ export default async function ClientDashboard({ params }: PageProps) {
 
   const firstName = trainee.name.split(' ')[0] || 'بطل';
 
+  // Completion counts derived from today's server-fetched progress logs
+  const completedWorkouts = progressLogs.filter(p => p.type === 'workout').length;
+  const completedMeals    = progressLogs.filter(p => p.type === 'meal').length;
+
+  // Maps Firestore meal type keys → Arabic label + motivating emoji
+  const mealTypeMap: Record<string, { label: string; icon: string }> = {
+    breakfast: { label: 'إفطار',       icon: '🌅' },
+    lunch:     { label: 'غداء',        icon: '☀️' },
+    dinner:    { label: 'عشاء',        icon: '🌙' },
+    snack:     { label: 'وجبة خفيفة', icon: '🍎' },
+  };
+
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-10">
 
@@ -55,13 +67,69 @@ export default async function ClientDashboard({ params }: PageProps) {
         </div>
       </div>
 
+      {/* ── Daily Progress Summary ── */}
+      {/* Only shown when the trainee has at least one item assigned so the card is meaningful */}
+      {(workouts.length > 0 || meals.length > 0) && (
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-border-light shadow-sm" dir="rtl">
+          <h2 className="text-base font-black text-text-main mb-5 flex items-center gap-2">
+            <span className="w-8 h-8 rounded-xl bg-qwaam-pink-light flex items-center justify-center text-sm border border-qwaam-pink/20">📊</span>
+            تقدم اليوم
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+            {/* Workouts progress bar */}
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs font-black text-text-muted uppercase tracking-wider">التمارين</span>
+                <span className="text-sm font-black text-qwaam-pink">
+                  {completedWorkouts} <span className="text-text-muted font-bold">/ {workouts.length}</span>
+                </span>
+              </div>
+              <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-qwaam-pink rounded-full transition-all duration-500"
+                  style={{ width: workouts.length === 0 ? '0%' : `${Math.round((completedWorkouts / workouts.length) * 100)}%` }}
+                />
+              </div>
+              <p className="text-[11px] font-bold text-text-muted mt-1.5">
+                {completedWorkouts === workouts.length && workouts.length > 0
+                  ? '🎉 أنجزت جميع تمارين اليوم!'
+                  : `${workouts.length - completedWorkouts} تمرين متبقي`}
+              </p>
+            </div>
+
+            {/* Meals progress bar */}
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs font-black text-text-muted uppercase tracking-wider">الوجبات</span>
+                <span className="text-sm font-black text-yellow-600">
+                  {completedMeals} <span className="text-text-muted font-bold">/ {meals.length}</span>
+                </span>
+              </div>
+              <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-yellow-400 rounded-full transition-all duration-500"
+                  style={{ width: meals.length === 0 ? '0%' : `${Math.round((completedMeals / meals.length) * 100)}%` }}
+                />
+              </div>
+              <p className="text-[11px] font-bold text-text-muted mt-1.5">
+                {completedMeals === meals.length && meals.length > 0
+                  ? '🎉 التزمت بكل وجباتك اليوم!'
+                  : `${meals.length - completedMeals} وجبة متبقية`}
+              </p>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* ── 2x1 Desktop Grid Structure ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
 
         {/* Center Content: Interactive Cards */}
         <div className="lg:col-span-2 space-y-12">
 
-          {/* ── Trainee Session Progress Widget ── */}
+          {/* ── Trainee Session Progress Widget ── (from main branch) */}
           {trainee.sessionTracking && trainee.sessionTracking.totalSessions > 0 && (
             <section className="bg-qwaam-white rounded-3xl border border-border-light shadow-sm p-6 sm:p-8 relative overflow-hidden group">
               {/* Background decoration */}
@@ -164,6 +232,12 @@ export default async function ClientDashboard({ params }: PageProps) {
                   <div key={m.id} className="bg-white rounded-3xl border border-border-light shadow-sm flex flex-col overflow-hidden group hover:shadow-md hover:-translate-y-1 transition-all">
                     <div className="h-1.5 w-full bg-qwaam-yellow transition-all" />
                     <div className="p-6">
+                      {/* Meal type badge — shows breakfast / lunch / dinner / snack */}
+                      {m.type && mealTypeMap[m.type] && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-black text-text-muted mb-2">
+                          {mealTypeMap[m.type].icon} {mealTypeMap[m.type].label}
+                        </span>
+                      )}
                       <h3 className="font-extrabold text-lg text-text-main truncate mb-1">{m.nameAr}</h3>
                       <p className="font-bold text-xs text-text-muted mb-5 truncate" dir="ltr" style={{ textAlign: "right" }}>{m.nameEn}</p>
 
