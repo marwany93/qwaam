@@ -8,12 +8,17 @@ export interface QwaamUser {
   name: string;
   email: string;
   createdAt: number | Timestamp;
+  sessionTracking?: {
+    totalSessions: number;
+    remainingSessions: number;
+    planStatus: 'active' | 'finished';
+    lastRenewedAt?: any;
+  };
   traineeData?: {
     assignedCoachUid?: string;
     unreadCount?: number;
     assignedWorkouts: string[];
     assignedMeals: string[];
-    // Expandable object mapping metric ID to values over time
     progress?: Record<string, any>;
     subscription?: {
       planId: string;
@@ -170,9 +175,11 @@ export interface OnboardingFormData {
 
 // ── Discount / Gamification ───────────────────────────────────────────────────
 
+
 export interface DiscountLead {
   email: string;
   phone: string;
   discountPercentage: number;
   createdAt: number | Timestamp;
 }
+

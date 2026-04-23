@@ -49,14 +49,17 @@ function LoginForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken }),
       });
-
+      
       if (!res.ok) {
         throw new Error('فشل إنشاء الجلسة / Session creation failed');
       }
+
+      const sessionData = await res.json();
+      // Read the role from the server response, fallback to client claims if needed
+      const finalRole = sessionData.role || role;
       
       // 4. Role-based localized routing delegation 
-      // Hard refresh ensures Server Side Cookie Extraction is natively parsed by Layouts
-      if (role === 'coach') {
+      if (finalRole === 'coach' || finalRole === 'admin') {
         window.location.href = `/${locale}/admin`;
       } else {
         window.location.href = `/${locale}/client`;

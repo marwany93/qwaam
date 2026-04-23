@@ -120,9 +120,18 @@ export async function submitOnboarding(uid: string, docPayload: Record<string, a
     const db = getAdminDb();
 
     // Server actions must use native Dates or Admin SDK timestamps
+    // Extract plan details if passed from the frontend, or set defaults
+    const initialSessions = docPayload.planSessions || 12; // Fallback to 12 if not explicitly passed
+    
     const payload = {
       ...docPayload,
       createdAt: new Date(),
+      sessionTracking: {
+        totalSessions: initialSessions,
+        remainingSessions: initialSessions,
+        planStatus: 'active', // 'active' or 'finished'
+        lastRenewedAt: new Date(),
+      }
     };
 
     await db.collection('users').doc(uid).set(payload);

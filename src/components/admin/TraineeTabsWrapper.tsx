@@ -1,12 +1,14 @@
 'use client';
 
 import { Tab, TabGroup, TabList, TabPanels, TabPanel } from '@headlessui/react';
+import AssignmentsTab from '@/components/admin/AssignmentsTab';
+import TraineeChat from '@/components/admin/TraineeChat';
+import SubscriptionManagement from '@/components/admin/SubscriptionManagement';
 import {
   ClipboardDocumentListIcon,
   ChatBubbleLeftRightIcon,
+  Cog6ToothIcon,
 } from '@heroicons/react/24/outline';
-import AssignmentsTab from '@/components/admin/AssignmentsTab';
-import TraineeChat from '@/components/admin/TraineeChat';
 import type { Workout, Meal } from '@/types';
 
 interface Props {
@@ -18,6 +20,7 @@ interface Props {
   allMeals: Meal[];
   coachUid: string;
   progressLogs: any[];
+  sessionTracking?: any;
 }
 
 export default function TraineeTabsWrapper({
@@ -29,6 +32,7 @@ export default function TraineeTabsWrapper({
   allMeals,
   coachUid,
   progressLogs,
+  sessionTracking,
 }: Props) {
   return (
     <TabGroup>
@@ -37,6 +41,7 @@ export default function TraineeTabsWrapper({
           { label: 'نظرة عامة', icon: ClipboardDocumentListIcon },
           { label: 'التعيينات', icon: ClipboardDocumentListIcon },
           { label: 'المحادثة', icon: ChatBubbleLeftRightIcon },
+          { label: 'الإدارة', icon: Cog6ToothIcon },
         ].map((tab) => (
           <Tab
             key={tab.label}
@@ -136,6 +141,14 @@ export default function TraineeTabsWrapper({
             coachUid={coachUid}
             traineeUid={traineeUid}
             traineeName={traineeName}
+          />
+        </TabPanel>
+
+        {/* ── Management Panel ── */}
+        <TabPanel className="outline-none focus:outline-none mt-2">
+          <SubscriptionManagement 
+            traineeUid={traineeUid} 
+            sessionTracking={sessionTracking} 
           />
         </TabPanel>
 

@@ -13,6 +13,8 @@ import {
   type Plan,
 } from '@/lib/pricing-config';
 
+const ENABLE_DISCOUNTS = true;
+
 // ── Icon Components ─────────────────────────────────────────────
 function HomeIcon({ className = 'w-5 h-5' }: { className?: string }) {
   return (
@@ -125,7 +127,7 @@ function PlanCard({
   const label = isLive
     ? `${plan.sessions} ${t('sessions')}`
     : `${plan.days} ${t('days')}`;
-  const discountedPrice = discount > 0 ? Math.round(plan.price * (1 - discount / 100)) : null;
+  const discountedPrice = (ENABLE_DISCOUNTS && discount > 0) ? Math.round(plan.price * (1 - discount / 100)) : null;
 
   return (
     <div
@@ -267,7 +269,7 @@ function SpinWheelModal({
 
     const elapsed = Date.now() - startTime;
     const remainingTime = 3000 - elapsed;
-    if(remainingTime > 0) {
+    if (remainingTime > 0) {
       await new Promise(r => setTimeout(r, remainingTime));
     }
 
@@ -280,15 +282,15 @@ function SpinWheelModal({
   // Discount → color mapping
   const discountColor =
     discount >= 40 ? 'text-purple-600' :
-    discount >= 30 ? 'text-orange-500' :
-    discount >= 25 ? 'text-blue-500'   :
-    'text-green-600';
+      discount >= 30 ? 'text-orange-500' :
+        discount >= 25 ? 'text-blue-500' :
+          'text-green-600';
 
   const discountBg =
     discount >= 40 ? 'from-purple-50 to-purple-100/50 border-purple-200' :
-    discount >= 30 ? 'from-orange-50 to-orange-100/50 border-orange-200' :
-    discount >= 25 ? 'from-blue-50 to-blue-100/50 border-blue-200'       :
-    'from-green-50 to-green-100/50 border-green-200';
+      discount >= 30 ? 'from-orange-50 to-orange-100/50 border-orange-200' :
+        discount >= 25 ? 'from-blue-50 to-blue-100/50 border-blue-200' :
+          'from-green-50 to-green-100/50 border-green-200';
 
   return (
     <Transition appear show={open} as={Fragment}>
@@ -473,7 +475,7 @@ export default function PricingClient() {
   const plans = useMemo(() => getPlans(location, type), [location, type]);
 
   const handleLocationChange = (v: PlanLocation) => { setLocation(v); setSelectedPlan(null); };
-  const handleTypeChange     = (v: PlanType)     => { setType(v);     setSelectedPlan(null); };
+  const handleTypeChange = (v: PlanType) => { setType(v); setSelectedPlan(null); };
 
   // Base price (before discount)
   const baseTotal = useMemo(() => {
@@ -516,37 +518,39 @@ export default function PricingClient() {
       <div className="container mx-auto px-6 max-w-3xl">
 
         {/* ── 🎁 Spin the Wheel Banner ─────────── */}
-        <button
-          type="button"
-          onClick={() => setSpinModalOpen(true)}
-          className="w-full mb-10 group relative overflow-hidden flex items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-l from-qwaam-pink to-pink-500 text-white shadow-lg shadow-qwaam-pink/25 hover:shadow-xl hover:-translate-y-0.5 transition-all"
-        >
-          {/* Decorative blob */}
-          <div className="absolute -top-4 -end-4 w-24 h-24 bg-white/10 rounded-full pointer-events-none" />
-          <div className="absolute -bottom-6 -start-6 w-20 h-20 bg-white/10 rounded-full pointer-events-none" />
+        {ENABLE_DISCOUNTS && (
+          <button
+            type="button"
+            onClick={() => setSpinModalOpen(true)}
+            className="w-full mb-10 group relative overflow-hidden flex items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-l from-qwaam-pink to-pink-500 text-white shadow-lg shadow-qwaam-pink/25 hover:shadow-xl hover:-translate-y-0.5 transition-all"
+          >
+            {/* Decorative blob */}
+            <div className="absolute -top-4 -end-4 w-24 h-24 bg-white/10 rounded-full pointer-events-none" />
+            <div className="absolute -bottom-6 -start-6 w-20 h-20 bg-white/10 rounded-full pointer-events-none" />
 
-          <div className="flex items-center gap-4 relative z-10">
-            <span className="text-4xl group-hover:scale-110 transition-transform">🎡</span>
-            <div className="text-right">
-              <p className="font-black text-base leading-tight">لفي العجلة واكسبي خصمك!</p>
-              <p className="text-pink-200 text-xs font-medium mt-0.5">
-                {appliedDiscount > 0
-                  ? `🎉 تم تطبيق خصم ${appliedDiscount}% على سعرك!`
-                  : 'خصم فوري يصل لـ 40% على باقتك ✨'}
-              </p>
+            <div className="flex items-center gap-4 relative z-10">
+              <span className="text-4xl group-hover:scale-110 transition-transform">🎡</span>
+              <div className="text-right">
+                <p className="font-black text-base leading-tight">لفي العجلة واكسبي خصمك!</p>
+                <p className="text-pink-200 text-xs font-medium mt-0.5">
+                  {appliedDiscount > 0
+                    ? `🎉 تم تطبيق خصم ${appliedDiscount}% على سعرك!`
+                    : 'خصم فوري يصل لـ 40% على باقتك ✨'}
+                </p>
+              </div>
             </div>
-          </div>
 
-          {appliedDiscount > 0 ? (
-            <div className="relative z-10 shrink-0 bg-white text-qwaam-pink font-black text-lg rounded-xl px-4 py-2 shadow-sm">
-              -{appliedDiscount}%
-            </div>
-          ) : (
-            <div className="relative z-10 shrink-0 bg-white/20 border border-white/30 font-bold text-sm rounded-xl px-4 py-2">
-              ألفي الآن ←
-            </div>
-          )}
-        </button>
+            {appliedDiscount > 0 ? (
+              <div className="relative z-10 shrink-0 bg-white text-qwaam-pink font-black text-lg rounded-xl px-4 py-2 shadow-sm">
+                -{appliedDiscount}%
+              </div>
+            ) : (
+              <div className="relative z-10 shrink-0 bg-white/20 border border-white/30 font-bold text-sm rounded-xl px-4 py-2">
+                ألفي الآن ←
+              </div>
+            )}
+          </button>
+        )}
 
         {/* ── Step 1: Location Toggle ─────────── */}
         <div className="mb-10">
@@ -558,7 +562,7 @@ export default function PricingClient() {
             <ToggleSwitch
               options={[
                 { value: 'home' as PlanLocation, label: t('home'), icon: <HomeIcon className="w-4 h-4" /> },
-                { value: 'gym'  as PlanLocation, label: t('gym'),  icon: <GymIcon  className="w-4 h-4" /> },
+                { value: 'gym' as PlanLocation, label: t('gym'), icon: <GymIcon className="w-4 h-4" /> },
               ]}
               value={location}
               onChange={handleLocationChange}
@@ -575,7 +579,7 @@ export default function PricingClient() {
           <div className="flex justify-center">
             <ToggleSwitch
               options={[
-                { value: 'live'     as PlanType, label: t('live'),     icon: <VideoIcon    className="w-4 h-4" /> },
+                { value: 'live' as PlanType, label: t('live'), icon: <VideoIcon className="w-4 h-4" /> },
                 { value: 'schedule' as PlanType, label: t('schedule'), icon: <CalendarIcon className="w-4 h-4" /> },
               ]}
               value={type}
@@ -671,7 +675,7 @@ export default function PricingClient() {
                     🥗 {t('nutritionAddon')}
                   </span>
                 )}
-                {appliedDiscount > 0 && (
+                {ENABLE_DISCOUNTS && appliedDiscount > 0 && (
                   <span className="text-xs font-black bg-qwaam-yellow/20 text-yellow-700 px-2 py-0.5 rounded-full flex items-center gap-1">
                     🎉 خصم {appliedDiscount}%
                   </span>
@@ -680,7 +684,7 @@ export default function PricingClient() {
 
               {/* Price — strike-through original if discount active */}
               <div className="flex items-baseline gap-2 mt-1">
-                {appliedDiscount > 0 && (
+                {ENABLE_DISCOUNTS && appliedDiscount > 0 && (
                   <span className="text-sm font-bold text-text-muted line-through">{baseTotal}</span>
                 )}
                 <span className="text-2xl font-black text-text-main">{finalTotal}</span>
@@ -709,11 +713,11 @@ export default function PricingClient() {
       <SpinWheelModal
         open={spinModalOpen}
         onClose={() => setSpinModalOpen(false)}
-        onDiscountWon={(d, e, p) => { 
-          setAppliedDiscount(d); 
-          setLeadData({ email: e, phone: p }); 
+        onDiscountWon={(d, e, p) => {
+          setAppliedDiscount(d);
+          setLeadData({ email: e, phone: p });
           // Delay closing the modal by 4 seconds to let the user read the result
-          setTimeout(() => setSpinModalOpen(false), 4000); 
+          setTimeout(() => setSpinModalOpen(false), 4000);
         }}
       />
     </div>
