@@ -4,6 +4,7 @@ import { getMyProgressLogsByDate } from '@/actions/progress-actions';
 import ClientChat from '@/components/client/ClientChat';
 import ProgressToggleButton from '@/components/client/ProgressToggleButton';
 import RenewalRequestButton from '@/components/client/RenewalRequestButton';
+import WorkoutVideoButton from '@/components/client/WorkoutVideoButton';
 // import { getAdminAuth } from '@/lib/firebase-admin';
 
 type PageProps = { params: Promise<{ locale: string }> };
@@ -217,14 +218,10 @@ export default async function ClientDashboard({ params }: PageProps) {
                             <div className="flex items-center gap-2 shrink-0 text-xs font-bold text-text-muted">
                               <span>{ex.sets}×{ex.reps}</span>
                               {ex.videoUrl && (
-                                <a
-                                  href={ex.videoUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-qwaam-pink hover:text-pink-600 underline underline-offset-2 font-black"
-                                >
-                                  ▶ فيديو
-                                </a>
+                                <WorkoutVideoButton
+                                  videoUrl={ex.videoUrl}
+                                  exerciseName={ex.nameAr || ex.exerciseId}
+                                />
                               )}
                             </div>
                           </li>
