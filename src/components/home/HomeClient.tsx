@@ -246,14 +246,16 @@ export default function HomeClient({
         className="relative w-full min-h-screen overflow-hidden flex items-center justify-center"
       >
         {/* 1. BACKGROUND VIDEO — direct child, NO container/padding wrappers */}
-        <motion.div style={{ y: heroY }} className="absolute inset-0 w-full h-full -z-10 bg-black">
+        <motion.div style={{ y: heroY }} className="absolute inset-0 w-full h-full bg-black isolate">
           <video
             src="/videos/hero-bg.mp4"
+            poster="/hero-poster.jpg"
             autoPlay
             loop
             muted
             playsInline
-            className="absolute inset-0 w-full h-full object-cover scale-[1.35]"
+            className="absolute inset-0 w-full h-full object-cover scale-[1.35] -z-10"
+            style={{ colorScheme: 'light' }}
           />
         </motion.div>
 
