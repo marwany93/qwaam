@@ -14,6 +14,11 @@ export interface QwaamUser {
     planStatus: 'active' | 'finished';
     lastRenewedAt?: any;
   };
+  renewalRequest?: {
+    requested: boolean;
+    requestedAt: any;
+    status: 'pending' | 'fulfilled';
+  };
   traineeData?: {
     assignedCoachUid?: string;
     unreadCount?: number;
@@ -74,6 +79,9 @@ export interface Exercise {
 
 export interface WorkoutExercise {
   exerciseId: string;   // Reference → exercises/{id}
+  // Resolved at read-time from the exercises collection (not stored in Firestore)
+  nameAr?: string;
+  videoUrl?: string;
   // Coach overrides (fall back to Exercise.default* if omitted)
   sets?: number;
   reps?: string;

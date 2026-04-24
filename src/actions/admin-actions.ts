@@ -223,25 +223,71 @@ export async function logTraineeSession(traineeUid: string, notes: string = '') 
 }
 
 /**
- * Renews or updates a trainee's package sessions (Admin Override).
+ * Adds sessions to a trainee's existing plan.
+ * ADDS to current totals — does not override them.
  */
-export async function renewTraineePlan(traineeUid: string, newTotalSessions: number) {
+export async function renewTraineePlan(traineeUid: string, additionalSessions: number) {
   await verifyAdminAccess();
   const db = getAdminDb();
-  
+
   try {
     const traineeRef = db.collection('users').doc(traineeUid);
+
+    // Read current values first so we can ADD rather than override
+    const traineeDoc = await traineeRef.get();
+    if (!traineeDoc.exists) return { success: false, error: 'المتدرب غير موجود' };
+
+    const current = traineeDoc.data()?.sessionTracking;
+    const currentTotal     = current?.totalSessions     ?? 0;
+    const currentRemaining = current?.remainingSessions ?? 0;
+
+    const newTotal     = currentTotal     + additionalSessions;
+    const newRemaining = currentRemaining + additionalSessions;
+
     await traineeRef.update({
-      'sessionTracking.totalSessions': newTotalSessions,
-      'sessionTracking.remainingSessions': newTotalSessions,
-      'sessionTracking.planStatus': 'active',
-      'sessionTracking.lastRenewedAt': new Date()
+      'sessionTracking.totalSessions':     newTotal,
+      'sessionTracking.remainingSessions': newRemaining,
+      'sessionTracking.planStatus':        'active',
+      'sessionTracking.lastRenewedAt':     new Date(),
+      // Clear any pending renewal request so the admin panel badge disappears
+      'renewalRequest.status': 'fulfilled',
     });
-    
+
     revalidatePath(`/admin/client/${traineeUid}`);
-    return { success: true };
+    return { success: true, newTotal, newRemaining };
   } catch (error) {
     console.error('Error renewing plan:', error);
     return { success: false, error: 'حدث خطأ أثناء تجديد الباقة' };
+  }
+}
+
+/**
+ * Manual DB override — sets exact values regardless of current state.
+ * Used by the admin Danger Zone only.
+ */
+export async function overrideTraineeSessions(
+  traineeUid: string,
+  totalSessions: number,
+  remainingSessions: number,
+) {
+  await verifyAdminAccess();
+
+  if (remainingSessions > totalSessions) {
+    return { success: false, error: 'الحصص المتبقية لا يمكن أن تتجاوز الإجمالي.' };
+  }
+
+  const db = getAdminDb();
+  try {
+    await db.collection('users').doc(traineeUid).update({
+      'sessionTracking.totalSessions':     totalSessions,
+      'sessionTracking.remainingSessions': remainingSessions,
+      'sessionTracking.planStatus':        remainingSessions <= 0 ? 'finished' : 'active',
+    });
+
+    revalidatePath(`/admin/client/${traineeUid}`);
+    return { success: true };
+  } catch (error) {
+    console.error('Error overriding sessions:', error);
+    return { success: false, error: 'حدث خطأ أثناء التعديل اليدوي' };
   }
 }

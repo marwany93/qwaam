@@ -3,6 +3,7 @@ import { getCurrentTrainee, fetchMyWorkouts, fetchMyMeals } from '@/actions/clie
 import { getMyProgressLogsByDate } from '@/actions/progress-actions';
 import ClientChat from '@/components/client/ClientChat';
 import ProgressToggleButton from '@/components/client/ProgressToggleButton';
+import RenewalRequestButton from '@/components/client/RenewalRequestButton';
 // import { getAdminAuth } from '@/lib/firebase-admin';
 
 type PageProps = { params: Promise<{ locale: string }> };
@@ -168,6 +169,13 @@ export default async function ClientDashboard({ params }: PageProps) {
                   />
                 </div>
               </div>
+
+              {/* Renewal request button — shown when plan is finished or ≤2 sessions remain */}
+              {(trainee.sessionTracking.planStatus === 'finished' || trainee.sessionTracking.remainingSessions <= 2) && (
+                <RenewalRequestButton
+                  alreadyRequested={trainee.renewalRequest?.status === 'pending'}
+                />
+              )}
             </section>
           )}
 
@@ -199,6 +207,30 @@ export default async function ClientDashboard({ params }: PageProps) {
                       <div className="font-black text-text-main flex items-center gap-2"><span className="text-qwaam-pink text-lg text-shadow-sm">⏱</span> {w.duration} دقيقة</div>
                       <div className="font-extrabold text-text-muted px-3 py-1 bg-white rounded-lg border border-border-light">{w.exercises?.length || 0} حركات</div>
                     </div>
+
+                    {/* Exercise list with optional video links */}
+                    {w.exercises && w.exercises.length > 0 && (
+                      <ul className="space-y-2 mb-4">
+                        {w.exercises.map((ex, idx) => (
+                          <li key={ex.exerciseId || idx} className="flex items-center justify-between gap-2 text-sm bg-gray-50 rounded-xl px-3 py-2 border border-border-light/50">
+                            <span className="font-bold text-text-main truncate">{ex.nameAr || ex.exerciseId}</span>
+                            <div className="flex items-center gap-2 shrink-0 text-xs font-bold text-text-muted">
+                              <span>{ex.sets}×{ex.reps}</span>
+                              {ex.videoUrl && (
+                                <a
+                                  href={ex.videoUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-qwaam-pink hover:text-pink-600 underline underline-offset-2 font-black"
+                                >
+                                  ▶ فيديو
+                                </a>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
 
                     <ProgressToggleButton
                       itemId={w.id}

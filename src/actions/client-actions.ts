@@ -34,7 +34,7 @@ export async function fetchMyWorkouts(workoutIds: string[]): Promise<Workout[]> 
   const db = getAdminDb();
   const snapshot = await db.collection('workouts').where('__name__', 'in', workoutIds).get();
 
-  return snapshot.docs.map(doc => {
+  const workouts: Workout[] = snapshot.docs.map(doc => {
     const data = doc.data();
     return {
       id: doc.id,
@@ -42,6 +42,34 @@ export async function fetchMyWorkouts(workoutIds: string[]): Promise<Workout[]> 
       createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now(),
     } as Workout;
   });
+
+  // Join exercises collection to embed nameAr + videoUrl into each WorkoutExercise
+  // so the trainee dashboard can show exercise names and clickable video links.
+  const allExerciseIds = [
+    ...new Set(workouts.flatMap(w => w.exercises?.map(e => e.exerciseId) ?? []))
+  ].filter(Boolean);
+
+  if (allExerciseIds.length > 0) {
+    const exSnapshot = await db
+      .collection('exercises')
+      .where('__name__', 'in', allExerciseIds.slice(0, 30))
+      .get();
+
+    const exMap: Record<string, { nameAr: string; videoUrl?: string }> = {};
+    exSnapshot.docs.forEach(d => {
+      exMap[d.id] = { nameAr: d.data().nameAr, videoUrl: d.data().videoUrl || undefined };
+    });
+
+    workouts.forEach(w => {
+      w.exercises = w.exercises?.map(ex => ({
+        ...ex,
+        nameAr: exMap[ex.exerciseId]?.nameAr,
+        videoUrl: exMap[ex.exerciseId]?.videoUrl,
+      }));
+    });
+  }
+
+  return workouts;
 }
 
 export async function fetchMyMeals(mealIds: string[]): Promise<Meal[]> {
@@ -207,5 +235,28 @@ export async function requestPasswordReset(email: string) {
   } catch (err: any) {
     console.error('Reset Error:', err);
     return { success: false, message: 'حدث خطأ غير متوقع.' };
+  }
+}
+
+/**
+ * MVP renewal request: flags the trainee's document so the coach sees a
+ * pending renewal in the admin panel. No payment flow — the coach contacts
+ * the trainee to collect payment then manually renews via the admin panel.
+ */
+export async function requestRenewal(): Promise<{ success: boolean; message: string }> {
+  try {
+    const decodedToken = await verifyClientAccess();
+    const db = getAdminDb();
+
+    await db.collection('users').doc(decodedToken.uid).update({
+      'renewalRequest.requested': true,
+      'renewalRequest.requestedAt': new Date(),
+      'renewalRequest.status': 'pending',
+    });
+
+    return { success: true, message: 'تم إرسال طلب التجديد، سيتواصل معك المدرب قريباً.' };
+  } catch (err: any) {
+    console.error('requestRenewal error:', err);
+    return { success: false, message: 'حدث خطأ أثناء إرسال الطلب.' };
   }
 }

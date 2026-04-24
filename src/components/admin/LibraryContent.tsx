@@ -4,12 +4,12 @@ import { useState, Fragment } from 'react';
 import { Tab, Dialog, Transition } from '@headlessui/react';
 import type { Exercise, Workout, Meal, TargetMuscle, Equipment, WeightLevel, MealType } from '@/types';
 import {
-  addExercise, deleteExercise,
-  addWorkout, deleteWorkout,
-  addMeal, deleteMeal,
+  addExercise,    updateExercise, deleteExercise,
+  addWorkout,     updateWorkout,  deleteWorkout,
+  addMeal,        updateMeal,     deleteMeal,
 } from '@/actions/library-actions';
 import {
-  PlusIcon, TrashIcon, XMarkIcon, MagnifyingGlassIcon,
+  PlusIcon, TrashIcon, XMarkIcon, MagnifyingGlassIcon, PencilIcon,
 } from '@heroicons/react/24/outline';
 import { SparklesIcon } from '@heroicons/react/24/solid';
 
@@ -62,93 +62,161 @@ const inputCls = 'w-full px-4 py-3 rounded-xl border-2 border-border-light focus
 const selectCls = `${inputCls} bg-white`;
 const labelCls = 'block text-xs font-black text-text-muted mb-1.5 uppercase tracking-wider';
 
-// ── Add Exercise Modal ────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 const TARGET_MUSCLES: TargetMuscle[] = ['Chest', 'Back', 'Legs', 'Core', 'Arms', 'Shoulders', 'Glutes', 'Full Body'];
-const EQUIPMENT_LIST: Equipment[] = ['Bodyweight', 'Dumbbell', 'Barbell', 'Machine', 'Cable', 'Resistance Band', 'Kettlebell'];
-const WEIGHT_LEVELS: WeightLevel[] = ['bodyweight', 'light', 'medium', 'heavy', 'max'];
+const EQUIPMENT_LIST: Equipment[]    = ['Bodyweight', 'Dumbbell', 'Barbell', 'Machine', 'Cable', 'Resistance Band', 'Kettlebell'];
+const WEIGHT_LEVELS: WeightLevel[]   = ['bodyweight', 'light', 'medium', 'heavy', 'max'];
 const WEIGHT_LEVEL_AR: Record<WeightLevel, string> = {
-  bodyweight: 'وزن الجسم', light: 'خفيف', medium: 'متوسط', heavy: 'ثقيل', max: 'أقصى جهد'
+  bodyweight: 'وزن الجسم', light: 'خفيف', medium: 'متوسط', heavy: 'ثقيل', max: 'أقصى جهد',
 };
+const MEAL_TYPES: { value: MealType; label: string }[] = [
+  { value: 'breakfast', label: '🌅 إفطار' },
+  { value: 'lunch',     label: '☀️ غداء' },
+  { value: 'dinner',    label: '🌙 عشاء' },
+  { value: 'snack',     label: '🍎 وجبة خفيفة' },
+];
+
+// ── Exercise Form (shared by Add + Edit modals) ───────────────────────────────
+
+type ExerciseFormState = {
+  nameAr: string; nameEn: string; targetMuscle: TargetMuscle;
+  equipment: Equipment; videoUrl: string;
+  defaultSets: number; defaultReps: string;
+  defaultWeightLevel: WeightLevel; defaultRest: number;
+};
+
+const EMPTY_EXERCISE_FORM: ExerciseFormState = {
+  nameAr: '', nameEn: '', targetMuscle: 'Chest', equipment: 'Bodyweight',
+  videoUrl: '', defaultSets: 3, defaultReps: '10-12', defaultWeightLevel: 'medium', defaultRest: 60,
+};
+
+function ExerciseForm({
+  initial, onSubmit, loading, error, submitLabel,
+}: {
+  initial: ExerciseFormState;
+  onSubmit: (form: ExerciseFormState) => void;
+  loading: boolean;
+  error: string;
+  submitLabel: string;
+}) {
+  const [form, setForm] = useState<ExerciseFormState>(initial);
+  const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
+
+  return (
+    <form onSubmit={e => { e.preventDefault(); onSubmit(form); }} className="space-y-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className={labelCls}>اسم التمرين (عربي)</label>
+          <input className={inputCls} required value={form.nameAr} onChange={e => set('nameAr', e.target.value)} placeholder="ضغط الصدر بالدمبل" />
+        </div>
+        <div>
+          <label className={labelCls}>Exercise Name (English)</label>
+          <input className={inputCls} required dir="ltr" value={form.nameEn} onChange={e => set('nameEn', e.target.value)} placeholder="Dumbbell Chest Press" />
+        </div>
+        <div>
+          <label className={labelCls}>العضلة المستهدفة</label>
+          <select className={selectCls} value={form.targetMuscle} onChange={e => set('targetMuscle', e.target.value)}>
+            {TARGET_MUSCLES.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className={labelCls}>المعدات المطلوبة</label>
+          <select className={selectCls} value={form.equipment} onChange={e => set('equipment', e.target.value)}>
+            {EQUIPMENT_LIST.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className={labelCls}>عدد الجولات الافتراضي</label>
+          <input className={inputCls} type="number" min={1} required value={form.defaultSets} onChange={e => set('defaultSets', +e.target.value)} />
+        </div>
+        <div>
+          <label className={labelCls}>نطاق التكرارات (مثال: 10-12)</label>
+          <input className={inputCls} required dir="ltr" value={form.defaultReps} onChange={e => set('defaultReps', e.target.value)} placeholder="10-12" />
+        </div>
+        <div>
+          <label className={labelCls}>مستوى الثقل الافتراضي</label>
+          <select className={selectCls} value={form.defaultWeightLevel} onChange={e => set('defaultWeightLevel', e.target.value)}>
+            {WEIGHT_LEVELS.map(w => <option key={w} value={w}>{WEIGHT_LEVEL_AR[w]}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className={labelCls}>وقت الراحة (ثانية)</label>
+          <input className={inputCls} type="number" min={0} required value={form.defaultRest} onChange={e => set('defaultRest', +e.target.value)} />
+        </div>
+        <div className="sm:col-span-2">
+          <label className={labelCls}>رابط الفيديو (YouTube - اختياري)</label>
+          <input className={inputCls} dir="ltr" value={form.videoUrl} onChange={e => set('videoUrl', e.target.value)} placeholder="https://youtube.com/shorts/..." />
+        </div>
+      </div>
+      {error && <p className="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl border border-red-100 font-bold">{error}</p>}
+      <button type="submit" disabled={loading} className="w-full py-4 rounded-xl bg-qwaam-pink text-white font-black text-base shadow-lg shadow-qwaam-pink/20 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50">
+        {loading ? 'جاري الحفظ...' : submitLabel}
+      </button>
+    </form>
+  );
+}
+
+// ── Add Exercise Modal ────────────────────────────────────────────────────────
 
 function AddExerciseModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [form, setForm] = useState({
-    nameAr: '', nameEn: '', targetMuscle: 'Chest' as TargetMuscle,
-    equipment: 'Bodyweight' as Equipment, videoUrl: '',
-    defaultSets: 3, defaultReps: '10-12',
-    defaultWeightLevel: 'medium' as WeightLevel, defaultRest: 60,
-  });
 
-  const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(form: ExerciseFormState) {
     setLoading(true); setError('');
     const res = await addExercise({ ...form });
-    if (res.error) { setError(res.error); } else {
-      setForm({ nameAr: '', nameEn: '', targetMuscle: 'Chest', equipment: 'Bodyweight',
-        videoUrl: '', defaultSets: 3, defaultReps: '10-12', defaultWeightLevel: 'medium', defaultRest: 60 });
-      onClose();
-    }
+    if (res.error) { setError(res.error); } else { onClose(); }
     setLoading(false);
   }
 
   return (
     <ModalShell open={open} onClose={onClose} title="➕ إضافة تمرين للمكتبة">
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className={labelCls}>اسم التمرين (عربي)</label>
-            <input className={inputCls} required value={form.nameAr} onChange={e => set('nameAr', e.target.value)} placeholder="مثال: ضغط الصدر بالدمبل" />
-          </div>
-          <div>
-            <label className={labelCls}>Exercise Name (English)</label>
-            <input className={inputCls} required dir="ltr" value={form.nameEn} onChange={e => set('nameEn', e.target.value)} placeholder="e.g. Dumbbell Chest Press" />
-          </div>
-          <div>
-            <label className={labelCls}>العضلة المستهدفة</label>
-            <select className={selectCls} value={form.targetMuscle} onChange={e => set('targetMuscle', e.target.value)}>
-              {TARGET_MUSCLES.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={labelCls}>المعدات المطلوبة</label>
-            <select className={selectCls} value={form.equipment} onChange={e => set('equipment', e.target.value)}>
-              {EQUIPMENT_LIST.map(eq => <option key={eq} value={eq}>{eq}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={labelCls}>عدد الجولات الافتراضي</label>
-            <input className={inputCls} type="number" min={1} required value={form.defaultSets} onChange={e => set('defaultSets', +e.target.value)} />
-          </div>
-          <div>
-            <label className={labelCls}>نطاق التكرارات (مثال: 10-12)</label>
-            <input className={inputCls} required dir="ltr" value={form.defaultReps} onChange={e => set('defaultReps', e.target.value)} placeholder="10-12" />
-          </div>
-          <div>
-            <label className={labelCls}>مستوى الثقل الافتراضي</label>
-            <select className={selectCls} value={form.defaultWeightLevel} onChange={e => set('defaultWeightLevel', e.target.value)}>
-              {WEIGHT_LEVELS.map(w => <option key={w} value={w}>{WEIGHT_LEVEL_AR[w]}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={labelCls}>وقت الراحة (ثانية)</label>
-            <input className={inputCls} type="number" min={0} required value={form.defaultRest} onChange={e => set('defaultRest', +e.target.value)} />
-          </div>
-          <div className="sm:col-span-2">
-            <label className={labelCls}>رابط الفيديو (YouTube - اختياري)</label>
-            <input className={inputCls} dir="ltr" value={form.videoUrl} onChange={e => set('videoUrl', e.target.value)} placeholder="https://youtube.com/shorts/..." />
-          </div>
-        </div>
+      <ExerciseForm
+        initial={EMPTY_EXERCISE_FORM}
+        onSubmit={handleSubmit}
+        loading={loading}
+        error={error}
+        submitLabel="حفظ التمرين في المكتبة"
+      />
+    </ModalShell>
+  );
+}
 
-        {error && <p className="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl border border-red-100 font-bold">{error}</p>}
+// ── Edit Exercise Modal ───────────────────────────────────────────────────────
 
-        <button type="submit" disabled={loading} className="w-full py-4 rounded-xl bg-qwaam-pink text-white font-black text-base shadow-lg shadow-qwaam-pink/20 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50">
-          {loading ? 'جاري الحفظ...' : 'حفظ التمرين في المكتبة'}
-        </button>
-      </form>
+function EditExerciseModal({ exercise, onClose }: { exercise: Exercise; onClose: () => void }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(form: ExerciseFormState) {
+    setLoading(true); setError('');
+    const res = await updateExercise(exercise.id, { ...form });
+    if (res.error) { setError(res.error); } else { onClose(); }
+    setLoading(false);
+  }
+
+  const initial: ExerciseFormState = {
+    nameAr:             exercise.nameAr,
+    nameEn:             exercise.nameEn,
+    targetMuscle:       exercise.targetMuscle,
+    equipment:          exercise.equipment,
+    videoUrl:           exercise.videoUrl ?? '',
+    defaultSets:        exercise.defaultSets,
+    defaultReps:        exercise.defaultReps,
+    defaultWeightLevel: exercise.defaultWeightLevel,
+    defaultRest:        exercise.defaultRest,
+  };
+
+  return (
+    <ModalShell open={true} onClose={onClose} title={`✏️ تعديل: ${exercise.nameAr}`}>
+      <ExerciseForm
+        initial={initial}
+        onSubmit={handleSubmit}
+        loading={loading}
+        error={error}
+        submitLabel="حفظ التعديلات"
+      />
     </ModalShell>
   );
 }
@@ -156,46 +224,31 @@ function AddExerciseModal({ open, onClose }: { open: boolean; onClose: () => voi
 // ── Add Workout Modal ─────────────────────────────────────────────────────────
 
 interface WorkoutExRow {
-  exerciseId: string;
-  sets: number | '';
-  reps: string;
-  weightLevel: WeightLevel;
-  rest: number | '';
-  notes: string;
+  exerciseId: string; sets: number | ''; reps: string;
+  weightLevel: WeightLevel; rest: number | ''; notes: string;
 }
 
 function AddWorkoutModal({ open, onClose, exercises }: {
-  open: boolean;
-  onClose: () => void;
-  exercises: Exercise[];
+  open: boolean; onClose: () => void; exercises: Exercise[];
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [rows, setRows] = useState<WorkoutExRow[]>([
-    { exerciseId: '', sets: '', reps: '', weightLevel: 'medium', rest: '', notes: '' }
+    { exerciseId: '', sets: '', reps: '', weightLevel: 'medium', rest: '', notes: '' },
   ]);
   const [exSearch, setExSearch] = useState('');
 
-  function addRow() {
-    setRows(r => [...r, { exerciseId: '', sets: '', reps: '', weightLevel: 'medium', rest: '', notes: '' }]);
-  }
-  function removeRow(i: number) {
-    setRows(r => r.filter((_, idx) => idx !== i));
-  }
+  function addRow() { setRows(r => [...r, { exerciseId: '', sets: '', reps: '', weightLevel: 'medium', rest: '', notes: '' }]); }
+  function removeRow(i: number) { setRows(r => r.filter((_, idx) => idx !== i)); }
   function updateRow(i: number, k: keyof WorkoutExRow, v: any) {
     setRows(r => r.map((row, idx) => idx === i ? { ...row, [k]: v } : row));
   }
-
-  // When an exercise is picked, prefill its defaults
   function pickExercise(i: number, exId: string) {
     const ex = exercises.find(e => e.id === exId);
     setRows(r => r.map((row, idx) => idx === i ? {
-      ...row,
-      exerciseId: exId,
-      sets: ex?.defaultSets ?? '',
-      reps: ex?.defaultReps ?? '',
-      weightLevel: ex?.defaultWeightLevel ?? 'medium',
-      rest: ex?.defaultRest ?? '',
+      ...row, exerciseId: exId,
+      sets: ex?.defaultSets ?? '', reps: ex?.defaultReps ?? '',
+      weightLevel: ex?.defaultWeightLevel ?? 'medium', rest: ex?.defaultRest ?? '',
     } : row));
   }
 
@@ -216,7 +269,7 @@ function AddWorkoutModal({ open, onClose, exercises }: {
     setLoading(false);
   }
 
-  const filteredExercises = exercises.filter(ex =>
+  const filtered = exercises.filter(ex =>
     !exSearch || ex.nameAr.includes(exSearch) || ex.nameEn.toLowerCase().includes(exSearch.toLowerCase())
   );
 
@@ -226,11 +279,11 @@ function AddWorkoutModal({ open, onClose, exercises }: {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-2xl border border-border-light">
           <div>
             <label className={labelCls}>اسم البرنامج (عربي)</label>
-            <input name="titleAr" className={inputCls} required placeholder="مثال: يوم الصدر والكتف" disabled={loading} />
+            <input name="titleAr" className={inputCls} required placeholder="يوم الصدر والكتف" disabled={loading} />
           </div>
           <div>
             <label className={labelCls}>Program Name (English)</label>
-            <input name="titleEn" className={inputCls} required dir="ltr" placeholder="e.g. Push Day A" disabled={loading} />
+            <input name="titleEn" className={inputCls} required dir="ltr" placeholder="Push Day A" disabled={loading} />
           </div>
           <div>
             <label className={labelCls}>مستوى الصعوبة</label>
@@ -246,7 +299,6 @@ function AddWorkoutModal({ open, onClose, exercises }: {
           </div>
         </div>
 
-        {/* Exercise Selector */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <h4 className="font-black text-text-main">قائمة التمارين</h4>
@@ -254,18 +306,15 @@ function AddWorkoutModal({ open, onClose, exercises }: {
               <PlusIcon className="w-4 h-4" /> إضافة تمرين
             </button>
           </div>
-
-          {/* Search exercises */}
           <div className="relative mb-3">
             <MagnifyingGlassIcon className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-text-muted" />
             <input
               className="w-full pr-9 pl-4 py-2.5 rounded-xl border-2 border-border-light text-sm font-bold outline-none focus:border-qwaam-pink"
-              placeholder="ابحث عن تمرين من المكتبة..."
+              placeholder="ابحث عن تمرين..."
               value={exSearch}
               onChange={e => setExSearch(e.target.value)}
             />
           </div>
-
           <div className="space-y-3 max-h-[36vh] overflow-y-auto pr-1">
             {rows.map((row, i) => {
               const picked = exercises.find(e => e.id === row.exerciseId);
@@ -278,17 +327,10 @@ function AddWorkoutModal({ open, onClose, exercises }: {
                   )}
                   <div>
                     <label className={labelCls}>التمرين من المكتبة</label>
-                    <select
-                      className={selectCls}
-                      value={row.exerciseId}
-                      onChange={e => pickExercise(i, e.target.value)}
-                      required
-                    >
+                    <select className={selectCls} value={row.exerciseId} onChange={e => pickExercise(i, e.target.value)} required>
                       <option value="">— اختر تمرين —</option>
-                      {filteredExercises.map(ex => (
-                        <option key={ex.id} value={ex.id}>
-                          {ex.nameAr} ({ex.targetMuscle} · {ex.equipment})
-                        </option>
+                      {filtered.map(ex => (
+                        <option key={ex.id} value={ex.id}>{ex.nameAr} ({ex.targetMuscle} · {ex.equipment})</option>
                       ))}
                     </select>
                   </div>
@@ -314,7 +356,7 @@ function AddWorkoutModal({ open, onClose, exercises }: {
                       </div>
                       <div className="col-span-2 sm:col-span-4">
                         <label className={labelCls}>ملاحظات (اختياري)</label>
-                        <input className={inputCls} value={row.notes} onChange={e => updateRow(i, 'notes', e.target.value)} placeholder="تعليمات خاصة، رتم أداء..." />
+                        <input className={inputCls} value={row.notes} onChange={e => updateRow(i, 'notes', e.target.value)} placeholder="تعليمات خاصة..." />
                       </div>
                     </div>
                   )}
@@ -325,7 +367,6 @@ function AddWorkoutModal({ open, onClose, exercises }: {
         </div>
 
         {error && <p className="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl border border-red-100 font-bold">{error}</p>}
-
         <button type="submit" disabled={loading} className="w-full py-4 rounded-xl bg-text-main text-white font-black text-base shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-50">
           {loading ? 'جاري الحفظ...' : 'حفظ ونشر البرنامج'}
         </button>
@@ -334,14 +375,123 @@ function AddWorkoutModal({ open, onClose, exercises }: {
   );
 }
 
-// ── Add Meal Modal ─────────────────────────────────────────────────────────────
+// ── Edit Workout Modal (metadata only) ────────────────────────────────────────
 
-const MEAL_TYPES: { value: MealType; label: string }[] = [
-  { value: 'breakfast', label: '🌅 إفطار' },
-  { value: 'lunch',     label: '☀️ غداء' },
-  { value: 'dinner',    label: '🌙 عشاء' },
-  { value: 'snack',     label: '🍎 وجبة خفيفة' },
-];
+function EditWorkoutModal({ workout, onClose }: { workout: Workout; onClose: () => void }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [form, setForm] = useState({
+    titleAr:    workout.titleAr,
+    titleEn:    workout.titleEn,
+    difficulty: workout.difficulty,
+    duration:   workout.duration,
+  });
+  const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true); setError('');
+    const res = await updateWorkout(workout.id, { ...form, duration: Number(form.duration) });
+    if (res.error) { setError(res.error); } else { onClose(); }
+    setLoading(false);
+  }
+
+  return (
+    <ModalShell open={true} onClose={onClose} title={`✏️ تعديل: ${workout.titleAr}`}>
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className={labelCls}>اسم البرنامج (عربي)</label>
+            <input className={inputCls} required value={form.titleAr} onChange={e => set('titleAr', e.target.value)} />
+          </div>
+          <div>
+            <label className={labelCls}>Program Name (English)</label>
+            <input className={inputCls} required dir="ltr" value={form.titleEn} onChange={e => set('titleEn', e.target.value)} />
+          </div>
+          <div>
+            <label className={labelCls}>مستوى الصعوبة</label>
+            <select className={selectCls} value={form.difficulty} onChange={e => set('difficulty', e.target.value)}>
+              <option value="beginner">مبتدئ</option>
+              <option value="intermediate">متوسط</option>
+              <option value="advanced">متقدم</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>المدة الكلية (دقيقة)</label>
+            <input className={inputCls} type="number" min={1} required value={form.duration} onChange={e => set('duration', e.target.value)} />
+          </div>
+        </div>
+        <p className="text-xs font-bold text-text-muted bg-gray-50 p-3 rounded-xl border border-border-light">
+          ℹ️ لتعديل قائمة التمارين داخل البرنامج، احذف البرنامج وأعد بناءه من المكتبة.
+        </p>
+        {error && <p className="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl border border-red-100 font-bold">{error}</p>}
+        <button type="submit" disabled={loading} className="w-full py-4 rounded-xl bg-text-main text-white font-black text-base shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-50">
+          {loading ? 'جاري الحفظ...' : 'حفظ التعديلات'}
+        </button>
+      </form>
+    </ModalShell>
+  );
+}
+
+// ── Add Meal Modal ────────────────────────────────────────────────────────────
+
+function MealForm({
+  initial, onSubmit, loading, error, submitLabel,
+}: {
+  initial: { nameAr: string; nameEn: string; type: string; calories: string; protein: string; carbs: string; fats: string; recipe: string };
+  onSubmit: (data: FormData) => void;
+  loading: boolean; error: string; submitLabel: string;
+}) {
+  return (
+    <form action={onSubmit} className="space-y-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className={labelCls}>اسم الوجبة (عربي)</label>
+          <input name="nameAr" className={inputCls} required defaultValue={initial.nameAr} placeholder="صدر دجاج مشوي" disabled={loading} />
+        </div>
+        <div>
+          <label className={labelCls}>Meal Name (English)</label>
+          <input name="nameEn" className={inputCls} required dir="ltr" defaultValue={initial.nameEn} placeholder="Grilled Chicken Breast" disabled={loading} />
+        </div>
+        <div>
+          <label className={labelCls}>نوع الوجبة</label>
+          <select name="type" className={selectCls} required disabled={loading} defaultValue={initial.type}>
+            {MEAL_TYPES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className={labelCls}>السعرات الحرارية (kcal)</label>
+          <input name="calories" type="number" min={1} className={inputCls} required defaultValue={initial.calories} placeholder="350" disabled={loading} />
+        </div>
+      </div>
+      <div className="bg-gray-50 border border-border-light rounded-2xl p-4">
+        <h5 className="font-black text-text-main mb-3 text-sm">الماكروز (جرام)</h5>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs font-black text-red-500 mb-1.5 uppercase tracking-wider">بروتين</label>
+            <input name="protein" type="number" min={0} className={inputCls} required defaultValue={initial.protein} placeholder="30" disabled={loading} />
+          </div>
+          <div>
+            <label className="block text-xs font-black text-green-600 mb-1.5 uppercase tracking-wider">كارب</label>
+            <input name="carbs" type="number" min={0} className={inputCls} required defaultValue={initial.carbs} placeholder="40" disabled={loading} />
+          </div>
+          <div>
+            <label className="block text-xs font-black text-yellow-600 mb-1.5 uppercase tracking-wider">دهون</label>
+            <input name="fats" type="number" min={0} className={inputCls} required defaultValue={initial.fats} placeholder="10" disabled={loading} />
+          </div>
+        </div>
+      </div>
+      <div>
+        <label className={labelCls}>الوصفة / المكونات (اختياري)</label>
+        <textarea name="recipe" rows={3} className={`${inputCls} resize-none`} defaultValue={initial.recipe} placeholder="المكونات وطريقة التحضير..." disabled={loading} />
+      </div>
+      {error && <p className="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl border border-red-100 font-bold">{error}</p>}
+      <button type="submit" disabled={loading} className="w-full py-4 rounded-xl bg-qwaam-yellow text-text-main font-black text-base shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-50">
+        {loading ? 'جاري الحفظ...' : submitLabel}
+      </button>
+    </form>
+  );
+}
 
 function AddMealModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [loading, setLoading] = useState(false);
@@ -356,58 +506,51 @@ function AddMealModal({ open, onClose }: { open: boolean; onClose: () => void })
 
   return (
     <ModalShell open={open} onClose={onClose} title="🥗 إضافة وجبة غذائية">
-      <form action={handleSubmit} className="space-y-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className={labelCls}>اسم الوجبة (عربي)</label>
-            <input name="nameAr" className={inputCls} required placeholder="مثال: صدر دجاج مشوي" disabled={loading} />
-          </div>
-          <div>
-            <label className={labelCls}>Meal Name (English)</label>
-            <input name="nameEn" className={inputCls} required dir="ltr" placeholder="e.g. Grilled Chicken Breast" disabled={loading} />
-          </div>
-          <div>
-            <label className={labelCls}>نوع الوجبة</label>
-            <select name="type" className={selectCls} required disabled={loading}>
-              {MEAL_TYPES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={labelCls}>السعرات الحرارية (kcal)</label>
-            <input name="calories" type="number" min={1} className={inputCls} required placeholder="350" disabled={loading} />
-          </div>
-        </div>
+      <MealForm
+        initial={{ nameAr: '', nameEn: '', type: 'breakfast', calories: '', protein: '', carbs: '', fats: '', recipe: '' }}
+        onSubmit={handleSubmit} loading={loading} error={error} submitLabel="حفظ الوجبة في المكتبة"
+      />
+    </ModalShell>
+  );
+}
 
-        {/* Macros */}
-        <div className="bg-gray-50 border border-border-light rounded-2xl p-4">
-          <h5 className="font-black text-text-main mb-3 text-sm">الماكروز (جرام)</h5>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-black text-red-500 mb-1.5 uppercase tracking-wider">بروتين</label>
-              <input name="protein" type="number" min={0} className={inputCls} required placeholder="30" disabled={loading} />
-            </div>
-            <div>
-              <label className="block text-xs font-black text-green-600 mb-1.5 uppercase tracking-wider">كارب</label>
-              <input name="carbs" type="number" min={0} className={inputCls} required placeholder="40" disabled={loading} />
-            </div>
-            <div>
-              <label className="block text-xs font-black text-yellow-600 mb-1.5 uppercase tracking-wider">دهون</label>
-              <input name="fats" type="number" min={0} className={inputCls} required placeholder="10" disabled={loading} />
-            </div>
-          </div>
-        </div>
+// ── Edit Meal Modal ───────────────────────────────────────────────────────────
 
-        <div>
-          <label className={labelCls}>الوصفة / المكونات (اختياري)</label>
-          <textarea name="recipe" rows={3} className={`${inputCls} resize-none`} placeholder="المكونات وطريقة التحضير..." disabled={loading} />
-        </div>
+function EditMealModal({ meal, onClose }: { meal: Meal; onClose: () => void }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-        {error && <p className="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl border border-red-100 font-bold">{error}</p>}
+  async function handleSubmit(formData: FormData) {
+    setLoading(true); setError('');
+    const res = await updateMeal(meal.id, {
+      nameAr:   formData.get('nameAr')   as string,
+      nameEn:   formData.get('nameEn')   as string,
+      type:     formData.get('type')     as string,
+      calories: parseInt(formData.get('calories') as string, 10),
+      protein:  parseInt(formData.get('protein')  as string, 10),
+      carbs:    parseInt(formData.get('carbs')    as string, 10),
+      fats:     parseInt(formData.get('fats')     as string, 10),
+      recipe:   (formData.get('recipe') as string) || undefined,
+    });
+    if (res.error) { setError(res.error); } else { onClose(); }
+    setLoading(false);
+  }
 
-        <button type="submit" disabled={loading} className="w-full py-4 rounded-xl bg-qwaam-yellow text-text-main font-black text-base shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-50">
-          {loading ? 'جاري الحفظ...' : 'حفظ الوجبة في المكتبة'}
-        </button>
-      </form>
+  return (
+    <ModalShell open={true} onClose={onClose} title={`✏️ تعديل: ${meal.nameAr}`}>
+      <MealForm
+        initial={{
+          nameAr:   meal.nameAr,
+          nameEn:   meal.nameEn,
+          type:     meal.type,
+          calories: String(meal.calories),
+          protein:  String(meal.macros.protein),
+          carbs:    String(meal.macros.carbs),
+          fats:     String(meal.macros.fats),
+          recipe:   meal.recipe ?? '',
+        }}
+        onSubmit={handleSubmit} loading={loading} error={error} submitLabel="حفظ التعديلات"
+      />
     </ModalShell>
   );
 }
@@ -427,16 +570,19 @@ function tabCls(selected: boolean, color: 'pink' | 'dark' | 'yellow') {
 
 // ── Main LibraryContent ───────────────────────────────────────────────────────
 
-export default function LibraryContent({
-  exercises, workouts, meals,
-}: {
-  exercises: Exercise[];
-  workouts: Workout[];
-  meals: Meal[];
+export default function LibraryContent({ exercises, workouts, meals }: {
+  exercises: Exercise[]; workouts: Workout[]; meals: Meal[];
 }) {
-  const [exModal, setExModal]   = useState(false);
-  const [wkModal, setWkModal]   = useState(false);
-  const [mlModal, setMlModal]   = useState(false);
+  // Add modals
+  const [exModal, setExModal] = useState(false);
+  const [wkModal, setWkModal] = useState(false);
+  const [mlModal, setMlModal] = useState(false);
+
+  // Edit modals — null means closed
+  const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
+  const [editingWorkout,  setEditingWorkout]  = useState<Workout  | null>(null);
+  const [editingMeal,     setEditingMeal]     = useState<Meal     | null>(null);
+
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function handleDeleteExercise(id: string) {
@@ -461,14 +607,12 @@ export default function LibraryContent({
   return (
     <div className="w-full max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500" dir="rtl">
 
-      {/* Header */}
       <div>
         <h1 className="text-4xl font-black text-text-main tracking-tight">مكتبة المحتوى</h1>
         <p className="text-text-muted font-bold text-lg mt-1">إدارة التمارين، البرامج التدريبية، والوجبات الغذائية</p>
       </div>
 
       <Tab.Group>
-        {/* Tab Nav */}
         <div className="bg-white p-2 rounded-2xl border border-border-light shadow-sm sticky top-0 z-10">
           <Tab.List className="flex gap-1">
             <Tab className={({ selected }) => tabCls(selected, 'pink')}>🏋️‍♀️ التمارين</Tab>
@@ -493,26 +637,34 @@ export default function LibraryContent({
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {exercises.map(ex => (
                   <div key={ex.id} className="group bg-white rounded-2xl border-2 border-border-light p-5 hover:border-qwaam-pink/40 hover:shadow-md transition-all relative flex flex-col gap-3">
-                    {/* Header */}
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <h4 className="font-black text-text-main text-lg leading-tight">{ex.nameAr}</h4>
                         <p className="text-xs font-bold text-text-muted" dir="ltr">{ex.nameEn}</p>
                       </div>
-                      <button
-                        onClick={() => handleDeleteExercise(ex.id)}
-                        disabled={deletingId === ex.id}
-                        className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-all shrink-0 p-1"
-                      >
-                        <TrashIcon className="w-5 h-5" />
-                      </button>
+                      {/* Action buttons — reveal on hover */}
+                      <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-all">
+                        <button
+                          onClick={() => setEditingExercise(ex)}
+                          className="p-1.5 rounded-lg text-text-muted hover:text-qwaam-pink hover:bg-qwaam-pink-light transition-colors"
+                          title="تعديل"
+                        >
+                          <PencilIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteExercise(ex.id)}
+                          disabled={deletingId === ex.id}
+                          className="p-1.5 rounded-lg text-red-300 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          title="حذف"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                    {/* Badges */}
                     <div className="flex flex-wrap gap-1.5">
                       <span className="bg-qwaam-pink-light text-qwaam-pink text-[11px] font-black px-2.5 py-1 rounded-full">{ex.targetMuscle}</span>
                       <span className="bg-gray-100 text-gray-600 text-[11px] font-black px-2.5 py-1 rounded-full">{ex.equipment}</span>
                     </div>
-                    {/* Defaults */}
                     <div className="grid grid-cols-3 gap-2 text-center mt-auto">
                       <StatChip label="جولات" value={String(ex.defaultSets)} />
                       <StatChip label="تكرارات" value={ex.defaultReps} ltr />
@@ -550,12 +702,25 @@ export default function LibraryContent({
                         <h4 className="font-black text-text-main text-xl leading-tight">{w.titleAr}</h4>
                         <p className="text-xs font-bold text-text-muted mt-0.5" dir="ltr">{w.titleEn}</p>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-1 shrink-0">
                         <span className="bg-qwaam-pink-light text-qwaam-pink text-[11px] font-black px-2.5 py-1 rounded-full">{w.difficulty}</span>
-                        <button onClick={() => handleDeleteWorkout(w.id)} disabled={deletingId === w.id}
-                          className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-all p-1">
-                          <TrashIcon className="w-5 h-5" />
-                        </button>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          <button
+                            onClick={() => setEditingWorkout(w)}
+                            className="p-1.5 rounded-lg text-text-muted hover:text-qwaam-pink hover:bg-qwaam-pink-light transition-colors"
+                            title="تعديل"
+                          >
+                            <PencilIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteWorkout(w.id)}
+                            disabled={deletingId === w.id}
+                            className="p-1.5 rounded-lg text-red-300 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            title="حذف"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                     <div className="flex gap-3 mt-auto">
@@ -591,10 +756,23 @@ export default function LibraryContent({
                           <h4 className="font-black text-text-main text-xl leading-tight">{m.nameAr}</h4>
                           <p className="text-xs font-bold text-text-muted mt-0.5" dir="ltr">{m.nameEn}</p>
                         </div>
-                        <button onClick={() => handleDeleteMeal(m.id)} disabled={deletingId === m.id}
-                          className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-all p-1 shrink-0">
-                          <TrashIcon className="w-5 h-5" />
-                        </button>
+                        <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-all">
+                          <button
+                            onClick={() => setEditingMeal(m)}
+                            className="p-1.5 rounded-lg text-text-muted hover:text-yellow-600 hover:bg-yellow-50 transition-colors"
+                            title="تعديل"
+                          >
+                            <PencilIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteMeal(m.id)}
+                            disabled={deletingId === m.id}
+                            className="p-1.5 rounded-lg text-red-300 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            title="حذف"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                       <div className="bg-gray-50 rounded-xl px-4 py-2.5 flex items-center justify-between border border-border-light/50">
                         <span className="text-xs font-black text-text-muted uppercase tracking-widest">السعرات</span>
@@ -602,8 +780,8 @@ export default function LibraryContent({
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-center">
                         <MacroPill label="بروتين" value={m.macros.protein} color="red" />
-                        <MacroPill label="كارب" value={m.macros.carbs} color="green" />
-                        <MacroPill label="دهون" value={m.macros.fats} color="yellow" />
+                        <MacroPill label="كارب"   value={m.macros.carbs}   color="green" />
+                        <MacroPill label="دهون"   value={m.macros.fats}    color="yellow" />
                       </div>
                       {m.recipe && (
                         <p className="text-xs font-bold text-text-muted leading-relaxed line-clamp-2 border-t border-border-light/50 pt-3">{m.recipe}</p>
@@ -618,10 +796,21 @@ export default function LibraryContent({
         </Tab.Panels>
       </Tab.Group>
 
-      {/* Modals */}
+      {/* ── Add Modals ── */}
       <AddExerciseModal open={exModal} onClose={() => setExModal(false)} />
       <AddWorkoutModal  open={wkModal} onClose={() => setWkModal(false)} exercises={exercises} />
       <AddMealModal     open={mlModal} onClose={() => setMlModal(false)} />
+
+      {/* ── Edit Modals — rendered conditionally so they mount with fresh state ── */}
+      {editingExercise && (
+        <EditExerciseModal exercise={editingExercise} onClose={() => setEditingExercise(null)} />
+      )}
+      {editingWorkout && (
+        <EditWorkoutModal workout={editingWorkout} onClose={() => setEditingWorkout(null)} />
+      )}
+      {editingMeal && (
+        <EditMealModal meal={editingMeal} onClose={() => setEditingMeal(null)} />
+      )}
     </div>
   );
 }
@@ -638,11 +827,7 @@ function StatChip({ label, value, ltr }: { label: string; value: string; ltr?: b
 }
 
 function MacroPill({ label, value, color }: { label: string; value: number; color: 'red' | 'green' | 'yellow' }) {
-  const cls = {
-    red:    'text-red-700 bg-red-50',
-    green:  'text-green-700 bg-green-50',
-    yellow: 'text-yellow-700 bg-yellow-50',
-  }[color];
+  const cls = { red: 'text-red-700 bg-red-50', green: 'text-green-700 bg-green-50', yellow: 'text-yellow-700 bg-yellow-50' }[color];
   return (
     <div className={`${cls} rounded-xl py-2 flex flex-col items-center gap-0.5`}>
       <span className="text-[10px] font-black uppercase tracking-wider opacity-60">{label}</span>
@@ -653,7 +838,7 @@ function MacroPill({ label, value, color }: { label: string; value: number; colo
 
 function EmptyState({ icon, title, desc }: { icon: string; title: string; desc: string }) {
   return (
-    <div className="py-24 px-6 text-center text-text-muted flex flex-col items-center justify-center bg-white rounded-3xl border border-dashed border-border-light shadow-sm">
+    <div className="py-24 px-6 text-center flex flex-col items-center justify-center bg-white rounded-3xl border border-dashed border-border-light shadow-sm">
       <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mb-6 border-2 border-dashed border-gray-200">
         <span className="text-5xl block grayscale opacity-50">{icon}</span>
       </div>

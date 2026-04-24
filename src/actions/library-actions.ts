@@ -138,6 +138,31 @@ export async function addWorkout(formData: FormData) {
   }
 }
 
+export async function updateWorkout(
+  id: string,
+  payload: { titleAr: string; titleEn: string; difficulty: string; duration: number },
+) {
+  await verifyAdminAccess();
+  if (!id) return { error: 'معرّف البرنامج مطلوب.' };
+
+  const { titleAr, titleEn, difficulty, duration } = payload;
+  if (!titleAr || !titleEn || !difficulty || !duration) {
+    return { error: 'يرجى تعبئة جميع الحقول.' };
+  }
+
+  try {
+    const db = getAdminDb();
+    await db.collection('workouts').doc(id).update({
+      titleAr, titleEn, difficulty, duration, updatedAt: new Date(),
+    });
+    revalidatePath('/admin/library');
+    return { success: true };
+  } catch (err: any) {
+    console.error('updateWorkout error:', err);
+    return { error: 'فشل تحديث البرنامج التدريبي.' };
+  }
+}
+
 export async function deleteWorkout(id: string) {
   await verifyAdminAccess();
   if (!id) return { error: 'معرّف البرنامج مطلوب.' };
@@ -197,6 +222,39 @@ export async function addMeal(formData: FormData) {
   } catch (err: any) {
     console.error('addMeal error:', err);
     return { error: 'فشل حفظ الوجبة.' };
+  }
+}
+
+export async function updateMeal(
+  id: string,
+  payload: {
+    nameAr: string; nameEn: string; type: string;
+    calories: number; protein: number; carbs: number; fats: number;
+    recipe?: string;
+  },
+) {
+  await verifyAdminAccess();
+  if (!id) return { error: 'معرّف الوجبة مطلوب.' };
+
+  const { nameAr, nameEn, type, calories, protein, carbs, fats, recipe } = payload;
+  if (!nameAr || !nameEn || !type) return { error: 'يرجى تعبئة الحقول الأساسية.' };
+  if (isNaN(calories) || isNaN(protein) || isNaN(carbs) || isNaN(fats)) {
+    return { error: 'بيانات الماكروز غير سليمة.' };
+  }
+
+  try {
+    const db = getAdminDb();
+    await db.collection('meals').doc(id).update({
+      nameAr, nameEn, type, calories,
+      macros: { protein, carbs, fats },
+      recipe: recipe || null,
+      updatedAt: new Date(),
+    });
+    revalidatePath('/admin/library');
+    return { success: true };
+  } catch (err: any) {
+    console.error('updateMeal error:', err);
+    return { error: 'فشل تحديث الوجبة.' };
   }
 }
 

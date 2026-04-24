@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { renewTraineePlan } from '@/actions/admin-actions';
+import { renewTraineePlan, overrideTraineeSessions } from '@/actions/admin-actions';
 import { ArrowPathIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 interface Props {
@@ -19,6 +19,9 @@ export default function SubscriptionManagement({ traineeUid, sessionTracking }: 
   // Danger Zone State
   const [overrideTotal, setOverrideTotal] = useState<number>(sessionTracking?.totalSessions || 0);
   const [overrideRemaining, setOverrideRemaining] = useState<number>(sessionTracking?.remainingSessions || 0);
+  const [loadingOverride, setLoadingOverride] = useState(false);
+  const [overrideError, setOverrideError] = useState('');
+  const [overrideSuccess, setOverrideSuccess] = useState('');
 
   const handleRenewPlan = async () => {
     if (renewAmount <= 0) {
@@ -34,22 +37,27 @@ export default function SubscriptionManagement({ traineeUid, sessionTracking }: 
     if (!res.success) {
       setRenewError(res.error || 'حدث خطأ أثناء التجديد');
     } else {
-      setRenewSuccess('تم تجديد الباقة بنجاح');
-      // Update override states to reflect the new reality locally
-      setOverrideTotal(renewAmount);
-      setOverrideRemaining(renewAmount);
+      setRenewSuccess(`تمت إضافة ${renewAmount} حصة بنجاح`);
+      // Add to existing local state rather than overwriting it
+      if (res.newTotal !== undefined) setOverrideTotal(res.newTotal);
+      if (res.newRemaining !== undefined) setOverrideRemaining(res.newRemaining);
     }
     setLoadingRenew(false);
   };
 
-  const handleManualOverride = () => {
-    // For now, just log and alert
-    console.log('Manual Override Triggered:', {
-      traineeUid,
-      newTotal: overrideTotal,
-      newRemaining: overrideRemaining
-    });
-    alert('تم حفظ التعديلات اليدوية بنجاح (سيتم ربطها بالخادم لاحقاً)');
+  const handleManualOverride = async () => {
+    setLoadingOverride(true);
+    setOverrideError('');
+    setOverrideSuccess('');
+
+    const res = await overrideTraineeSessions(traineeUid, overrideTotal, overrideRemaining);
+
+    if (!res.success) {
+      setOverrideError(res.error || 'حدث خطأ أثناء التعديل');
+    } else {
+      setOverrideSuccess('تم حفظ التعديلات اليدوية بنجاح');
+    }
+    setLoadingOverride(false);
   };
 
   return (
@@ -110,6 +118,9 @@ export default function SubscriptionManagement({ traineeUid, sessionTracking }: 
           </p>
         </div>
 
+        {overrideError && <p className="text-xs font-bold text-red-600 mb-3 bg-red-100 p-2 rounded-lg">{overrideError}</p>}
+        {overrideSuccess && <p className="text-xs font-bold text-green-700 mb-3 bg-green-50 p-2 rounded-lg">{overrideSuccess}</p>}
+
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-xs font-bold text-red-800 mb-1">إجمالي الحصص</label>
@@ -135,9 +146,10 @@ export default function SubscriptionManagement({ traineeUid, sessionTracking }: 
 
         <button
           onClick={handleManualOverride}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-black text-white bg-red-600 hover:bg-red-700 shadow-md shadow-red-500/20 transition-all"
+          disabled={loadingOverride}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-black text-white bg-red-600 hover:bg-red-700 shadow-md shadow-red-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          حفظ التعديلات
+          {loadingOverride ? 'جاري الحفظ...' : 'حفظ التعديلات'}
         </button>
       </div>
 
