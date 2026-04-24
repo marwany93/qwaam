@@ -4,6 +4,7 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { Link } from '@/i18n/navigation';
 import { useRef } from 'react';
 import Image from 'next/image';
+import { getPlans } from '@/lib/pricing-config';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Translations {
@@ -139,6 +140,87 @@ function BentoCard({ emoji, title, desc, bgImage, wide, accent, delay = 0 }: Ben
   );
 }
 
+// ── Pricing Preview Section ────────────────────────────────────────────────────
+function PricingPreview() {
+  // Show the home + live plans as the flagship offering
+  const plans = getPlans('home', 'live');
+
+  return (
+    <section id="pricing" className="bg-white py-28 px-6">
+      <div className="container mx-auto max-w-5xl">
+
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          className="text-center mb-16"
+        >
+          <p className="text-xs font-black text-qwaam-pink uppercase tracking-widest mb-3">
+            شفافية كاملة
+          </p>
+          <h2 className="text-4xl md:text-5xl font-black text-text-main leading-tight mb-4">
+            باقاتنا التدريبية
+          </h2>
+          <p className="text-text-muted font-medium max-w-xl mx-auto">
+            حصص لايف مع مدربك المختص — اختاري الباقة المناسبة لك وابدأي رحلتك اليوم.
+          </p>
+        </motion.div>
+
+        {/* Plan Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+          {plans.map((plan, i) => (
+            <motion.div
+              key={plan.id}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-40px' }}
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: i * 0.08 }}
+              className={`
+                relative flex flex-col items-center p-6 rounded-2xl border-2 text-center transition-all duration-300
+                ${plan.popular
+                  ? 'border-qwaam-pink bg-qwaam-pink-light shadow-lg shadow-qwaam-pink/15'
+                  : 'border-border-light bg-white hover:border-qwaam-pink/40 hover:shadow-md'
+                }
+              `}
+            >
+              {plan.popular && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-qwaam-yellow text-[10px] font-black text-text-main shadow-sm whitespace-nowrap">
+                  ⭐ الأكثر طلباً
+                </div>
+              )}
+              <p className="text-sm font-bold text-text-muted mb-1 mt-2">حصص لايف</p>
+              <p className="text-3xl font-black text-text-main mb-1">{plan.sessions}</p>
+              <p className="text-xs text-text-muted font-medium mb-4">حصة / شهر</p>
+              <div className="mt-auto">
+                <span className={`text-2xl font-black ${plan.popular ? 'text-qwaam-pink' : 'text-text-main'}`}>
+                  {plan.price}
+                </span>
+                <span className="text-sm font-bold text-text-muted mr-1">ج.م</span>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <div className="text-center space-y-3">
+          <Link
+            href="/packages"
+            className="inline-flex items-center gap-2 px-10 py-4 rounded-full bg-qwaam-pink text-white font-black text-lg shadow-lg shadow-qwaam-pink/25 hover:-translate-y-1 hover:shadow-qwaam-pink/40 transition-all duration-300"
+          >
+            اكتشفي كل الباقات ←
+          </Link>
+          <p className="text-xs text-text-muted font-medium">
+            يتوفر أيضاً باقات جدول أسبوعي وتدريب في الجيم
+          </p>
+        </div>
+
+      </div>
+    </section>
+  );
+}
+
 // ── Main HomeClient Component ──────────────────────────────────────────────────
 export default function HomeClient({
   tagline,
@@ -228,18 +310,18 @@ export default function HomeClient({
             className="flex flex-col sm:flex-row justify-center items-center gap-4"
           >
             <Link
-              href="/pricing"
+              href="/login"
               className="group relative px-8 py-4 rounded-full font-black text-lg bg-qwaam-pink text-white shadow-xl shadow-qwaam-pink/30 hover:shadow-qwaam-pink/50 hover:-translate-y-1 transition-all duration-300 overflow-hidden"
             >
               <span className="relative z-10">{heroCta}</span>
               <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
             </Link>
-            <Link
-              href="/pricing"
+            <a
+              href="#pricing"
               className="px-8 py-4 rounded-full font-black text-lg border-2 border-white/30 text-white backdrop-blur-sm hover:bg-white/10 hover:border-white/60 transition-all duration-300"
             >
               {heroCtaSecondary}
-            </Link>
+            </a>
           </motion.div>
         </motion.div>
 
@@ -324,7 +406,10 @@ export default function HomeClient({
         </div>
       </section>
 
-      {/* ── D. Bottom CTA band ─────────────────────────────────────────────── */}
+      {/* ── D. Pricing Preview ────────────────────────────────────────────── */}
+      <PricingPreview />
+
+      {/* ── E. Bottom CTA band ─────────────────────────────────────────────── */}
       <section
         dir="rtl"
         className="relative bg-gradient-to-br from-qwaam-pink to-pink-700 py-24 px-6 overflow-hidden text-center"
@@ -345,7 +430,7 @@ export default function HomeClient({
             رحلتك نحو جسد أفضل تبدأ بخطوة واحدة
           </h2>
           <Link
-            href="/pricing"
+            href="/login"
             className="inline-block px-10 py-4 rounded-full bg-white text-qwaam-pink font-black text-lg shadow-2xl hover:-translate-y-1 hover:shadow-white/20 transition-all duration-300"
           >
             اشتركي الآن ✨
