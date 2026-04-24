@@ -19,6 +19,7 @@ export interface QwaamUser {
     requestedAt: any;
     status: 'pending' | 'fulfilled';
   };
+  activeRoomUrl?: string | null;
   traineeData?: {
     assignedCoachUid?: string;
     unreadCount?: number;

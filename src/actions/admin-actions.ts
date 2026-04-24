@@ -291,3 +291,55 @@ export async function overrideTraineeSessions(
     return { success: false, error: 'حدث خطأ أثناء التعديل اليدوي' };
   }
 }
+
+/**
+ * Sets activeRoomUrl on the trainee's document so the trainee sees the "Join" button.
+ */
+export async function startLiveSession(traineeUid: string, roomName: string) {
+  await verifyAdminAccess();
+  const db = getAdminDb();
+  try {
+    await db.collection('users').doc(traineeUid).update({ activeRoomUrl: roomName });
+    return { success: true };
+  } catch (error) {
+    console.error('startLiveSession error:', error);
+    return { success: false, error: 'فشل بدء الحصة المباشرة' };
+  }
+}
+
+/**
+ * Called when the admin leaves the Jitsi call.
+ * Deducts 1 session and clears the activeRoomUrl so the trainee's join button disappears.
+ */
+export async function endLiveSession(traineeUid: string) {
+  await verifyAdminAccess();
+  const db = getAdminDb();
+  try {
+    const traineeRef = db.collection('users').doc(traineeUid);
+    const traineeDoc = await traineeRef.get();
+    if (!traineeDoc.exists) return { success: false, error: 'المتدرب غير موجود' };
+
+    const remaining = traineeDoc.data()?.sessionTracking?.remainingSessions ?? 0;
+    const newRemaining = Math.max(0, remaining - 1);
+
+    await traineeRef.update({
+      activeRoomUrl: null,
+      'sessionTracking.remainingSessions': newRemaining,
+      'sessionTracking.planStatus': newRemaining === 0 ? 'finished' : 'active',
+    });
+
+    // Log to session_logs for the history trail
+    await db.collection('session_logs').add({
+      traineeUid,
+      date: new Date(),
+      notes: 'حصة لايف مباشرة عبر Jitsi',
+      type: 'live_session',
+    });
+
+    revalidatePath(`/admin/client/${traineeUid}`);
+    return { success: true, newRemaining };
+  } catch (error) {
+    console.error('endLiveSession error:', error);
+    return { success: false, error: 'فشل إنهاء الحصة' };
+  }
+}

@@ -314,7 +314,7 @@ export default async function ClientDashboard({ params }: PageProps) {
               </span>
               الدعم المباشر
             </h2>
-            <ClientChat coachUid={coachUid} traineeUid={trainee.uid} />
+            <ClientChat coachUid={coachUid} traineeUid={trainee.uid} traineeName={trainee.name} />
           </div>
         </div>
 

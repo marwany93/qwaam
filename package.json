@@ -12,6 +12,7 @@
     "@headlessui/react": "^2.2.9",
     "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^5.2.2",
+    "@jitsi/react-sdk": "^1.4.4",
     "@react-email/components": "^1.0.12",
     "firebase": "^11.10.0",
     "firebase-admin": "^13.2.0",
