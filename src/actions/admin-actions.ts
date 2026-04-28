@@ -308,7 +308,7 @@ export async function startLiveSession(traineeUid: string, roomName: string) {
 }
 
 /**
- * Called when the admin leaves the Jitsi call.
+ * Called when the admin leaves the ZegoCloud call.
  * Deducts 1 session and clears the activeRoomUrl so the trainee's join button disappears.
  */
 export async function endLiveSession(traineeUid: string) {
@@ -332,7 +332,7 @@ export async function endLiveSession(traineeUid: string) {
     await db.collection('session_logs').add({
       traineeUid,
       date: new Date(),
-      notes: 'حصة لايف مباشرة عبر Jitsi',
+      notes: 'حصة لايف مباشرة عبر ZegoCloud',
       type: 'live_session',
     });
 

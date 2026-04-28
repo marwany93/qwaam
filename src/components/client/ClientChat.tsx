@@ -19,7 +19,7 @@ import type { ChatMessage } from '@/types';
 import { PaperAirplaneIcon, VideoCameraIcon } from '@heroicons/react/24/solid';
 import dynamic from 'next/dynamic';
 
-const JitsiVideoCall = dynamic(() => import('@/components/client/JitsiVideoCall'), { ssr: false });
+const ZegoVideoCall = dynamic(() => import('@/components/client/ZegoVideoCall'), { ssr: false });
 
 interface Props {
   coachUid: string;
@@ -128,11 +128,12 @@ export default function ClientChat({ coachUid, traineeUid, traineeName }: Props)
 
   return (
     <>
-      {/* Jitsi modal — opens when trainee clicks join */}
+      {/* ZegoCloud call — opens when trainee clicks join */}
       {callOpen && activeRoom && (
-        <JitsiVideoCall
-          roomName={activeRoom}
-          displayName={traineeName}
+        <ZegoVideoCall
+          roomID={activeRoom}
+          userID={traineeUid}
+          userName={traineeName}
           onClose={() => setCallOpen(false)}
         />
       )}

@@ -20,8 +20,8 @@ import { PaperAirplaneIcon, VideoCameraIcon } from '@heroicons/react/24/solid';
 import { startLiveSession, endLiveSession } from '@/actions/admin-actions';
 import dynamic from 'next/dynamic';
 
-// Dynamically import Jitsi to avoid SSR issues with the iframe API
-const JitsiVideoCall = dynamic(() => import('@/components/client/JitsiVideoCall'), { ssr: false });
+// Dynamically import to avoid SSR issues with the ZegoCloud browser SDK
+const ZegoVideoCall = dynamic(() => import('@/components/client/ZegoVideoCall'), { ssr: false });
 
 interface Props {
   coachUid: string;
@@ -119,7 +119,7 @@ export default function TraineeChat({ coachUid, traineeUid, traineeName }: Props
     setStartingSession(false);
   }
 
-  // ── Live session: end (triggered by Jitsi hang-up) ──────
+  // ── Live session: end (triggered by ZegoCloud leave / X button) ───────────
   async function handleSessionEnd() {
     setActiveRoom(null);
     await endLiveSession(traineeUid);
@@ -132,11 +132,12 @@ export default function TraineeChat({ coachUid, traineeUid, traineeName }: Props
 
   return (
     <>
-      {/* Jitsi modal — mounts only when a room is active */}
+      {/* ZegoCloud call — mounts only when a room is active */}
       {activeRoom && (
-        <JitsiVideoCall
-          roomName={activeRoom}
-          displayName="المدرب"
+        <ZegoVideoCall
+          roomID={activeRoom}
+          userID={coachUid}
+          userName="المدرب"
           onClose={handleSessionEnd}
         />
       )}
