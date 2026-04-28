@@ -6,8 +6,6 @@ import {
   UsersIcon,
   UserPlusIcon,
   BookOpenIcon,
-  ChatBubbleLeftRightIcon,
-  Cog6ToothIcon
 } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 
@@ -41,13 +39,13 @@ export default function Sidebar({ coachUid }: { coachUid: string }) {
     return () => unsubscribe();
   }, [coachUid]);
 
-  // Navigation Items focusing on core Admin tools
+  // Navigation Items — only routes that actually exist as built pages.
+  // /admin/messages and /admin/settings are not yet built; omitting them
+  // prevents Next.js from prefetching and returning RSC 404s on Vercel.
   const navItems = [
     { name: t('trainees') || 'المتدربون', href: '/admin', icon: UsersIcon, badge: totalUnread },
     { name: t('traineesList') || 'إدارة المتدربين', href: '/admin/trainees', icon: UserPlusIcon },
     { name: t('library') || 'المكتبة', href: '/admin/library', icon: BookOpenIcon },
-    { name: t('messages') || 'الرسائل', href: '/admin/messages', icon: ChatBubbleLeftRightIcon, badge: totalUnread },
-    { name: t('settings') || 'الإعدادات', href: '/admin/settings', icon: Cog6ToothIcon },
   ];
 
   return (

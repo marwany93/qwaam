@@ -17,11 +17,13 @@ export default function ZegoVideoCall({ roomID, userID, userName, onClose }: Pro
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const appID = Number(process.env.NEXT_PUBLIC_ZEGO_APP_ID);
-    const serverSecret = process.env.NEXT_PUBLIC_ZEGO_SERVER_SECRET ?? '';
+    // Strictly literal references so Next.js can inline these at build time
+    const appIDStr = process.env.NEXT_PUBLIC_ZEGO_APP_ID;
+    const serverSecret = process.env.NEXT_PUBLIC_ZEGO_SERVER_SECRET || '';
+    const appID = appIDStr ? Number(appIDStr) : 0;
 
     if (!appID || !serverSecret) {
-      console.error('[ZegoVideoCall] Missing NEXT_PUBLIC_ZEGO_APP_ID or NEXT_PUBLIC_ZEGO_SERVER_SECRET');
+      console.warn('[ZegoVideoCall] NEXT_PUBLIC_ZEGO_APP_ID or NEXT_PUBLIC_ZEGO_SERVER_SECRET is not set — call will not start.');
       return;
     }
 
