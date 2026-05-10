@@ -5,6 +5,7 @@ import { verifyAdminAccess } from '@/lib/auth-utils';
 import type { QwaamUser } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { notificationService } from '@/lib/notification-service';
+import { FieldValue } from 'firebase-admin/firestore';
 
 /**
  * Retrieves the list of all active trainees.
@@ -182,41 +183,50 @@ export async function assignCoach(traineeUid: string, coachUid: string) {
 export async function logTraineeSession(traineeUid: string, notes: string = '') {
   await verifyAdminAccess();
   const db = getAdminDb();
-  
+
   try {
     const traineeRef = db.collection('users').doc(traineeUid);
     const traineeDoc = await traineeRef.get();
-    
+
     if (!traineeDoc.exists) return { success: false, error: 'المتدرب غير موجود' };
-    
-    const sessionTracking = traineeDoc.data()?.sessionTracking;
-    const currentSessions = sessionTracking?.remainingSessions || 0;
-    
-    if (currentSessions <= 0) {
+
+    const remaining = traineeDoc.data()?.sessionTracking?.remainingSessions ?? 0;
+    if (remaining <= 0) {
       return { success: false, error: 'رصيد الحصص نفذ، يرجى تجديد الباقة' };
     }
 
-    const batch = db.batch();
-    
-    // 1. Decrement session
-    batch.update(traineeRef, {
-      'sessionTracking.remainingSessions': currentSessions - 1,
-      'sessionTracking.planStatus': (currentSessions - 1) === 0 ? 'finished' : 'active'
+    // Use a transaction so the guard + decrement are atomic — no race condition
+    // possible even if two coaches log a session at the exact same millisecond.
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(traineeRef);
+      const currentRemaining = snap.data()?.sessionTracking?.remainingSessions ?? 0;
+
+      if (currentRemaining <= 0) {
+        throw new Error('NO_SESSIONS');
+      }
+
+      const newRemaining = currentRemaining - 1;
+      tx.update(traineeRef, {
+        'sessionTracking.remainingSessions': FieldValue.increment(-1),
+        'sessionTracking.planStatus': newRemaining === 0 ? 'finished' : 'active',
+      });
+
+      // Log inside the same transaction for atomicity
+      const logRef = db.collection('session_logs').doc();
+      tx.set(logRef, {
+        traineeUid,
+        date: new Date(),
+        notes,
+        type: 'workout_session',
+      });
     });
-    
-    // 2. Log the session history
-    const logRef = db.collection('session_logs').doc();
-    batch.set(logRef, {
-      traineeUid,
-      date: new Date(),
-      notes,
-      type: 'workout_session'
-    });
-    
-    await batch.commit();
+
     revalidatePath(`/admin/client/${traineeUid}`);
-    return { success: true, remaining: currentSessions - 1 };
-  } catch (error) {
+    return { success: true, remaining: remaining - 1 };
+  } catch (error: any) {
+    if (error?.message === 'NO_SESSIONS') {
+      return { success: false, error: 'رصيد الحصص نفذ، يرجى تجديد الباقة' };
+    }
     console.error('Error logging session:', error);
     return { success: false, error: 'حدث خطأ أثناء تسجيل الحصة' };
   }
@@ -233,25 +243,23 @@ export async function renewTraineePlan(traineeUid: string, additionalSessions: n
   try {
     const traineeRef = db.collection('users').doc(traineeUid);
 
-    // Read current values first so we can ADD rather than override
-    const traineeDoc = await traineeRef.get();
-    if (!traineeDoc.exists) return { success: false, error: 'المتدرب غير موجود' };
+    // Existence check first (cheap read), then atomic increments — no race condition.
+    const snap = await traineeRef.get();
+    if (!snap.exists) return { success: false, error: 'المتدرب غير موجود' };
 
-    const current = traineeDoc.data()?.sessionTracking;
-    const currentTotal     = current?.totalSessions     ?? 0;
-    const currentRemaining = current?.remainingSessions ?? 0;
-
-    const newTotal     = currentTotal     + additionalSessions;
-    const newRemaining = currentRemaining + additionalSessions;
-
+    // FieldValue.increment is atomic: no read-modify-write race possible.
     await traineeRef.update({
-      'sessionTracking.totalSessions':     newTotal,
-      'sessionTracking.remainingSessions': newRemaining,
+      'sessionTracking.totalSessions':     FieldValue.increment(additionalSessions),
+      'sessionTracking.remainingSessions': FieldValue.increment(additionalSessions),
       'sessionTracking.planStatus':        'active',
       'sessionTracking.lastRenewedAt':     new Date(),
-      // Clear any pending renewal request so the admin panel badge disappears
-      'renewalRequest.status': 'fulfilled',
+      'renewalRequest.status':             'fulfilled',
     });
+
+    // Read the updated totals back for the UI response (single additional read, safe)
+    const updated = (await traineeRef.get()).data()?.sessionTracking;
+    const newTotal     = updated?.totalSessions     ?? additionalSessions;
+    const newRemaining = updated?.remainingSessions ?? additionalSessions;
 
     revalidatePath(`/admin/client/${traineeUid}`);
     return { success: true, newTotal, newRemaining };
@@ -316,29 +324,38 @@ export async function endLiveSession(traineeUid: string) {
   const db = getAdminDb();
   try {
     const traineeRef = db.collection('users').doc(traineeUid);
-    const traineeDoc = await traineeRef.get();
-    if (!traineeDoc.exists) return { success: false, error: 'المتدرب غير موجود' };
 
-    const remaining = traineeDoc.data()?.sessionTracking?.remainingSessions ?? 0;
-    const newRemaining = Math.max(0, remaining - 1);
+    // Use a transaction: guard against going below 0, decrement atomically,
+    // and update planStatus in a single consistent write.
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(traineeRef);
+      if (!snap.exists) throw new Error('NOT_FOUND');
 
-    await traineeRef.update({
-      activeRoomUrl: null,
-      'sessionTracking.remainingSessions': newRemaining,
-      'sessionTracking.planStatus': newRemaining === 0 ? 'finished' : 'active',
-    });
+      const currentRemaining = snap.data()?.sessionTracking?.remainingSessions ?? 0;
+      const newRemaining = Math.max(0, currentRemaining - 1);
 
-    // Log to session_logs for the history trail
-    await db.collection('session_logs').add({
-      traineeUid,
-      date: new Date(),
-      notes: 'حصة لايف مباشرة عبر ZegoCloud',
-      type: 'live_session',
+      tx.update(traineeRef, {
+        activeRoomUrl: null,
+        'sessionTracking.remainingSessions': FieldValue.increment(currentRemaining > 0 ? -1 : 0),
+        'sessionTracking.planStatus': newRemaining === 0 ? 'finished' : 'active',
+      });
+
+      // Log inside the transaction for atomicity
+      const logRef = db.collection('session_logs').doc();
+      tx.set(logRef, {
+        traineeUid,
+        date: new Date(),
+        notes: 'حصة لايف مباشرة عبر ZegoCloud',
+        type: 'live_session',
+      });
     });
 
     revalidatePath(`/admin/client/${traineeUid}`);
-    return { success: true, newRemaining };
-  } catch (error) {
+    return { success: true };
+  } catch (error: any) {
+    if (error?.message === 'NOT_FOUND') {
+      return { success: false, error: 'المتدرب غير موجود' };
+    }
     console.error('endLiveSession error:', error);
     return { success: false, error: 'فشل إنهاء الحصة' };
   }

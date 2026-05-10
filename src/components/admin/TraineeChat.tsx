@@ -65,14 +65,19 @@ export default function TraineeChat({ coachUid, traineeUid, traineeName }: Props
     return () => unsubscribe();
   }, [chatId]);
 
-  // Auto-scroll + clear unread badge while coach is viewing this chat
+  // Auto-scroll on new messages — no DB write here
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
+  // Clear the unread badge once on mount (and whenever the coach switches to a
+  // different trainee). Running this separately from the messages effect means
+  // we fire at most one Firestore write per chat open, not one per message.
+  useEffect(() => {
     updateDoc(doc(db, 'users', traineeUid), {
       'traineeData.unreadCount': 0,
     }).catch(err => console.debug('Soft fail resetting unread:', err));
-  }, [messages, traineeUid]);
+  }, [traineeUid]);
 
   // ── Send message ─────────────────────────────────────────
   async function handleSend(e: React.FormEvent) {
