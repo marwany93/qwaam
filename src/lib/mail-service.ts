@@ -5,7 +5,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 export async function sendResetPasswordEmail(email: string, resetLink: string, userName: string) {
     try {
         const { data, error } = await resend.emails.send({
-            from: `Qwaam <${process.env.NEXT_PUBLIC_FROM_EMAIL}>`,
+            from: 'Qwaam <no-reply@qwaam.net>',
             to: [email],
             subject: 'إعادة تعيين كلمة المرور - قوام',
             html: `

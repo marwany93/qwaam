@@ -224,7 +224,7 @@ export async function requestPasswordReset(email: string) {
     // 4. إرسال الإيميل عبر Resend
     const resend = new Resend(process.env.RESEND_API_KEY);
     const { error } = await resend.emails.send({
-      from: process.env.NEXT_PUBLIC_FROM_EMAIL || 'Qwaam <onboarding@resend.dev>',
+      from: 'Qwaam <no-reply@qwaam.net>',
       to: [email],
       subject: 'إعادة تعيين كلمة المرور - قوام',
       react: ResetPasswordTemplate({ userName, resetLink: customResetLink }),

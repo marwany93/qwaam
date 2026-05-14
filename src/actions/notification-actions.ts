@@ -6,7 +6,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 export async function sendNotification({ to, subject, template }: { to: string, subject: string, template: React.ReactNode }) {
     try {
         const { error } = await resend.emails.send({
-            from: process.env.NEXT_PUBLIC_FROM_EMAIL || 'Qwaam <notifications@resend.dev>',
+            from: 'Qwaam <no-reply@qwaam.net>',
             to: [to],
             subject: subject,
             react: template,
