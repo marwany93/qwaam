@@ -4,6 +4,7 @@
 import { useFormContext } from 'react-hook-form';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
+import Image from 'next/image';
 import { FormField, inputCls } from './ui/FormField';
 import type { FullOnboardingData } from '@/lib/onboarding-schema';
 
@@ -44,11 +45,12 @@ function FileUploadBox({ label, hint, name, required, error }: FilePreviewProps)
           }`}
       >
         {preview ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={preview}
             alt="preview"
-            className="max-h-36 rounded-lg object-contain shadow-sm"
+            width={144}
+            height={144}
+            className="max-h-36 w-auto rounded-lg object-contain shadow-sm"
           />
         ) : (
           <>

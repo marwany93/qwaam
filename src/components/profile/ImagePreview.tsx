@@ -72,16 +72,16 @@ export default function ImagePreview({
             <X className="w-5 h-5" />
           </button>
           <div
-            className="relative max-w-4xl w-full max-h-[90vh]"
+            className="relative max-w-4xl w-full h-[85vh] max-h-[90vh]"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={src}
               alt={label}
-              className="w-full h-auto max-h-[85vh] object-contain rounded-2xl shadow-2xl"
+              fill
+              className="object-contain rounded-2xl shadow-2xl"
             />
-            <p className="text-center text-white/70 font-bold text-sm mt-3">{label}</p>
+            <p className="absolute bottom-[-30px] left-0 right-0 text-center text-white/70 font-bold text-sm mt-3">{label}</p>
           </div>
         </div>
       )}
