@@ -360,3 +360,60 @@ export async function endLiveSession(traineeUid: string) {
     return { success: false, error: 'فشل إنهاء الحصة' };
   }
 }
+
+/**
+ * Saves a Spoonacular recipe into our own `custom_meals` collection
+ * so coaches can reuse it in meal plans without re-burning API quota.
+ * Idempotent on (savedByCoachUid, sourceId) — calling twice updates
+ * rather than duplicating.
+ */
+export interface SaveMealPayload {
+  sourceId: number;            // Spoonacular recipe id
+  title: string;
+  image?: string | null;
+  sourceUrl?: string | null;
+  calories?: number | null;
+  protein?: number | null;     // grams
+  carbs?: number | null;       // grams
+  fat?: number | null;         // grams
+}
+
+export async function saveSpoonacularMealToDb(mealData: SaveMealPayload) {
+  const decoded = await verifyAdminAccess();
+
+  if (!mealData?.sourceId || !mealData?.title) {
+    return { success: false, error: 'بيانات الوجبة غير مكتملة.' };
+  }
+
+  const db = getAdminDb();
+  // Deterministic doc id: scoped per coach so two coaches can independently save
+  // the same Spoonacular recipe without colliding.
+  const docId = `spoon_${decoded.uid}_${mealData.sourceId}`;
+
+  try {
+    await db.collection('custom_meals').doc(docId).set(
+      {
+        source: 'spoonacular',
+        sourceId: mealData.sourceId,
+        sourceUrl: mealData.sourceUrl ?? null,
+        title: mealData.title,
+        image: mealData.image ?? null,
+        calories: mealData.calories ?? null,
+        macros: {
+          protein: mealData.protein ?? null,
+          carbs:   mealData.carbs   ?? null,
+          fat:     mealData.fat     ?? null,
+        },
+        savedByCoachUid: decoded.uid,
+        savedAt: new Date(),
+      },
+      { merge: true },
+    );
+
+    revalidatePath('/admin/content-library/meals');
+    return { success: true };
+  } catch (error) {
+    console.error('saveSpoonacularMealToDb error:', error);
+    return { success: false, error: 'فشل حفظ الوجبة.' };
+  }
+}

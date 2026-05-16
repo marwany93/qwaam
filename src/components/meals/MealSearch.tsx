@@ -2,11 +2,14 @@
 
 import { useState, useTransition } from 'react';
 import { searchRecipes, type SpoonacularRecipe } from '@/actions/spoonacular-actions';
+import { saveSpoonacularMealToDb } from '@/actions/admin-actions';
 import {
   MagnifyingGlassIcon,
   ArrowTopRightOnSquareIcon,
   ClockIcon,
   UsersIcon,
+  BookmarkIcon,
+  CheckIcon,
 } from '@heroicons/react/24/outline';
 
 /**
@@ -36,6 +39,29 @@ export default function MealSearch() {
   const [error, setError] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  // Per-card save state: maps recipe id → 'saving' | 'saved' | 'error'
+  const [saveState, setSaveState] = useState<Record<number, 'saving' | 'saved' | 'error'>>({});
+
+  const handleSave = async (recipe: SpoonacularRecipe) => {
+    setSaveState((prev) => ({ ...prev, [recipe.id]: 'saving' }));
+
+    const res = await saveSpoonacularMealToDb({
+      sourceId: recipe.id,
+      title: recipe.title,
+      image: recipe.image ?? null,
+      sourceUrl: recipe.sourceUrl ?? null,
+      calories: getNutrient(recipe, 'Calories')?.amount ?? null,
+      protein:  getNutrient(recipe, 'Protein')?.amount ?? null,
+      carbs:    getNutrient(recipe, 'Carbohydrates')?.amount ?? null,
+      fat:      getNutrient(recipe, 'Fat')?.amount ?? null,
+    });
+
+    setSaveState((prev) => ({
+      ...prev,
+      [recipe.id]: res.success ? 'saved' : 'error',
+    }));
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,14 +219,14 @@ export default function MealSearch() {
                     })}
                   </div>
 
-                  {/* CTA — pushed to bottom of flex column */}
-                  <div className="mt-auto">
+                  {/* CTAs — pushed to bottom of flex column */}
+                  <div className="mt-auto grid grid-cols-2 gap-2">
                     {recipe.sourceUrl ? (
                       <a
                         href={recipe.sourceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-qwaam-pink-light text-qwaam-pink hover:bg-qwaam-pink hover:text-white font-black text-sm transition-all"
+                        className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-qwaam-pink-light text-qwaam-pink hover:bg-qwaam-pink hover:text-white font-black text-xs transition-all"
                       >
                         <ArrowTopRightOnSquareIcon className="w-4 h-4" />
                         عرض الوصفة
@@ -208,11 +234,49 @@ export default function MealSearch() {
                     ) : (
                       <button
                         disabled
-                        className="w-full py-2.5 rounded-xl bg-gray-100 text-text-muted font-black text-sm cursor-not-allowed"
+                        className="py-2.5 rounded-xl bg-gray-100 text-text-muted font-black text-xs cursor-not-allowed"
                       >
                         لا يوجد رابط
                       </button>
                     )}
+
+                    {(() => {
+                      const state = saveState[recipe.id];
+                      const saving = state === 'saving';
+                      const saved  = state === 'saved';
+                      const errored = state === 'error';
+                      return (
+                        <button
+                          onClick={() => handleSave(recipe)}
+                          disabled={saving || saved}
+                          title={errored ? 'فشل الحفظ — حاول مجدداً' : ''}
+                          className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-black text-xs transition-all ${
+                            saved
+                              ? 'bg-green-100 text-green-700 cursor-default'
+                              : errored
+                                ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                                : 'bg-qwaam-yellow/30 text-text-main hover:bg-qwaam-yellow'
+                          } disabled:opacity-70`}
+                        >
+                          {saved ? (
+                            <>
+                              <CheckIcon className="w-4 h-4" />
+                              محفوظة
+                            </>
+                          ) : saving ? (
+                            <>
+                              <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                              جاري الحفظ
+                            </>
+                          ) : (
+                            <>
+                              <BookmarkIcon className="w-4 h-4" />
+                              {errored ? 'إعادة المحاولة' : 'حفظ في وجباتي'}
+                            </>
+                          )}
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
               </article>

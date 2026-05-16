@@ -6,6 +6,7 @@ import {
   UsersIcon,
   UserPlusIcon,
   BookOpenIcon,
+  Square3Stack3DIcon,
 } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 
@@ -46,6 +47,7 @@ export default function Sidebar({ coachUid }: { coachUid: string }) {
     { name: t('trainees') || 'المتدربون', href: '/admin', icon: UsersIcon, badge: totalUnread },
     { name: t('traineesList') || 'إدارة المتدربين', href: '/admin/trainees', icon: UserPlusIcon },
     { name: t('library') || 'المكتبة', href: '/admin/library', icon: BookOpenIcon },
+    { name: 'مكتبة المحتوى', href: '/admin/content-library/meals', icon: Square3Stack3DIcon },
   ];
 
   return (
