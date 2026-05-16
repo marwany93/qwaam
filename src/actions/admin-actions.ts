@@ -417,3 +417,83 @@ export async function saveSpoonacularMealToDb(mealData: SaveMealPayload) {
     return { success: false, error: 'فشل حفظ الوجبة.' };
   }
 }
+
+export interface SavedMeal {
+  id: string;
+  source: 'spoonacular' | 'custom';
+  sourceId?: number;
+  sourceUrl?: string | null;
+  title: string;
+  image?: string | null;
+  calories?: number | null;
+  macros: { protein: number | null; carbs: number | null; fat: number | null };
+  savedAt: number;
+}
+
+/**
+ * Returns the current coach's saved meals (newest first).
+ */
+export async function getSavedMeals(): Promise<{ success: boolean; data?: SavedMeal[]; error?: string }> {
+  const decoded = await verifyAdminAccess();
+  const db = getAdminDb();
+
+  try {
+    const snap = await db
+      .collection('custom_meals')
+      .where('savedByCoachUid', '==', decoded.uid)
+      .orderBy('savedAt', 'desc')
+      .get();
+
+    const data: SavedMeal[] = snap.docs.map((d) => {
+      const raw = d.data();
+      return {
+        id: d.id,
+        source: raw.source ?? 'custom',
+        sourceId: raw.sourceId ?? undefined,
+        sourceUrl: raw.sourceUrl ?? null,
+        title: raw.title ?? '',
+        image: raw.image ?? null,
+        calories: raw.calories ?? null,
+        macros: {
+          protein: raw.macros?.protein ?? null,
+          carbs:   raw.macros?.carbs   ?? null,
+          fat:     raw.macros?.fat     ?? null,
+        },
+        savedAt: raw.savedAt?.toMillis ? raw.savedAt.toMillis() : Date.now(),
+      };
+    });
+
+    return { success: true, data };
+  } catch (error: any) {
+    console.error('getSavedMeals error:', error);
+    // Common cause: missing composite index on (savedByCoachUid ASC, savedAt DESC)
+    return { success: false, error: 'فشل جلب الوجبات المحفوظة.' };
+  }
+}
+
+/**
+ * Deletes one saved meal. Verifies the doc belongs to the calling coach
+ * so a coach cannot delete another coach's saved recipes.
+ */
+export async function deleteSavedMeal(docId: string) {
+  const decoded = await verifyAdminAccess();
+  if (!docId) return { success: false, error: 'معرّف الوجبة مطلوب.' };
+
+  const db = getAdminDb();
+  try {
+    const ref = db.collection('custom_meals').doc(docId);
+    const snap = await ref.get();
+
+    if (!snap.exists) return { success: false, error: 'الوجبة غير موجودة.' };
+    if (snap.data()?.savedByCoachUid !== decoded.uid) {
+      return { success: false, error: 'غير مصرّح لك بحذف هذه الوجبة.' };
+    }
+
+    await ref.delete();
+    revalidatePath('/admin/content-library/meals');
+    return { success: true };
+  } catch (error) {
+    console.error('deleteSavedMeal error:', error);
+    return { success: false, error: 'فشل حذف الوجبة.' };
+  }
+}

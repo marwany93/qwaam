@@ -8,6 +8,14 @@
         { "fieldPath": "traineeData.assignedCoachUid", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "custom_meals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "savedByCoachUid", "order": "ASCENDING" },
+        { "fieldPath": "savedAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

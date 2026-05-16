@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import MealSearch from '@/components/meals/MealSearch';
+import MyMeals from '@/components/admin/content-library/MyMeals';
 import {
   MagnifyingGlassIcon,
   BookmarkIcon,
@@ -58,13 +59,7 @@ export default function MealsManager() {
       <div className="animate-in fade-in duration-200">
         {active === 'search' && <MealSearch />}
 
-        {active === 'custom' && (
-          <div className="bg-white rounded-3xl p-12 border border-dashed border-border-light text-center">
-            <span className="text-5xl block mb-4">🔖</span>
-            <h3 className="font-black text-text-main text-lg mb-2">قريباً</h3>
-            <p className="font-bold text-text-muted text-sm">قريباً: إضافة وتعديل وجبات مخصصة</p>
-          </div>
-        )}
+        {active === 'custom' && <MyMeals />}
 
         {active === 'planner' && (
           <div className="bg-white rounded-3xl p-12 border border-dashed border-border-light text-center">
