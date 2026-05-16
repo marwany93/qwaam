@@ -36,6 +36,29 @@ export interface QwaamUser {
   };
 }
 
+// ── Meal Plans ─────────────────────────────────────────────────────────────────
+// Coach-built multi-day meal programs composed of saved custom_meals.
+
+export interface MealPlanDay {
+  dayName: string;          // e.g., "Day 1" or "Monday"
+  meals: {
+    mealType: string;       // e.g., "Breakfast", "Lunch", "Dinner", "Snack"
+    savedMealId: string;    // Reference to the custom_meals document ID
+    mealName: string;       // Denormalized title so UI doesn't need a join
+    calories: number;       // Denormalized calories for fast totals
+  }[];
+}
+
+export interface MealPlan {
+  id: string;
+  coachUid: string;
+  name: string;
+  description?: string;
+  days: MealPlanDay[];
+  totalCalories: number;    // Sum across all days/meals — computed server-side
+  createdAt: number;        // Millis (Firestore Timestamp toMillis)
+}
+
 // ── Exercise Pool ──────────────────────────────────────────────────────────────
 // The atomic building block library — individual movements the coach curates.
 
