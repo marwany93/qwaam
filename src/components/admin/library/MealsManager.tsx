@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import MealSearch from '@/components/admin/library/MealSearch';
 import MyMeals from '@/components/admin/library/MyMeals';
+import MealPlanBuilder from '@/components/admin/library/MealPlanBuilder';
 import {
   MagnifyingGlassIcon,
   BookmarkIcon,
@@ -61,13 +62,7 @@ export default function MealsManager() {
 
         {active === 'custom' && <MyMeals />}
 
-        {active === 'planner' && (
-          <div className="bg-white rounded-3xl p-12 border border-dashed border-border-light text-center">
-            <span className="text-5xl block mb-4">🗓️</span>
-            <h3 className="font-black text-text-main text-lg mb-2">قريباً</h3>
-            <p className="font-bold text-text-muted text-sm">قريباً: تجميع وجبات في خطة غذائية</p>
-          </div>
-        )}
+        {active === 'planner' && <MealPlanBuilder />}
       </div>
     </div>
   );
