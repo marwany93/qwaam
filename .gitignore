@@ -5,6 +5,7 @@ node_modules/
 .next/
 out/
 build/
+.claude/
 
 # Environment Variables (Secrets!)
 .env
