@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import MealSearch from '@/components/meals/MealSearch';
-import MyMeals from '@/components/admin/content-library/MyMeals';
+import MealSearch from '@/components/admin/library/MealSearch';
+import MyMeals from '@/components/admin/library/MyMeals';
 import {
   MagnifyingGlassIcon,
   BookmarkIcon,

@@ -2,16 +2,15 @@
 
 import { useState, Fragment } from 'react';
 import { Tab, Dialog, Transition } from '@headlessui/react';
-import type { Exercise, Workout, Meal, TargetMuscle, Equipment, WeightLevel, MealType } from '@/types';
+import type { Exercise, Workout, TargetMuscle, Equipment, WeightLevel } from '@/types';
 import {
   addExercise,    updateExercise, deleteExercise,
   addWorkout,     updateWorkout,  deleteWorkout,
-  addMeal,        updateMeal,     deleteMeal,
 } from '@/actions/library-actions';
 import {
   PlusIcon, TrashIcon, XMarkIcon, MagnifyingGlassIcon, PencilIcon,
 } from '@heroicons/react/24/outline';
-import { SparklesIcon } from '@heroicons/react/24/solid';
+import MealsManager from '@/components/admin/library/MealsManager';
 
 // ── Shared Modal Shell ────────────────────────────────────────────────────────
 
@@ -70,12 +69,6 @@ const WEIGHT_LEVELS: WeightLevel[]   = ['bodyweight', 'light', 'medium', 'heavy'
 const WEIGHT_LEVEL_AR: Record<WeightLevel, string> = {
   bodyweight: 'وزن الجسم', light: 'خفيف', medium: 'متوسط', heavy: 'ثقيل', max: 'أقصى جهد',
 };
-const MEAL_TYPES: { value: MealType; label: string }[] = [
-  { value: 'breakfast', label: '🌅 إفطار' },
-  { value: 'lunch',     label: '☀️ غداء' },
-  { value: 'dinner',    label: '🌙 عشاء' },
-  { value: 'snack',     label: '🍎 وجبة خفيفة' },
-];
 
 // ── Exercise Form (shared by Add + Edit modals) ───────────────────────────────
 
@@ -435,126 +428,6 @@ function EditWorkoutModal({ workout, onClose }: { workout: Workout; onClose: () 
 
 // ── Add Meal Modal ────────────────────────────────────────────────────────────
 
-function MealForm({
-  initial, onSubmit, loading, error, submitLabel,
-}: {
-  initial: { nameAr: string; nameEn: string; type: string; calories: string; protein: string; carbs: string; fats: string; recipe: string };
-  onSubmit: (data: FormData) => void;
-  loading: boolean; error: string; submitLabel: string;
-}) {
-  return (
-    <form action={onSubmit} className="space-y-5">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className={labelCls}>اسم الوجبة (عربي)</label>
-          <input name="nameAr" className={inputCls} required defaultValue={initial.nameAr} placeholder="صدر دجاج مشوي" disabled={loading} />
-        </div>
-        <div>
-          <label className={labelCls}>Meal Name (English)</label>
-          <input name="nameEn" className={inputCls} required dir="ltr" defaultValue={initial.nameEn} placeholder="Grilled Chicken Breast" disabled={loading} />
-        </div>
-        <div>
-          <label className={labelCls}>نوع الوجبة</label>
-          <select name="type" className={selectCls} required disabled={loading} defaultValue={initial.type}>
-            {MEAL_TYPES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={labelCls}>السعرات الحرارية (kcal)</label>
-          <input name="calories" type="number" min={1} className={inputCls} required defaultValue={initial.calories} placeholder="350" disabled={loading} />
-        </div>
-      </div>
-      <div className="bg-gray-50 border border-border-light rounded-2xl p-4">
-        <h5 className="font-black text-text-main mb-3 text-sm">الماكروز (جرام)</h5>
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className="block text-xs font-black text-red-500 mb-1.5 uppercase tracking-wider">بروتين</label>
-            <input name="protein" type="number" min={0} className={inputCls} required defaultValue={initial.protein} placeholder="30" disabled={loading} />
-          </div>
-          <div>
-            <label className="block text-xs font-black text-green-600 mb-1.5 uppercase tracking-wider">كارب</label>
-            <input name="carbs" type="number" min={0} className={inputCls} required defaultValue={initial.carbs} placeholder="40" disabled={loading} />
-          </div>
-          <div>
-            <label className="block text-xs font-black text-yellow-600 mb-1.5 uppercase tracking-wider">دهون</label>
-            <input name="fats" type="number" min={0} className={inputCls} required defaultValue={initial.fats} placeholder="10" disabled={loading} />
-          </div>
-        </div>
-      </div>
-      <div>
-        <label className={labelCls}>الوصفة / المكونات (اختياري)</label>
-        <textarea name="recipe" rows={3} className={`${inputCls} resize-none`} defaultValue={initial.recipe} placeholder="المكونات وطريقة التحضير..." disabled={loading} />
-      </div>
-      {error && <p className="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl border border-red-100 font-bold">{error}</p>}
-      <button type="submit" disabled={loading} className="w-full py-4 rounded-xl bg-qwaam-yellow text-text-main font-black text-base shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-50">
-        {loading ? 'جاري الحفظ...' : submitLabel}
-      </button>
-    </form>
-  );
-}
-
-function AddMealModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  async function handleSubmit(formData: FormData) {
-    setLoading(true); setError('');
-    const res = await addMeal(formData);
-    if (res.error) { setError(res.error); } else { onClose(); }
-    setLoading(false);
-  }
-
-  return (
-    <ModalShell open={open} onClose={onClose} title="🥗 إضافة وجبة غذائية">
-      <MealForm
-        initial={{ nameAr: '', nameEn: '', type: 'breakfast', calories: '', protein: '', carbs: '', fats: '', recipe: '' }}
-        onSubmit={handleSubmit} loading={loading} error={error} submitLabel="حفظ الوجبة في المكتبة"
-      />
-    </ModalShell>
-  );
-}
-
-// ── Edit Meal Modal ───────────────────────────────────────────────────────────
-
-function EditMealModal({ meal, onClose }: { meal: Meal; onClose: () => void }) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  async function handleSubmit(formData: FormData) {
-    setLoading(true); setError('');
-    const res = await updateMeal(meal.id, {
-      nameAr:   formData.get('nameAr')   as string,
-      nameEn:   formData.get('nameEn')   as string,
-      type:     formData.get('type')     as string,
-      calories: parseInt(formData.get('calories') as string, 10),
-      protein:  parseInt(formData.get('protein')  as string, 10),
-      carbs:    parseInt(formData.get('carbs')    as string, 10),
-      fats:     parseInt(formData.get('fats')     as string, 10),
-      recipe:   (formData.get('recipe') as string) || undefined,
-    });
-    if (res.error) { setError(res.error); } else { onClose(); }
-    setLoading(false);
-  }
-
-  return (
-    <ModalShell open={true} onClose={onClose} title={`✏️ تعديل: ${meal.nameAr}`}>
-      <MealForm
-        initial={{
-          nameAr:   meal.nameAr,
-          nameEn:   meal.nameEn,
-          type:     meal.type,
-          calories: String(meal.calories),
-          protein:  String(meal.macros.protein),
-          carbs:    String(meal.macros.carbs),
-          fats:     String(meal.macros.fats),
-          recipe:   meal.recipe ?? '',
-        }}
-        onSubmit={handleSubmit} loading={loading} error={error} submitLabel="حفظ التعديلات"
-      />
-    </ModalShell>
-  );
-}
-
 // ── Tab button factory ────────────────────────────────────────────────────────
 
 function tabCls(selected: boolean, color: 'pink' | 'dark' | 'yellow') {
@@ -570,18 +443,16 @@ function tabCls(selected: boolean, color: 'pink' | 'dark' | 'yellow') {
 
 // ── Main LibraryContent ───────────────────────────────────────────────────────
 
-export default function LibraryContent({ exercises, workouts, meals }: {
-  exercises: Exercise[]; workouts: Workout[]; meals: Meal[];
+export default function LibraryContent({ exercises, workouts }: {
+  exercises: Exercise[]; workouts: Workout[];
 }) {
   // Add modals
   const [exModal, setExModal] = useState(false);
   const [wkModal, setWkModal] = useState(false);
-  const [mlModal, setMlModal] = useState(false);
 
   // Edit modals — null means closed
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [editingWorkout,  setEditingWorkout]  = useState<Workout  | null>(null);
-  const [editingMeal,     setEditingMeal]     = useState<Meal     | null>(null);
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -595,12 +466,6 @@ export default function LibraryContent({ exercises, workouts, meals }: {
     if (!confirm('هل أنت متأكد من حذف هذا البرنامج؟')) return;
     setDeletingId(id);
     await deleteWorkout(id);
-    setDeletingId(null);
-  }
-  async function handleDeleteMeal(id: string) {
-    if (!confirm('هل أنت متأكد من حذف هذه الوجبة؟')) return;
-    setDeletingId(id);
-    await deleteMeal(id);
     setDeletingId(null);
   }
 
@@ -733,64 +598,9 @@ export default function LibraryContent({ exercises, workouts, meals }: {
             )}
           </Tab.Panel>
 
-          {/* ── Meals Tab ── */}
-          <Tab.Panel className="outline-none space-y-6">
-            <div className="flex justify-end">
-              <button onClick={() => setMlModal(true)} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold bg-qwaam-yellow text-text-main shadow-md hover:-translate-y-0.5 transition-all">
-                <PlusIcon className="w-5 h-5" /> إضافة وجبة
-              </button>
-            </div>
-
-            {meals.length === 0 ? (
-              <EmptyState icon="🥗" title="قاعدة الوجبات فارغة" desc="أضف وجبات جاهزة لبناء الخطط الغذائية بسرعة." />
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {meals.map(m => {
-                  const mealTypeLabel = MEAL_TYPES.find(t => t.value === m.type)?.label ?? '';
-                  return (
-                    <div key={m.id} className="group bg-white rounded-2xl border-2 border-border-light p-6 hover:shadow-md transition-all flex flex-col gap-4 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-1 h-full bg-qwaam-yellow opacity-50 group-hover:opacity-100 transition-opacity" />
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <span className="text-xs font-black text-yellow-600 mb-1 block">{mealTypeLabel}</span>
-                          <h4 className="font-black text-text-main text-xl leading-tight">{m.nameAr}</h4>
-                          <p className="text-xs font-bold text-text-muted mt-0.5" dir="ltr">{m.nameEn}</p>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-all">
-                          <button
-                            onClick={() => setEditingMeal(m)}
-                            className="p-1.5 rounded-lg text-text-muted hover:text-yellow-600 hover:bg-yellow-50 transition-colors"
-                            title="تعديل"
-                          >
-                            <PencilIcon className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteMeal(m.id)}
-                            disabled={deletingId === m.id}
-                            className="p-1.5 rounded-lg text-red-300 hover:text-red-600 hover:bg-red-50 transition-colors"
-                            title="حذف"
-                          >
-                            <TrashIcon className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="bg-gray-50 rounded-xl px-4 py-2.5 flex items-center justify-between border border-border-light/50">
-                        <span className="text-xs font-black text-text-muted uppercase tracking-widest">السعرات</span>
-                        <span className="font-black text-2xl text-text-main">{m.calories}</span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <MacroPill label="بروتين" value={m.macros.protein} color="red" />
-                        <MacroPill label="كارب"   value={m.macros.carbs}   color="green" />
-                        <MacroPill label="دهون"   value={m.macros.fats}    color="yellow" />
-                      </div>
-                      {m.recipe && (
-                        <p className="text-xs font-bold text-text-muted leading-relaxed line-clamp-2 border-t border-border-light/50 pt-3">{m.recipe}</p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+          {/* ── Meals Tab — delegated to MealsManager (Spoonacular search + saved meals + planner) ── */}
+          <Tab.Panel className="outline-none">
+            <MealsManager />
           </Tab.Panel>
 
         </Tab.Panels>
@@ -799,7 +609,6 @@ export default function LibraryContent({ exercises, workouts, meals }: {
       {/* ── Add Modals ── */}
       <AddExerciseModal open={exModal} onClose={() => setExModal(false)} />
       <AddWorkoutModal  open={wkModal} onClose={() => setWkModal(false)} exercises={exercises} />
-      <AddMealModal     open={mlModal} onClose={() => setMlModal(false)} />
 
       {/* ── Edit Modals — rendered conditionally so they mount with fresh state ── */}
       {editingExercise && (
@@ -807,9 +616,6 @@ export default function LibraryContent({ exercises, workouts, meals }: {
       )}
       {editingWorkout && (
         <EditWorkoutModal workout={editingWorkout} onClose={() => setEditingWorkout(null)} />
-      )}
-      {editingMeal && (
-        <EditMealModal meal={editingMeal} onClose={() => setEditingMeal(null)} />
       )}
     </div>
   );
@@ -822,16 +628,6 @@ function StatChip({ label, value, ltr }: { label: string; value: string; ltr?: b
     <div className="bg-gray-50 border border-border-light/50 rounded-xl py-2 flex flex-col items-center gap-0.5 flex-1">
       <span className="text-[10px] font-black text-text-muted uppercase tracking-wider">{label}</span>
       <span className="font-black text-sm text-text-main" dir={ltr ? 'ltr' : undefined}>{value}</span>
-    </div>
-  );
-}
-
-function MacroPill({ label, value, color }: { label: string; value: number; color: 'red' | 'green' | 'yellow' }) {
-  const cls = { red: 'text-red-700 bg-red-50', green: 'text-green-700 bg-green-50', yellow: 'text-yellow-700 bg-yellow-50' }[color];
-  return (
-    <div className={`${cls} rounded-xl py-2 flex flex-col items-center gap-0.5`}>
-      <span className="text-[10px] font-black uppercase tracking-wider opacity-60">{label}</span>
-      <span className="font-black text-sm">{value}g</span>
     </div>
   );
 }

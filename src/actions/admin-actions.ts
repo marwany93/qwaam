@@ -410,7 +410,7 @@ export async function saveSpoonacularMealToDb(mealData: SaveMealPayload) {
       { merge: true },
     );
 
-    revalidatePath('/admin/content-library/meals');
+    revalidatePath('/admin/library');
     return { success: true };
   } catch (error) {
     console.error('saveSpoonacularMealToDb error:', error);
@@ -490,7 +490,7 @@ export async function deleteSavedMeal(docId: string) {
     }
 
     await ref.delete();
-    revalidatePath('/admin/content-library/meals');
+    revalidatePath('/admin/library');
     return { success: true };
   } catch (error) {
     console.error('deleteSavedMeal error:', error);
