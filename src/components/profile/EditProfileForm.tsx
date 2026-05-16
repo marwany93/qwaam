@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslations } from 'next-intl';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
@@ -115,7 +116,7 @@ export default function EditProfileForm({ uid, defaultData, currentInbody, curre
           }`}
         >
           {preview ? (
-            <img src={preview} alt="preview" className="max-h-36 rounded-lg shadow-sm" />
+            <Image src={preview} alt="preview" width={144} height={144} className="max-h-36 w-auto rounded-lg shadow-sm" />
           ) : currentUrl ? (
             <div className="text-center">
               <span className="text-sm font-bold text-qwaam-pink">{t('profile.uploadNewImage')}</span>
