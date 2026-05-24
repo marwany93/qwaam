@@ -6,6 +6,7 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import type { QwaamUser } from '@/types';
 import { Link } from '@/i18n/navigation';
 import { UserCircleIcon, CalendarIcon, ChevronLeftIcon } from '@heroicons/react/24/outline';
+import { mapFirestoreError } from '@/lib/firestore-errors';
 
 interface Props {
   coachUid: string;
@@ -14,6 +15,7 @@ interface Props {
 export default function ClientsList({ coachUid }: Props) {
   const [clients, setClients] = useState<QwaamUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!coachUid) return;
@@ -39,14 +41,29 @@ export default function ClientsList({ coachUid }: Props) {
 
       roster.sort((a, b) => (b.createdAt as number) - (a.createdAt as number));
       setClients(roster);
+      setError('');
       setLoading(false);
-    }, (error) => {
-      console.error('ClientsList query error:', error);
+    }, (err) => {
+      const mapped = mapFirestoreError(err);
+      console.error('ClientsList query error:', err);
+      setError(mapped.userMessage);
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, [coachUid]);
+
+  // Visible error banner — replaces the silent empty state that hid permission
+  // issues from coaches. Permission-denied here usually means the rules haven't
+  // been deployed yet or the assignedCoachUid field on a trainee is wrong.
+  if (!loading && error) {
+    return (
+      <div className="bg-red-50 border border-red-200 text-red-700 rounded-3xl p-6 text-center font-bold" dir="rtl">
+        <p className="mb-1">{error}</p>
+        <p className="text-xs font-bold text-red-600/70">إذا استمرت المشكلة، تواصل مع الدعم الفني.</p>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

@@ -60,6 +60,10 @@ export default function ClientChat({ coachUid, traineeUid, traineeName }: Props)
         };
       });
       setMessages(msgs);
+    }, (err) => {
+      // permission-denied here typically fires during sign-out (listener races
+      // the auth state change). Don't break the chat UI over it.
+      console.info('[ClientChat] messages listener stopped:', (err as { code?: string })?.code);
     });
 
     return () => unsubscribe();
@@ -74,6 +78,8 @@ export default function ClientChat({ coachUid, traineeUid, traineeName }: Props)
       setActiveRoom(room);
       // Auto-close modal if coach ended the session
       if (!room) setCallOpen(false);
+    }, (err) => {
+      console.info('[ClientChat] activeRoom listener stopped:', (err as { code?: string })?.code);
     });
 
     return () => unsubscribe();

@@ -34,6 +34,11 @@ export default function Sidebar({ coachUid }: { coachUid: string }) {
         unread += data.traineeData?.unreadCount || 0;
       });
       setTotalUnread(unread);
+    }, (err) => {
+      // Don't break the sidebar over a missing rule/index — just hide the badge.
+      // Logged as info so it isn't ignored if the deny is unexpected.
+      console.info('[Sidebar] unread badge listener disabled:', (err as { code?: string })?.code);
+      setTotalUnread(0);
     });
 
     return () => unsubscribe();

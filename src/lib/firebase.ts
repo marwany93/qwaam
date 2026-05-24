@@ -47,16 +47,19 @@ if (typeof window !== 'undefined') {
     }
 
     const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
-    if (siteKey) {
+    if (siteKey && typeof siteKey === 'string' && siteKey.length > 0) {
       initializeAppCheck(app, {
         provider: new ReCaptchaV3Provider(siteKey),
         isTokenAutoRefreshEnabled: true,
       });
-    } else if (process.env.NODE_ENV === 'production') {
-      // Loud warning in prod — silent in dev to keep the console clean
-      // when working offline / before the env var is wired up.
+    } else {
+      // Visible warning in BOTH environments so a Vercel build with a
+      // missing env var doesn't silently ship without App Check protection.
+      // Was previously silent in dev — that hid the misconfig until
+      // permission-denied errors started cascading.
       console.warn(
-        '[firebase] NEXT_PUBLIC_RECAPTCHA_SITE_KEY is missing — App Check is NOT initialized.',
+        '[firebase] NEXT_PUBLIC_RECAPTCHA_SITE_KEY is missing — App Check is NOT initialized. ' +
+          'Firestore/Storage will still work unless App Check enforcement is enabled in the Firebase Console.',
       );
     }
   } catch (err) {

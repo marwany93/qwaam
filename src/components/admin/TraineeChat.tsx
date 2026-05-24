@@ -60,6 +60,8 @@ export default function TraineeChat({ coachUid, traineeUid, traineeName }: Props
         };
       });
       setMessages(msgs);
+    }, (err) => {
+      console.info('[TraineeChat] messages listener stopped:', (err as { code?: string })?.code);
     });
 
     return () => unsubscribe();

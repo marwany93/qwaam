@@ -16,18 +16,27 @@ import { findPlanById } from '@/lib/pricing-config';
 //const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function getCurrentTrainee(): Promise<QwaamUser | null> {
-  const decodedToken = await verifyClientAccess();
-  const db = getAdminDb();
+  // Swallow auth/network errors so the page can render its
+  // "اتصال غير مستقر" fallback instead of throwing a 500. Throws here
+  // would bubble out of the Server Component and produce an error-boundary
+  // page, not the friendly Arabic message.
+  try {
+    const decodedToken = await verifyClientAccess();
+    const db = getAdminDb();
 
-  const doc = await db.collection('users').doc(decodedToken.uid).get();
-  if (!doc.exists) return null;
+    const doc = await db.collection('users').doc(decodedToken.uid).get();
+    if (!doc.exists) return null;
 
-  const data = doc.data()!;
-  return {
-    uid: doc.id,
-    ...data,
-    createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now(),
-  } as QwaamUser;
+    const data = doc.data()!;
+    return {
+      uid: doc.id,
+      ...data,
+      createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now(),
+    } as QwaamUser;
+  } catch (err) {
+    console.error('getCurrentTrainee error:', err);
+    return null;
+  }
 }
 
 export async function fetchMyWorkouts(workoutIds: string[]): Promise<Workout[]> {
