@@ -44,28 +44,60 @@ function validatePlanPayload(data: { name?: string; days?: MealPlanDay[] }): str
 
 // ── CRUD ──────────────────────────────────────────────────────────────────────
 
-export type CreateMealPlanInput = Omit<MealPlan, 'id' | 'coachUid' | 'createdAt' | 'totalCalories'> & {
+// assignedTo is passed as a separate function parameter (traineeUid), not
+// inside the data payload — keeps the call site explicit about WHO the
+// plan is for. coachUid + createdAt + totalCalories are all server-derived.
+export type CreateMealPlanInput = Omit<
+  MealPlan,
+  'id' | 'coachUid' | 'createdAt' | 'totalCalories' | 'assignedTo'
+> & {
   totalCalories?: number; // ignored — recomputed on the server
 };
 
 /**
  * Creates a new meal plan for the current coach. totalCalories is computed
  * server-side from `days` so client tampering is impossible.
+ *
+ * `traineeUid` is required and written as `assignedTo` so the hardened
+ * Firestore Rules can grant that specific trainee read access via
+ * `resource.data.assignedTo == request.auth.uid`. Without it, the trainee's
+ * client SDK queries would be denied.
  */
 export async function createMealPlan(
   data: CreateMealPlanInput,
+  traineeUid: string,
 ): Promise<{ success: boolean; id?: string; error?: string }> {
   const decoded = await verifyAdminAccess();
+
+  if (!traineeUid || typeof traineeUid !== 'string') {
+    return { success: false, error: 'يجب تعيين الخطة لمتدرّبة محددة.' };
+  }
 
   const validationError = validatePlanPayload(data);
   if (validationError) return { success: false, error: validationError };
 
   const db = getAdminDb();
   try {
+    // Defense-in-depth: verify the target trainee actually exists and is owned
+    // by this coach. Stops a malicious request from assigning plans to
+    // arbitrary user ids.
+    const traineeSnap = await db.collection('users').doc(traineeUid).get();
+    if (!traineeSnap.exists) {
+      return { success: false, error: 'المتدرّبة غير موجودة.' };
+    }
+    const traineeData = traineeSnap.data();
+    if (traineeData?.role !== 'trainee') {
+      return { success: false, error: 'الحساب المختار ليس متدرّباً.' };
+    }
+    if (traineeData?.traineeData?.assignedCoachUid !== decoded.uid) {
+      return { success: false, error: 'غير مصرّح لك بإسناد خطة لهذه المتدرّبة.' };
+    }
+
     const totalCalories = computeTotalCalories(data.days);
 
     const doc = await db.collection('meal_plans').add({
       coachUid: decoded.uid,
+      assignedTo: traineeUid,        // required by hardened rules for trainee reads
       name: data.name.trim(),
       description: data.description?.trim() || '',
       days: data.days,
@@ -74,6 +106,7 @@ export async function createMealPlan(
     });
 
     revalidatePath('/admin/library');
+    revalidatePath(`/admin/client/${traineeUid}`);
     return { success: true, id: doc.id };
   } catch (error) {
     console.error('createMealPlan error:', error);
@@ -101,6 +134,7 @@ export async function getMealPlans(): Promise<{ success: boolean; data?: MealPla
       return {
         id: d.id,
         coachUid: raw.coachUid,
+        assignedTo: raw.assignedTo ?? '',
         name: raw.name ?? '',
         description: raw.description ?? '',
         days: Array.isArray(raw.days) ? raw.days : [],

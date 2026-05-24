@@ -59,9 +59,12 @@ export default function PendingPaymentBanner({ amountPaid, initialScreenshotUrl 
     setUploading(true);
 
     try {
-      // 1. Upload to Storage at payment_proofs/{uid}_{timestamp}.{ext}
+      // 1. Upload to Storage at payment_proofs/{uid}/{timestamp}.{ext}
+      // Hierarchical path required by hardened Storage Rules: the {uid}
+      // segment lets rules match on path components for ownership checks
+      // (request.auth.uid == resource.name.split('/')[1]).
       const ext = file.name.split('.').pop() || 'jpg';
-      const path = `payment_proofs/${uid}_${Date.now()}.${ext}`;
+      const path = `payment_proofs/${uid}/${Date.now()}.${ext}`;
       const storageRef = ref(storage, path);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);

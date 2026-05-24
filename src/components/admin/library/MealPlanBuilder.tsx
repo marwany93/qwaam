@@ -6,8 +6,8 @@ import {
   getMealPlans,
   deleteMealPlan,
 } from '@/actions/meal-plan-actions';
-import { getSavedMeals, type SavedMeal } from '@/actions/admin-actions';
-import type { MealPlan, MealPlanDay } from '@/types';
+import { getSavedMeals, getClients, type SavedMeal } from '@/actions/admin-actions';
+import type { MealPlan, MealPlanDay, QwaamUser } from '@/types';
 import {
   PlusIcon,
   TrashIcon,
@@ -44,6 +44,7 @@ const draftTotalCalories = (days: MealPlanDay[]): number =>
 export default function MealPlanBuilder() {
   const [plans, setPlans] = useState<MealPlan[]>([]);
   const [savedMeals, setSavedMeals] = useState<SavedMeal[]>([]);
+  const [trainees, setTrainees] = useState<QwaamUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -54,13 +55,20 @@ export default function MealPlanBuilder() {
   const loadAll = async () => {
     setLoading(true);
     setLoadError('');
-    const [plansRes, mealsRes] = await Promise.all([getMealPlans(), getSavedMeals()]);
+    const [plansRes, mealsRes, traineesRes] = await Promise.all([
+      getMealPlans(),
+      getSavedMeals(),
+      getClients(),
+    ]);
 
     if (plansRes.success && plansRes.data) setPlans(plansRes.data);
     else setLoadError(plansRes.error || 'فشل تحميل الخطط.');
 
     if (mealsRes.success && mealsRes.data) setSavedMeals(mealsRes.data);
     // Don't fail the whole screen if savedMeals fails — the list view still works.
+
+    // getClients() returns QwaamUser[] directly (not a wrapped result)
+    if (Array.isArray(traineesRes)) setTrainees(traineesRes);
 
     setLoading(false);
   };
@@ -106,6 +114,7 @@ export default function MealPlanBuilder() {
     return (
       <BuilderForm
         savedMeals={savedMeals}
+        trainees={trainees}
         onCancel={() => setIsCreating(false)}
         onCreated={handleCreated}
       />
@@ -211,15 +220,18 @@ export default function MealPlanBuilder() {
 
 function BuilderForm({
   savedMeals,
+  trainees,
   onCancel,
   onCreated,
 }: {
   savedMeals: SavedMeal[];
+  trainees: QwaamUser[];
   onCancel: () => void;
   onCreated: (plan: MealPlan) => void;
 }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [traineeUid, setTraineeUid] = useState<string>('');
   const [days, setDays] = useState<MealPlanDay[]>([
     { dayName: arabicDayName(0), meals: [] },
   ]);
@@ -279,6 +291,10 @@ function BuilderForm({
       setError('يرجى تعبئة اسم الخطة.');
       return;
     }
+    if (!traineeUid) {
+      setError('يرجى اختيار المتدرّبة المُسند إليها الخطة.');
+      return;
+    }
     if (days.length === 0) {
       setError('يجب إضافة يوم واحد على الأقل.');
       return;
@@ -289,11 +305,14 @@ function BuilderForm({
     }
 
     setSaving(true);
-    const res = await createMealPlan({
-      name: name.trim(),
-      description: description.trim() || undefined,
-      days,
-    });
+    const res = await createMealPlan(
+      {
+        name: name.trim(),
+        description: description.trim() || undefined,
+        days,
+      },
+      traineeUid,
+    );
     setSaving(false);
 
     if (!res.success || !res.id) {
@@ -306,6 +325,7 @@ function BuilderForm({
     onCreated({
       id: res.id,
       coachUid: '',           // server-owned, list view doesn't display it
+      assignedTo: traineeUid,
       name: name.trim(),
       description: description.trim() || undefined,
       days,
@@ -337,6 +357,34 @@ function BuilderForm({
       {/* Plan metadata */}
       <div className="bg-white rounded-3xl p-6 border border-border-light shadow-sm space-y-4">
         <h3 className="font-black text-text-main text-lg">معلومات الخطة</h3>
+
+        {/* Trainee picker — required by hardened Firestore rules (assignedTo) */}
+        <div>
+          <label className="block text-xs font-black text-text-muted mb-1.5 uppercase tracking-wider">
+            المتدرّبة <span className="text-red-500">*</span>
+          </label>
+          {trainees.length === 0 ? (
+            <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-xl p-3 text-xs font-bold">
+              لا توجد متدرّبات مسندة لك. أضيفي متدرّبات أولاً من قسم المتدربين.
+            </div>
+          ) : (
+            <select
+              value={traineeUid}
+              onChange={(e) => setTraineeUid(e.target.value)}
+              disabled={saving}
+              required
+              className="w-full px-4 py-3 rounded-xl border-2 border-border-light focus:border-qwaam-pink outline-none text-sm font-bold transition-colors bg-gray-50 focus:bg-white"
+            >
+              <option value="">— اختر المتدرّبة —</option>
+              {trainees.map((t) => (
+                <option key={t.uid} value={t.uid}>
+                  {t.name} ({t.email})
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
         <div>
           <label className="block text-xs font-black text-text-muted mb-1.5 uppercase tracking-wider">
             اسم الخطة <span className="text-red-500">*</span>

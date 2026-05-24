@@ -53,6 +53,7 @@ export interface MealPlanDay {
 export interface MealPlan {
   id: string;
   coachUid: string;
+  assignedTo: string;       // trainee uid — required by hardened Firestore rules
   name: string;
   description?: string;
   days: MealPlanDay[];
