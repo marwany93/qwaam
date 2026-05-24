@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { db, auth } from '@/lib/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import type { QwaamUser } from '@/types';
 import { Link } from '@/i18n/navigation';
 import {
@@ -10,12 +10,20 @@ import {
   CalendarIcon,
   ChevronLeftIcon,
   ArrowPathIcon,
+  MagnifyingGlassIcon,
+  TrashIcon,
+  ChevronRightIcon as ChevronRightOutline,
+  ChevronLeftIcon as ChevronLeftOutline,
 } from '@heroicons/react/24/outline';
 import { mapFirestoreError } from '@/lib/firestore-errors';
+import DeleteUserModal from '@/components/admin/DeleteUserModal';
 
 interface Props {
   coachUid: string;
 }
+
+const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
+type PageSize = typeof PAGE_SIZE_OPTIONS[number];
 
 export default function ClientsList({ coachUid }: Props) {
   const [clients, setClients] = useState<QwaamUser[]>([]);
@@ -25,15 +33,26 @@ export default function ClientsList({ coachUid }: Props) {
   const [retryCount, setRetryCount] = useState(0);
   const [retrying, setRetrying] = useState(false);
 
-  // Subscribe inside useEffect; bump retryCount to force re-subscribe after
-  // a forced token refresh.
+  // Filter / pagination state
+  const [search, setSearch] = useState('');
+  const [pageSize, setPageSize] = useState<PageSize>(10);
+  const [page, setPage] = useState(1);
+
+  // Delete modal target
+  const [toDelete, setToDelete] = useState<QwaamUser | null>(null);
+
+  // ── Firestore listener ────────────────────────────────────
   useEffect(() => {
     if (!coachUid) return;
 
+    // orderBy createdAt desc is satisfied by the composite index
+    // (role ASC, traineeData.assignedCoachUid ASC, createdAt DESC)
+    // already declared in firestore.indexes.json.
     const q = query(
       collection(db, 'users'),
       where('role', '==', 'trainee'),
       where('traineeData.assignedCoachUid', '==', coachUid),
+      orderBy('createdAt', 'desc'),
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -45,8 +64,6 @@ export default function ClientsList({ coachUid }: Props) {
           createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now(),
         } as QwaamUser;
       });
-
-      roster.sort((a, b) => (b.createdAt as number) - (a.createdAt as number));
       setClients(roster);
       setError('');
       setIsPermissionError(false);
@@ -60,18 +77,31 @@ export default function ClientsList({ coachUid }: Props) {
     });
 
     return () => unsubscribe();
-    // retryCount is in deps so handleRetry can re-mount the listener
   }, [coachUid, retryCount]);
 
-  // Handles the classic "coach role just got promoted but the client's ID
-  // token still has the old claims" race. Forcing a token refresh re-mints
-  // the JWT with the latest custom claims, then we re-subscribe.
+  // ── Local filter (search) ─────────────────────────────────
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    if (!needle) return clients;
+    return clients.filter((c) =>
+      c.name?.toLowerCase().includes(needle) || c.email?.toLowerCase().includes(needle),
+    );
+  }, [clients, search]);
+
+  // ── Pagination ────────────────────────────────────────────
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pageStart = (safePage - 1) * pageSize;
+  const paged = filtered.slice(pageStart, pageStart + pageSize);
+
+  // Reset to page 1 when the filter or page size changes
+  useEffect(() => { setPage(1); }, [search, pageSize]);
+
+  // ── Token-refresh retry ──────────────────────────────────
   const handleRetry = useCallback(async () => {
     setRetrying(true);
     try {
-      if (auth.currentUser) {
-        await auth.currentUser.getIdToken(true); // force refresh
-      }
+      if (auth.currentUser) await auth.currentUser.getIdToken(true);
     } catch (e) {
       console.warn('Token refresh failed:', e);
     }
@@ -79,9 +109,10 @@ export default function ClientsList({ coachUid }: Props) {
     setLoading(true);
     setError('');
     setIsPermissionError(false);
-    setRetryCount((c) => c + 1); // re-mount the snapshot listener
+    setRetryCount((c) => c + 1);
   }, []);
 
+  // ── Render: error ─────────────────────────────────────────
   if (!loading && error) {
     return (
       <div className="bg-red-50 border border-red-200 text-red-700 rounded-3xl p-6 text-center font-bold space-y-4" dir="rtl">
@@ -97,21 +128,16 @@ export default function ClientsList({ coachUid }: Props) {
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 text-white text-sm font-black shadow-md hover:bg-red-700 active:scale-95 transition-all disabled:opacity-50"
         >
           {retrying ? (
-            <>
-              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              جاري التحديث...
-            </>
+            <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />جاري التحديث...</>
           ) : (
-            <>
-              <ArrowPathIcon className="w-4 h-4" />
-              إعادة المحاولة
-            </>
+            <><ArrowPathIcon className="w-4 h-4" />إعادة المحاولة</>
           )}
         </button>
       </div>
     );
   }
 
+  // ── Render: loading ───────────────────────────────────────
   if (loading) {
     return (
       <div className="bg-qwaam-white rounded-3xl border border-border-light shadow-sm overflow-hidden flex flex-col items-center justify-center min-h-[400px]">
@@ -120,98 +146,200 @@ export default function ClientsList({ coachUid }: Props) {
     );
   }
 
+  // ── Render: empty (no trainees at all) ────────────────────
+  if (clients.length === 0) {
+    return (
+      <div className="bg-qwaam-white rounded-3xl border border-border-light shadow-sm py-24 px-6 text-center text-text-muted flex flex-col items-center justify-center">
+        <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mb-6 border-2 border-dashed border-gray-200">
+          <span className="text-5xl block grayscale opacity-50">👥</span>
+        </div>
+        <h3 className="text-2xl font-black text-text-main mb-3">لا يوجد متدربين بعد</h3>
+        <p className="text-base max-w-sm font-medium">
+          برنامجك جاهز تماماً. أضف متدربتك الأولى عن طريق الزر في الأعلى وأرسلي لها رابط الدخول!
+        </p>
+      </div>
+    );
+  }
+
+  // ── Render: list ──────────────────────────────────────────
   return (
-    <div className="bg-qwaam-white rounded-3xl border border-border-light shadow-sm overflow-hidden flex flex-col">
-      {clients.length === 0 ? (
+    <>
+      <div className="bg-qwaam-white rounded-3xl border border-border-light shadow-sm overflow-hidden flex flex-col">
 
-        <div className="py-24 px-6 text-center text-text-muted flex flex-col items-center justify-center">
-          <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mb-6 border-2 border-dashed border-gray-200">
-            <span className="text-5xl block grayscale opacity-50">👥</span>
+        {/* Toolbar: search + page size */}
+        <div className="px-5 py-4 border-b border-border-light bg-gray-50/60 flex flex-col sm:flex-row items-stretch sm:items-center gap-3" dir="rtl">
+          {/* Search */}
+          <div className="relative flex-1">
+            <MagnifyingGlassIcon className="w-4 h-4 text-text-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="ابحثي بالاسم أو البريد..."
+              className="w-full pr-10 pl-4 py-2.5 rounded-xl bg-white border border-border-light focus:border-qwaam-pink focus:ring-0 outline-none text-sm font-bold transition-colors"
+            />
           </div>
-          <h3 className="text-2xl font-black text-text-main mb-3">لا يوجد متدربين بعد</h3>
-          <p className="text-base max-w-sm font-medium mb-8">
-            برنامجك جاهز تماماً. أضف متدربك الأول عن طريق الزر في الأعلى وأرسل له رابط الدخول!
-          </p>
+
+          {/* Page size */}
+          <div className="flex items-center gap-2 shrink-0">
+            <label className="text-xs font-black text-text-muted whitespace-nowrap">عرض</label>
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value) as PageSize)}
+              className="px-3 py-2 rounded-xl bg-white border border-border-light focus:border-qwaam-pink outline-none text-sm font-black"
+            >
+              {PAGE_SIZE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <span className="text-xs font-black text-text-muted whitespace-nowrap">لكل صفحة</span>
+          </div>
         </div>
 
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-right bg-qwaam-white">
-            <thead className="bg-gray-50/80 border-b border-border-light text-text-muted text-xs uppercase font-black tracking-wider">
-              <tr>
-                <th className="px-8 py-5">المتدرب</th>
-                <th className="px-8 py-5">الحالة</th>
-                <th className="px-8 py-5">تاريخ الانضمام</th>
-                <th className="px-8 py-5 text-left w-32">الإدارة</th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-border-light">
-              {clients.map(client => {
-                const unread = client.traineeData?.unreadCount || 0;
-                return (
-                  <tr key={client.uid} className="hover:bg-qwaam-pink-light/20 transition-all cursor-pointer group">
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-qwaam-yellow/20 text-text-main flex items-center justify-center shrink-0 relative">
-                          <UserCircleIcon className="w-6 h-6 opacity-70" />
-
-                          {/* Real-time Unread Notification Badge mapped directly to the Trainee's Avatar */}
-                          {unread > 0 && (
-                            <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-white items-center justify-center text-[8px] font-black text-white leading-none">
-                                {unread > 9 ? '9+' : unread}
-                              </span>
-                            </span>
-                          )}
-
-                        </div>
-                        <div>
-                          <div className="font-extrabold text-base text-text-main group-hover:text-qwaam-pink transition-colors">
-                            {client.name}
-                          </div>
-                          <div className="text-xs font-bold text-text-muted block mt-0.5" dir="ltr" style={{ textAlign: "right" }}>
-                            {client.email}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="px-8 py-6">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-50 text-green-700 text-xs font-extrabold border border-green-200">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 block animate-pulse" />
-                        نشط قيد التدريب
-                      </span>
-                    </td>
-
-                    <td className="px-8 py-6 text-text-muted font-bold text-sm flex items-center gap-2 mt-4 md:mt-0 h-full">
-                      <CalendarIcon className="w-4 h-4 opacity-50" />
-                      {new Date(client.createdAt as number).toLocaleDateString('ar-SA')}
-                    </td>
-
-                    <td className="px-8 py-6 text-left">
-                      <Link
-                        href={`/admin/client/${client.uid}`}
-                        className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gray-50 border border-border-light text-text-main group-hover:bg-qwaam-pink group-hover:border-qwaam-pink group-hover:text-white transition-all shadow-sm group-hover:shadow-md relative"
-                      >
-                        <ChevronLeftIcon className="w-4 h-4" />
-
-                        {/* Subtle contextual hint badge overriding the chevron on Unreads */}
-                        {unread > 0 && (
-                          <span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-white shadow-sm" />
-                        )}
-
-                      </Link>
-                    </td>
-
+        {/* Filtered-empty state */}
+        {filtered.length === 0 ? (
+          <div className="py-16 text-center text-text-muted" dir="rtl">
+            <p className="font-bold text-sm">لم نجد متدرّبة تطابق &quot;{search}&quot;.</p>
+          </div>
+        ) : (
+          <>
+            {/* Table — tightened: smaller padding, sticky header, neutral hover */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-right bg-qwaam-white text-sm">
+                <thead className="bg-gray-50 border-b border-border-light text-text-muted text-[11px] uppercase font-black tracking-wider">
+                  <tr>
+                    <th className="px-5 py-3">المتدرّبة</th>
+                    <th className="px-5 py-3 w-32">الحالة</th>
+                    <th className="px-5 py-3 w-40">تاريخ الانضمام</th>
+                    <th className="px-5 py-3 w-28 text-left">الإجراءات</th>
                   </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+
+                <tbody className="divide-y divide-border-light">
+                  {paged.map((client) => {
+                    const unread = client.traineeData?.unreadCount || 0;
+                    return (
+                      <tr key={client.uid} className="hover:bg-qwaam-pink-light/15 transition-colors group">
+                        {/* Trainee column */}
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-qwaam-yellow/20 text-text-main flex items-center justify-center shrink-0 relative">
+                              <UserCircleIcon className="w-5 h-5 opacity-70" />
+                              {unread > 0 && (
+                                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-500 border-2 border-white items-center justify-center text-[7px] font-black text-white leading-none">
+                                    {unread > 9 ? '9+' : unread}
+                                  </span>
+                                </span>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-extrabold text-text-main group-hover:text-qwaam-pink transition-colors truncate">
+                                {client.name}
+                              </div>
+                              <div className="text-[11px] font-bold text-text-muted truncate" dir="ltr" style={{ textAlign: 'right' }}>
+                                {client.email}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-5 py-3.5">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 text-green-700 text-[11px] font-extrabold border border-green-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 block animate-pulse" />
+                            نشطة
+                          </span>
+                        </td>
+
+                        {/* Joined */}
+                        <td className="px-5 py-3.5 text-text-muted font-bold text-xs">
+                          <span className="inline-flex items-center gap-1.5">
+                            <CalendarIcon className="w-3.5 h-3.5 opacity-60" />
+                            {new Date(client.createdAt as number).toLocaleDateString('ar-SA')}
+                          </span>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-5 py-3.5 text-left">
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setToDelete(client)}
+                              title="حذف نهائي"
+                              className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-50 border border-border-light text-text-muted hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-all"
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                            <Link
+                              href={`/admin/client/${client.uid}`}
+                              title="فتح الملف"
+                              className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-50 border border-border-light text-text-main group-hover:bg-qwaam-pink group-hover:border-qwaam-pink group-hover:text-white transition-all relative"
+                            >
+                              <ChevronLeftIcon className="w-4 h-4" />
+                              {unread > 0 && (
+                                <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500 border border-white shadow-sm" />
+                              )}
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pager */}
+            <div className="px-5 py-3 border-t border-border-light bg-gray-50/60 flex items-center justify-between gap-3 text-xs font-bold text-text-muted" dir="rtl">
+              <span>
+                عرض <span className="text-text-main font-black">{pageStart + 1}</span>
+                {' – '}
+                <span className="text-text-main font-black">{Math.min(pageStart + pageSize, filtered.length)}</span>
+                {' من '}
+                <span className="text-text-main font-black">{filtered.length}</span>
+              </span>
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage === 1}
+                  className="p-1.5 rounded-lg hover:bg-white border border-transparent hover:border-border-light disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  aria-label="السابق"
+                >
+                  <ChevronRightOutline className="w-4 h-4" />
+                </button>
+                <span className="px-3 py-1 rounded-lg bg-white border border-border-light font-black text-text-main">
+                  {safePage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage >= totalPages}
+                  className="p-1.5 rounded-lg hover:bg-white border border-transparent hover:border-border-light disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  aria-label="التالي"
+                >
+                  <ChevronLeftOutline className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Hard-delete confirmation modal */}
+      {toDelete && (
+        <DeleteUserModal
+          open={!!toDelete}
+          onClose={() => setToDelete(null)}
+          onDeleted={() => {
+            // Optimistic local removal — the onSnapshot listener will also
+            // remove it on the next tick, but this avoids the flicker.
+            setClients((prev) => prev.filter((c) => c.uid !== toDelete.uid));
+          }}
+          uid={toDelete.uid}
+          name={toDelete.name}
+          email={toDelete.email}
+        />
       )}
-    </div>
+    </>
   );
 }

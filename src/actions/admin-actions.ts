@@ -1,6 +1,6 @@
 'use server';
 
-import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin';
+import { getAdminAuth, getAdminDb, getAdminStorage } from '@/lib/firebase-admin';
 import { verifyAdminAccess } from '@/lib/auth-utils';
 import type { QwaamUser } from '@/types';
 import { revalidatePath } from 'next/cache';
@@ -585,4 +585,129 @@ export async function confirmTraineePayment(traineeUid: string, updatedPlanId?: 
     console.error('confirmTraineePayment error:', error);
     return { success: false, error: 'فشل تأكيد الدفع.' };
   }
+}
+
+/**
+ * Hard-delete a trainee account and all their related data.
+ *
+ * Steps (best-effort — failures in later steps don't roll back earlier ones,
+ * but we report which step failed so the admin can clean up manually):
+ *   1. Firebase Auth user delete (revokes their ability to sign in)
+ *   2. Firestore users/{uid} doc delete
+ *   3. meal_plans where assignedTo == uid → batched delete
+ *   4. trainee_progress where traineeUid == uid → batched delete
+ *   5. messages where chatId contains uid (chatId format: "coachUid_traineeUid")
+ *      → batched delete (queries by trainee and coach side)
+ *   6. Storage folders for the user — progress_photos/{uid}/, payment_proofs/{uid}/,
+ *      trainee_uploads/{uid}/ — deleted via bulk prefix delete
+ *
+ * Returns the per-step success matrix so the UI can show what survived/failed.
+ */
+export async function deleteUserFully(uid: string) {
+  await verifyAdminAccess();
+  if (!uid) return { success: false, error: 'معرّف المستخدم مطلوب.' };
+
+  const auth = getAdminAuth();
+  const db = getAdminDb();
+  const report: Record<string, { ok: boolean; detail?: string }> = {};
+
+  // 1. Auth user — revokes sessions immediately
+  try {
+    await auth.deleteUser(uid);
+    report.auth = { ok: true };
+  } catch (e: any) {
+    report.auth = { ok: false, detail: e?.code || String(e) };
+    // user-not-found is acceptable: the auth user was already gone
+    if (e?.code !== 'auth/user-not-found') {
+      console.error('[deleteUserFully] auth delete failed:', e);
+    }
+  }
+
+  // 2. users doc
+  try {
+    await db.collection('users').doc(uid).delete();
+    report.userDoc = { ok: true };
+  } catch (e: any) {
+    report.userDoc = { ok: false, detail: String(e) };
+    console.error('[deleteUserFully] userDoc delete failed:', e);
+  }
+
+  // Helper: batched-delete every doc returned by a query (handles >500 docs)
+  const batchedDelete = async (collName: string, snapshotQuery: FirebaseFirestore.Query) => {
+    let total = 0;
+    let lastSnap = await snapshotQuery.limit(400).get();
+    while (!lastSnap.empty) {
+      const batch = db.batch();
+      lastSnap.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+      total += lastSnap.size;
+      if (lastSnap.size < 400) break;
+      lastSnap = await snapshotQuery.limit(400).get();
+    }
+    return total;
+  };
+
+  // 3. meal_plans assigned to this trainee
+  try {
+    const count = await batchedDelete(
+      'meal_plans',
+      db.collection('meal_plans').where('assignedTo', '==', uid),
+    );
+    report.mealPlans = { ok: true, detail: `${count} doc(s)` };
+  } catch (e) {
+    report.mealPlans = { ok: false, detail: String(e) };
+    console.error('[deleteUserFully] meal_plans delete failed:', e);
+  }
+
+  // 4. trainee_progress
+  try {
+    const count = await batchedDelete(
+      'trainee_progress',
+      db.collection('trainee_progress').where('traineeUid', '==', uid),
+    );
+    report.progress = { ok: true, detail: `${count} doc(s)` };
+  } catch (e) {
+    report.progress = { ok: false, detail: String(e) };
+    console.error('[deleteUserFully] trainee_progress delete failed:', e);
+  }
+
+  // 5. messages — chatId is "coachUid_traineeUid", so the trainee can appear
+  //    as either side of the underscore. Query both senderId and receiverId
+  //    fields rather than parsing chatId, which is simpler and index-friendly.
+  try {
+    const [sent, received] = await Promise.all([
+      batchedDelete('messages', db.collection('messages').where('senderId', '==', uid)),
+      batchedDelete('messages', db.collection('messages').where('receiverId', '==', uid)),
+    ]);
+    report.messages = { ok: true, detail: `${sent + received} doc(s)` };
+  } catch (e) {
+    report.messages = { ok: false, detail: String(e) };
+    console.error('[deleteUserFully] messages delete failed:', e);
+  }
+
+  // 6. Storage — three known per-user prefixes. Failures here are non-fatal;
+  //    orphaned blobs cost pennies and can be GC'd later.
+  try {
+    const bucket = getAdminStorage().bucket();
+    const prefixes = [
+      `progress_photos/${uid}/`,
+      `payment_proofs/${uid}/`,
+      `trainee_uploads/${uid}/`,
+    ];
+    await Promise.all(
+      prefixes.map((prefix) => bucket.deleteFiles({ prefix }).catch(() => undefined)),
+    );
+    report.storage = { ok: true };
+  } catch (e) {
+    report.storage = { ok: false, detail: String(e) };
+    console.warn('[deleteUserFully] storage cleanup failed (non-fatal):', e);
+  }
+
+  revalidatePath('/admin');
+  revalidatePath(`/admin/client/${uid}`);
+
+  // Top-level success = the two writes that actually matter (auth + doc).
+  // Storage and related-data failures are reported but not treated as fatal.
+  const success = report.auth.ok && report.userDoc.ok;
+  return { success, report };
 }

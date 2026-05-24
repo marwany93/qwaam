@@ -113,7 +113,7 @@ function LoginForm() {
             onChange={(e) => setEmail(e.target.value)}
             dir="ltr"
             className="w-full px-4 py-4 text-left rounded-xl border-2 border-border-light focus:border-qwaam-pink focus:ring-0 outline-none transition-all font-medium text-text-main bg-gray-50/50"
-            placeholder="coach@qwaam.com"
+            placeholder="example@email.com"
           />
         </div>
 
@@ -166,7 +166,7 @@ function LoginForm() {
           onChange={(e) => setEmail(e.target.value)}
           dir="ltr"
           className="w-full px-4 py-4 text-left rounded-xl border-2 border-border-light focus:border-qwaam-pink focus:ring-0 outline-none transition-all font-medium text-text-main bg-gray-50/50"
-          placeholder="coach@qwaam.com"
+          placeholder="example@email.com"
         />
       </div>
 
@@ -243,6 +243,17 @@ export default function LoginPage() {
         <Suspense fallback={<div className="h-64 flex items-center justify-center"><div className="w-8 h-8 rounded-full border-4 border-qwaam-pink border-t-transparent animate-spin" /></div>}>
           <LoginForm />
         </Suspense>
+
+        {/* Back to home — branded link below the form */}
+        <div className="mt-8 pt-6 border-t border-border-light text-center">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-sm font-black text-text-muted hover:text-qwaam-pink transition-colors group"
+          >
+            <span aria-hidden className="transition-transform group-hover:-translate-x-0.5">←</span>
+            العودة للرئيسية
+          </Link>
+        </div>
 
       </div>
     </div>
