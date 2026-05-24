@@ -24,6 +24,14 @@
         { "fieldPath": "coachUid", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "trainee_progress",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "traineeUid", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

@@ -37,6 +37,32 @@ export interface QwaamUser {
   };
 }
 
+// ── Progress Tracking ──────────────────────────────────────────────────────────
+// Trainee-logged measurements + photos over time. Distinct from the daily
+// workout/meal completion logs in `progress_logs` — those track adherence,
+// this tracks body composition changes.
+
+export interface ProgressEntry {
+  id: string;
+  traineeUid: string;
+  date: number;                  // millis
+  weight: number;                // kg
+  bodyFat?: number;              // %
+  measurements?: {
+    chest?: number;              // cm
+    waist?: number;
+    abs?: number;
+    glutes?: number;
+    thighs?: number;
+  };
+  photos?: {
+    frontUrl?: string;
+    sideUrl?: string;
+    backUrl?: string;
+  };
+  notes?: string;
+}
+
 // ── Meal Plans ─────────────────────────────────────────────────────────────────
 // Coach-built multi-day meal programs composed of saved custom_meals.
 

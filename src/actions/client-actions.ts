@@ -2,7 +2,9 @@
 
 import { getAdminDb, getAdminAuth } from '@/lib/firebase-admin';
 import { verifyClientAccess } from '@/lib/auth-utils';
-import type { QwaamUser, Workout, Meal } from '@/types';
+import { cookies } from 'next/headers';
+import { revalidatePath } from 'next/cache';
+import type { QwaamUser, Workout, Meal, ProgressEntry } from '@/types';
 import { Resend } from 'resend';
 import { ResetPasswordTemplate } from '@/emails/ResetPasswordTemplate';
 import { sendNotification } from '@/actions/notification-actions';
@@ -302,5 +304,104 @@ export async function updatePaymentScreenshot(url: string) {
   } catch (err: any) {
     console.error('updatePaymentScreenshot error:', err);
     return { success: false, error: 'فشل حفظ صورة التحويل.' };
+  }
+}
+
+// ── Progress Tracking ─────────────────────────────────────────────────────────
+
+export type LogProgressInput = Omit<ProgressEntry, 'id' | 'date' | 'traineeUid'>;
+
+/**
+ * Trainee logs a progress entry (weight + optional body fat + measurements +
+ * photo URLs + notes). Server stamps the date and the trainee uid.
+ */
+export async function logProgress(
+  data: LogProgressInput,
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    const decoded = await verifyClientAccess();
+
+    if (typeof data?.weight !== 'number' || !Number.isFinite(data.weight) || data.weight <= 0) {
+      return { success: false, error: 'الوزن مطلوب ويجب أن يكون رقماً موجباً.' };
+    }
+    if (data.bodyFat != null && (!Number.isFinite(data.bodyFat) || data.bodyFat < 0 || data.bodyFat > 100)) {
+      return { success: false, error: 'نسبة الدهون يجب أن تكون بين 0 و 100.' };
+    }
+
+    const db = getAdminDb();
+    const doc = await db.collection('trainee_progress').add({
+      traineeUid: decoded.uid,
+      date: new Date(),                                         // server timestamp
+      weight: data.weight,
+      bodyFat: data.bodyFat ?? null,
+      measurements: data.measurements ?? null,
+      photos: data.photos ?? null,
+      notes: data.notes?.trim() || null,
+    });
+
+    revalidatePath('/client');
+    return { success: true, id: doc.id };
+  } catch (err: any) {
+    console.error('logProgress error:', err);
+    return { success: false, error: 'فشل حفظ سجل التقدم.' };
+  }
+}
+
+/**
+ * Fetches progress history. Role-aware:
+ *   - Trainee caller: returns own history (traineeUid arg ignored).
+ *   - Coach caller: returns the requested trainee's history (traineeUid required).
+ *
+ * Requires composite index: (traineeUid ASC, date DESC) on trainee_progress.
+ */
+export async function getProgressHistory(
+  traineeUid?: string,
+): Promise<{ success: boolean; data?: ProgressEntry[]; error?: string }> {
+  try {
+    // Decode the session cookie ourselves so we can branch on role without
+    // running BOTH verifyClientAccess and verifyAdminAccess (each throws on
+    // the wrong role, so we can't just try/catch them sequentially cleanly).
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get('qwaam_session')?.value;
+    if (!sessionCookie) return { success: false, error: 'Unauthorized' };
+
+    const decoded = await getAdminAuth().verifySessionCookie(sessionCookie, true);
+    const role = decoded.role;
+
+    let targetUid: string;
+    if (role === 'coach' || role === 'admin') {
+      if (!traineeUid) return { success: false, error: 'معرّف المتدرّبة مطلوب.' };
+      targetUid = traineeUid;
+    } else if (role === 'trainee') {
+      targetUid = decoded.uid;
+    } else {
+      return { success: false, error: 'Forbidden' };
+    }
+
+    const db = getAdminDb();
+    const snap = await db
+      .collection('trainee_progress')
+      .where('traineeUid', '==', targetUid)
+      .orderBy('date', 'desc')
+      .get();
+
+    const data: ProgressEntry[] = snap.docs.map((d) => {
+      const raw = d.data();
+      return {
+        id: d.id,
+        traineeUid: raw.traineeUid,
+        date: raw.date?.toMillis ? raw.date.toMillis() : Date.now(),
+        weight: raw.weight,
+        bodyFat: raw.bodyFat ?? undefined,
+        measurements: raw.measurements ?? undefined,
+        photos: raw.photos ?? undefined,
+        notes: raw.notes ?? undefined,
+      };
+    });
+
+    return { success: true, data };
+  } catch (err: any) {
+    console.error('getProgressHistory error:', err);
+    return { success: false, error: 'فشل جلب سجل التقدم.' };
   }
 }

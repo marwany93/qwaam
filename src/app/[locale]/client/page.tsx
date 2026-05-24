@@ -6,6 +6,7 @@ import ProgressToggleButton from '@/components/client/ProgressToggleButton';
 import RenewalRequestButton from '@/components/client/RenewalRequestButton';
 import WorkoutVideoButton from '@/components/client/WorkoutVideoButton';
 import PendingPaymentBanner from '@/components/client/PendingPaymentBanner';
+import ProgressLogTrigger from '@/components/client/ProgressLogTrigger';
 // import { getAdminAuth } from '@/lib/firebase-admin';
 
 type PageProps = { params: Promise<{ locale: string }> };
@@ -135,6 +136,9 @@ export default async function ClientDashboard({ params }: PageProps) {
           </div>
         </div>
       )}
+
+      {/* ── Progress Log Trigger — sits above the workouts/meals grid ── */}
+      <ProgressLogTrigger />
 
       {/* ── 2x1 Desktop Grid Structure ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
