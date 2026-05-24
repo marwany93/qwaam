@@ -122,8 +122,14 @@ export async function addClient(formData: FormData) {
 export async function getTrainees(): Promise<QwaamUser[]> {
   await verifyAdminAccess();
   const db = getAdminDb();
-  const snapshot = await db.collection('users').where('role', '==', 'trainee').get();
-  
+  // Newest sign-ups first — requires composite index (role ASC, createdAt DESC)
+  // declared in firestore.indexes.json.
+  const snapshot = await db
+    .collection('users')
+    .where('role', '==', 'trainee')
+    .orderBy('createdAt', 'desc')
+    .get();
+
   return snapshot.docs.map(doc => {
     const data = doc.data();
     return {
