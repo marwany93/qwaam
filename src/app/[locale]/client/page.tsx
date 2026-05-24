@@ -61,7 +61,10 @@ export default async function ClientDashboard({ params }: PageProps) {
 
       {/* ── Pending payment banner — only when subscription is awaiting verification ── */}
       {isPendingPayment && (
-        <PendingPaymentBanner amountPaid={trainee.traineeData?.subscription?.amountPaid} />
+        <PendingPaymentBanner
+          amountPaid={trainee.traineeData?.subscription?.amountPaid}
+          initialScreenshotUrl={trainee.traineeData?.subscription?.paymentScreenshotUrl}
+        />
       )}
 
       {/* ── Graphic Greeting Banner ── */}

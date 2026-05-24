@@ -130,6 +130,7 @@ export default async function TraineeDetailPage({ params }: PageProps) {
           traineeUid={traineeUid}
           currentPlanId={trainee.traineeData.subscription.planId}
           amountPaid={trainee.traineeData.subscription.amountPaid}
+          paymentScreenshotUrl={trainee.traineeData.subscription.paymentScreenshotUrl}
         />
       )}
 

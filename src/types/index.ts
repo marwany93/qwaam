@@ -32,6 +32,7 @@ export interface QwaamUser {
       dietAdded: boolean;
       status: 'pending_payment' | 'active' | 'expired' | 'cancelled';
       createdAt: string;
+      paymentScreenshotUrl?: string;
     } | null;
   };
 }

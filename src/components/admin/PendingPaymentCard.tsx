@@ -8,12 +8,14 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   CurrencyDollarIcon,
+  PhotoIcon,
 } from '@heroicons/react/24/outline';
 
 interface Props {
   traineeUid: string;
   currentPlanId?: string;
   amountPaid?: string | null;
+  paymentScreenshotUrl?: string | null;
 }
 
 // Pretty Arabic label for a plan id, e.g. "home-live-12" → "منزلي / لايف · 12 حصة · 780 EGP"
@@ -31,7 +33,12 @@ function labelFor(planId: string): string {
   return `${loc} · ${type} · ${unit} · ${plan.price} EGP`;
 }
 
-export default function PendingPaymentCard({ traineeUid, currentPlanId, amountPaid }: Props) {
+export default function PendingPaymentCard({
+  traineeUid,
+  currentPlanId,
+  amountPaid,
+  paymentScreenshotUrl,
+}: Props) {
   const router = useRouter();
   const [selectedPlanId, setSelectedPlanId] = useState<string>(currentPlanId ?? '');
   const [error, setError] = useState('');
@@ -104,6 +111,50 @@ export default function PendingPaymentCard({ traineeUid, currentPlanId, amountPa
           </p>
         )}
       </div>
+
+      {/* Proof of payment — thumbnail opens full-size in a new tab */}
+      {paymentScreenshotUrl ? (
+        <div className="bg-white border border-border-light rounded-2xl p-4 flex items-center gap-4">
+          <a
+            href={paymentScreenshotUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="فتح صورة كاملة في تبويب جديد"
+            className="w-20 h-20 rounded-xl bg-gray-100 overflow-hidden border-2 border-border-light hover:border-qwaam-pink transition-colors shrink-0 block"
+          >
+            {/* External URL from Firebase Storage; plain <img> avoids next/image domain config */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={paymentScreenshotUrl}
+              alt="إيصال الدفع"
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          </a>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-black text-text-muted uppercase tracking-wider mb-1">
+              إيصال الدفع
+            </p>
+            <p className="font-black text-text-main text-sm mb-2">
+              تم رفع الصورة من المتدرّبة
+            </p>
+            <a
+              href={paymentScreenshotUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-qwaam-pink hover:text-pink-600 transition-colors"
+            >
+              <PhotoIcon className="w-4 h-4" />
+              عرض الصورة الكاملة
+            </a>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white border border-dashed border-border-light rounded-2xl p-4 flex items-center gap-3 text-text-muted">
+          <PhotoIcon className="w-5 h-5 shrink-0" />
+          <p className="text-xs font-bold">لم ترفع المتدرّبة صورة إيصال الدفع بعد.</p>
+        </div>
+      )}
 
       {/* Plan change dropdown */}
       <div>

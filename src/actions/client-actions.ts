@@ -278,3 +278,29 @@ export async function requestRenewal(): Promise<{ success: boolean; message: str
     return { success: false, message: 'حدث خطأ أثناء إرسال الطلب.' };
   }
 }
+
+/**
+ * Saves a payment proof screenshot URL (already uploaded to Firebase Storage
+ * by the client) onto the trainee's subscription doc. The admin sees a
+ * thumbnail in the PendingPaymentCard so they can verify the transfer
+ * before clicking "Confirm & Activate".
+ */
+export async function updatePaymentScreenshot(url: string) {
+  try {
+    const decoded = await verifyClientAccess();
+    if (!url || typeof url !== 'string') {
+      return { success: false, error: 'رابط الصورة غير صالح.' };
+    }
+
+    const db = getAdminDb();
+    await db.collection('users').doc(decoded.uid).update({
+      'traineeData.subscription.paymentScreenshotUrl': url,
+      'traineeData.subscription.paymentScreenshotAt': new Date(),
+    });
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('updatePaymentScreenshot error:', err);
+    return { success: false, error: 'فشل حفظ صورة التحويل.' };
+  }
+}
