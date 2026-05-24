@@ -515,6 +515,61 @@ export async function deleteSavedMeal(docId: string) {
 }
 
 /**
+ * ⚠️ ONE-SHOT RECOVERY ACTION — remove after the admin claim is patched.
+ *
+ * Forces the custom claim `{ role: 'coach' }` onto the Firebase Auth user
+ * identified by `email`. Used to fix accounts that have `role: admin` in
+ * Firestore but a stale/missing custom claim on the JWT — the security
+ * rules check the JWT (`request.auth.token.role`), not the Firestore doc,
+ * so the user gets permission-denied until the claim is re-minted.
+ *
+ * After running:
+ *   1. The target user must sign out and sign back in (or force a token
+ *      refresh client-side via getIdToken(true)) for the new claim to
+ *      appear on their ID token.
+ *   2. DELETE this action and its UI trigger.
+ *
+ * Intentionally NOT gated by verifyAdminAccess — the whole reason this
+ * exists is to bootstrap an admin who currently cannot pass that check.
+ * Instead it allowlists a single hardcoded email so it can't be abused.
+ */
+const ADMIN_BOOTSTRAP_EMAILS = new Set(['coach@qwaam.com']);
+
+export async function fixAdminPermissions(email: string) {
+  try {
+    if (!email || !ADMIN_BOOTSTRAP_EMAILS.has(email.trim().toLowerCase())) {
+      return { success: false, error: 'البريد غير مسموح به لهذه العملية.' };
+    }
+
+    const auth = getAdminAuth();
+    const userRecord = await auth.getUserByEmail(email);
+
+    await auth.setCustomUserClaims(userRecord.uid, { role: 'coach' });
+
+    // Mirror to Firestore for the self-healing flow in verifyClientAccess
+    // and so any code reading the doc sees a consistent role.
+    const db = getAdminDb();
+    await db.collection('users').doc(userRecord.uid).set(
+      { role: 'coach' },
+      { merge: true },
+    );
+
+    console.warn(`[fixAdminPermissions] Set role:coach claim on ${email} (uid: ${userRecord.uid})`);
+    return {
+      success: true,
+      uid: userRecord.uid,
+      message: 'تم تحديث الصلاحيات. سجّل خروج ثم دخول مجدداً لتطبيق التغيير.',
+    };
+  } catch (error: any) {
+    console.error('fixAdminPermissions error:', error);
+    const msg = error?.code === 'auth/user-not-found'
+      ? 'لم يتم العثور على حساب بهذا البريد.'
+      : 'فشلت العملية.';
+    return { success: false, error: msg };
+  }
+}
+
+/**
  * Activates a trainee's subscription after the admin has verified payment
  * (e.g., InstaPay/wallet transfer). Optionally swaps the plan first if the
  * coach picked a different one in the UI before confirming.

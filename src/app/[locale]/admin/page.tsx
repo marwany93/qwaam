@@ -5,6 +5,7 @@ import { getAdminAuth } from '@/lib/firebase-admin';
 import { getClients } from '@/actions/admin-actions';
 import AddClientButton from '@/components/admin/AddClientButton';
 import ClientsList from '@/components/admin/ClientsList';
+import FixAdminPermissionsButton from '@/components/admin/FixAdminPermissionsButton';
 
 type PageProps = { params: Promise<{ locale: string }> };
 
@@ -25,7 +26,10 @@ export default async function AdminPage({ params }: PageProps) {
 
   return (
     <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in duration-500">
-      
+
+      {/* ⚠️ TEMPORARY one-shot recovery banner — remove after the admin claim is patched */}
+      <FixAdminPermissionsButton />
+
       {/* ── Top Header ── */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 mb-4">
         <div>
