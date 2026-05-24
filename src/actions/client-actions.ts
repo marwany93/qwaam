@@ -8,6 +8,7 @@ import { ResetPasswordTemplate } from '@/emails/ResetPasswordTemplate';
 import { sendNotification } from '@/actions/notification-actions';
 import { WelcomeTemplate } from '@/emails/WelcomeTemplate';
 import { headers } from 'next/headers';
+import { findPlanById } from '@/lib/pricing-config';
 
 // تهيئة Resend
 //const resend = new Resend(process.env.RESEND_API_KEY);
@@ -147,19 +148,36 @@ export async function submitOnboarding(uid: string, docPayload: Record<string, a
   try {
     const db = getAdminDb();
 
-    // Server actions must use native Dates or Admin SDK timestamps
-    // Extract plan details if passed from the frontend, or set defaults
-    const initialSessions = docPayload.planSessions || 12; // Fallback to 12 if not explicitly passed
-    
+    // Resolve initialSessions in priority order:
+    //   1. Explicit planSessions hint from the client wizard
+    //   2. Derived from traineeData.subscription.planId via the pricing config
+    //   3. Fallback to 0 — makes a missing plan visible instead of silently
+    //      granting 12 free sessions (the previous default that hid the bug)
+    let initialSessions = Number(docPayload.planSessions);
+
+    if (!Number.isFinite(initialSessions) || initialSessions <= 0) {
+      const planId = docPayload?.traineeData?.subscription?.planId as string | undefined;
+      if (planId) {
+        const plan = findPlanById(planId);
+        initialSessions = plan?.sessions ?? plan?.days ?? 0;
+      } else {
+        initialSessions = 0;
+      }
+    }
+
+    // Strip planSessions from the persisted doc — it's a transport-only hint,
+    // not part of the QwaamUser shape. sessionTracking is the source of truth.
+    const { planSessions: _planSessions, ...rest } = docPayload;
+
     const payload = {
-      ...docPayload,
+      ...rest,
       createdAt: new Date(),
       sessionTracking: {
         totalSessions: initialSessions,
         remainingSessions: initialSessions,
-        planStatus: 'active', // 'active' or 'finished'
+        planStatus: initialSessions > 0 ? 'active' : 'finished',
         lastRenewedAt: new Date(),
-      }
+      },
     };
 
     await db.collection('users').doc(uid).set(payload);

@@ -261,11 +261,18 @@ export default function OnboardingWizard({ initialSubscription }: { initialSubsc
         bodyPhotoUrl = await uploadFile(data.bodyPhotoFile[0], uid, 'body_photo');
       }
 
-      // 6. Write complete document via Server Action
+      // 6. Write complete document via Server Action.
+      // Derive the initial session count from the chosen plan:
+      //   - Live plans use `sessions` (e.g., home-live-12 → 12)
+      //   - Schedule plans use `days` per week as a sensible starting count
+      // The server treats `planSessions` as a hint and re-derives if missing.
+      const planSessions = resolvedPlan?.sessions ?? resolvedPlan?.days ?? 0;
+
       const docPayload = sanitizeForFirestore({
         role: 'trainee',
         name: data.name,
         email: data.email,
+        planSessions,
         onboarding: {
           // Step 2
           dateOfBirth: data.dateOfBirth,

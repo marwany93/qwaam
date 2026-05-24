@@ -44,6 +44,12 @@ export async function addClient(formData: FormData) {
   const name = formData.get('name') as string;
   const email = formData.get('email') as string;
 
+  // Optional: coach can seed an initial session count when adding a client
+  // manually. Defaults to 0 — coach renews via the subscription panel later.
+  const sessionsRaw = formData.get('sessions');
+  const parsedSessions = sessionsRaw != null ? Number(sessionsRaw) : 0;
+  const initialSessions = Number.isFinite(parsedSessions) && parsedSessions > 0 ? parsedSessions : 0;
+
   if (!name || !email) {
     return { error: 'Name and email are required.' };
   }
@@ -55,7 +61,7 @@ export async function addClient(formData: FormData) {
     // 1. Create user in Firebase Auth
     // Auto-generate a complex random password since we'll send a password reset link
     const tempPassword = Math.random().toString(36).slice(-10) + 'A1!zQ';
-    
+
     const userRecord = await auth.createUser({
       email,
       password: tempPassword,
@@ -65,12 +71,21 @@ export async function addClient(formData: FormData) {
     // 2. Set Custom Claim 'role: trainee'
     await auth.setCustomUserClaims(userRecord.uid, { role: 'trainee' });
 
-    // 3. Create document in 'users' collection
+    // 3. Create document in 'users' collection — sessionTracking is
+    // initialized here so the document shape is consistent from day one.
+    // Without this, manually-added clients had no sessionTracking field at
+    // all, causing the dashboard widget to show stale/undefined values.
     await db.collection('users').doc(userRecord.uid).set({
       role: 'trainee',
       name,
       email,
       createdAt: new Date(),
+      sessionTracking: {
+        totalSessions: initialSessions,
+        remainingSessions: initialSessions,
+        planStatus: initialSessions > 0 ? 'active' : 'finished',
+        lastRenewedAt: new Date(),
+      },
       traineeData: {
         assignedCoachUid: decodedClaims.uid,
         assignedWorkouts: [],
