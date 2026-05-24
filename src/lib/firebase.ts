@@ -1,8 +1,9 @@
 // src/lib/firebase.ts
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 
 /**
  * 💡 ملاحظة هندسية:
@@ -11,16 +12,61 @@ import { getStorage } from "firebase/storage";
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID, // 👈 التأكد من الاسم الجديد
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// تشغيل فايربيس (Singleton Pattern) لمنع تكرار الـ Apps في الـ Dev Mode
+// Singleton — Next.js dev mode hot-reloads modules, so re-init would throw.
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// تصدير (Export) الـ Auth والـ DB والـ Storage للاستخدام في المشروع
+// ── App Check (reCAPTCHA v3) ──────────────────────────────────────────────────
+// MUST run before any Firestore/Storage call so those calls carry the App
+// Check token. Browser-only — server-side code uses the Admin SDK which
+// bypasses App Check entirely.
+//
+// Debug token (dev only):
+//   1. set NEXT_PUBLIC_APPCHECK_DEBUG=true in .env.local
+//   2. open the browser console on first load → copy the token
+//   3. paste it into Firebase Console → App Check → Apps → Manage debug tokens
+//
+// The `self.FIREBASE_APPCHECK_DEBUG_TOKEN = true` line tells the SDK to print
+// the token. After registering it in the console, App Check will accept the
+// same token on every page load from your machine.
+if (typeof window !== 'undefined') {
+  try {
+    // Enable the SDK's debug-token printer in development. Production builds
+    // must NEVER set this — would leak past reCAPTCHA enforcement.
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      process.env.NEXT_PUBLIC_APPCHECK_DEBUG === 'true'
+    ) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+    }
+
+    const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+    if (siteKey) {
+      initializeAppCheck(app, {
+        provider: new ReCaptchaV3Provider(siteKey),
+        isTokenAutoRefreshEnabled: true,
+      });
+    } else if (process.env.NODE_ENV === 'production') {
+      // Loud warning in prod — silent in dev to keep the console clean
+      // when working offline / before the env var is wired up.
+      console.warn(
+        '[firebase] NEXT_PUBLIC_RECAPTCHA_SITE_KEY is missing — App Check is NOT initialized.',
+      );
+    }
+  } catch (err) {
+    // App Check is best-effort: a misconfig should not kill the whole app.
+    // Firestore/Storage will start failing if App Check is enforced and the
+    // token is missing — those errors are the actual signal for the dev.
+    console.error('[firebase] App Check init failed:', err);
+  }
+}
+
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
