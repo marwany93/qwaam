@@ -1,11 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { db } from '@/lib/firebase';
+import { useCallback, useEffect, useState } from 'react';
+import { db, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import type { QwaamUser } from '@/types';
 import { Link } from '@/i18n/navigation';
-import { UserCircleIcon, CalendarIcon, ChevronLeftIcon } from '@heroicons/react/24/outline';
+import {
+  UserCircleIcon,
+  CalendarIcon,
+  ChevronLeftIcon,
+  ArrowPathIcon,
+} from '@heroicons/react/24/outline';
 import { mapFirestoreError } from '@/lib/firestore-errors';
 
 interface Props {
@@ -16,13 +21,15 @@ export default function ClientsList({ coachUid }: Props) {
   const [clients, setClients] = useState<QwaamUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isPermissionError, setIsPermissionError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [retrying, setRetrying] = useState(false);
 
+  // Subscribe inside useEffect; bump retryCount to force re-subscribe after
+  // a forced token refresh.
   useEffect(() => {
     if (!coachUid) return;
 
-    // Server-side filtering: only fetch this coach's trainees.
-    // Requires a composite Firestore index on (role ASC, traineeData.assignedCoachUid ASC).
-    // Create it via the Firebase console or deploy firestore.indexes.json.
     const q = query(
       collection(db, 'users'),
       where('role', '==', 'trainee'),
@@ -30,7 +37,7 @@ export default function ClientsList({ coachUid }: Props) {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const roster: QwaamUser[] = snapshot.docs.map(doc => {
+      const roster: QwaamUser[] = snapshot.docs.map((doc) => {
         const data = doc.data();
         return {
           uid: doc.id,
@@ -42,25 +49,65 @@ export default function ClientsList({ coachUid }: Props) {
       roster.sort((a, b) => (b.createdAt as number) - (a.createdAt as number));
       setClients(roster);
       setError('');
+      setIsPermissionError(false);
       setLoading(false);
     }, (err) => {
       const mapped = mapFirestoreError(err);
       console.error('ClientsList query error:', err);
       setError(mapped.userMessage);
+      setIsPermissionError(mapped.isPermissionDenied);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [coachUid]);
+    // retryCount is in deps so handleRetry can re-mount the listener
+  }, [coachUid, retryCount]);
 
-  // Visible error banner — replaces the silent empty state that hid permission
-  // issues from coaches. Permission-denied here usually means the rules haven't
-  // been deployed yet or the assignedCoachUid field on a trainee is wrong.
+  // Handles the classic "coach role just got promoted but the client's ID
+  // token still has the old claims" race. Forcing a token refresh re-mints
+  // the JWT with the latest custom claims, then we re-subscribe.
+  const handleRetry = useCallback(async () => {
+    setRetrying(true);
+    try {
+      if (auth.currentUser) {
+        await auth.currentUser.getIdToken(true); // force refresh
+      }
+    } catch (e) {
+      console.warn('Token refresh failed:', e);
+    }
+    setRetrying(false);
+    setLoading(true);
+    setError('');
+    setIsPermissionError(false);
+    setRetryCount((c) => c + 1); // re-mount the snapshot listener
+  }, []);
+
   if (!loading && error) {
     return (
-      <div className="bg-red-50 border border-red-200 text-red-700 rounded-3xl p-6 text-center font-bold" dir="rtl">
-        <p className="mb-1">{error}</p>
-        <p className="text-xs font-bold text-red-600/70">إذا استمرت المشكلة، تواصل مع الدعم الفني.</p>
+      <div className="bg-red-50 border border-red-200 text-red-700 rounded-3xl p-6 text-center font-bold space-y-4" dir="rtl">
+        <p>{error}</p>
+        {isPermissionError && (
+          <p className="text-xs font-bold text-red-600/70">
+            قد يكون السبب أن صلاحية المدرّب لم تنتشر بعد. اضغطي إعادة المحاولة لتحديث الصلاحيات.
+          </p>
+        )}
+        <button
+          onClick={handleRetry}
+          disabled={retrying}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 text-white text-sm font-black shadow-md hover:bg-red-700 active:scale-95 transition-all disabled:opacity-50"
+        >
+          {retrying ? (
+            <>
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              جاري التحديث...
+            </>
+          ) : (
+            <>
+              <ArrowPathIcon className="w-4 h-4" />
+              إعادة المحاولة
+            </>
+          )}
+        </button>
       </div>
     );
   }

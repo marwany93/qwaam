@@ -7,6 +7,7 @@ import RenewalRequestButton from '@/components/client/RenewalRequestButton';
 import WorkoutVideoButton from '@/components/client/WorkoutVideoButton';
 import PendingPaymentBanner from '@/components/client/PendingPaymentBanner';
 import ProgressLogTrigger from '@/components/client/ProgressLogTrigger';
+import ReLoginButton from '@/components/client/ReLoginButton';
 // import { getAdminAuth } from '@/lib/firebase-admin';
 
 type PageProps = { params: Promise<{ locale: string }> };
@@ -20,9 +21,13 @@ export default async function ClientDashboard({ params }: PageProps) {
 
   if (!trainee) {
     return (
-      <div className="text-center py-24 flex flex-col items-center justify-center">
-        <h2 className="text-3xl font-black text-text-main mb-3">اتصال غير مستقر</h2>
-        <p className="text-text-muted font-bold text-lg">يرجى تسجيل الدخول مرة أخرى للوصول لبياناتك.</p>
+      <div className="text-center py-24 flex flex-col items-center justify-center gap-5" dir="rtl">
+        <span className="text-5xl">🔌</span>
+        <h2 className="text-3xl font-black text-text-main">اتصال غير مستقر</h2>
+        <p className="text-text-muted font-bold text-base max-w-md">
+          يرجى تسجيل الدخول مرة أخرى للوصول لبياناتك. هذا يحدث عادةً عند انتهاء الجلسة بعد فترة طويلة من عدم النشاط.
+        </p>
+        <ReLoginButton />
       </div>
     );
   }

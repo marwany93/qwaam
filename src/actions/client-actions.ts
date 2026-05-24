@@ -20,12 +20,30 @@ export async function getCurrentTrainee(): Promise<QwaamUser | null> {
   // "اتصال غير مستقر" fallback instead of throwing a 500. Throws here
   // would bubble out of the Server Component and produce an error-boundary
   // page, not the friendly Arabic message.
+  //
+  // Detailed logging is TEMPORARY — added to diagnose Vercel-only failures.
+  // Once the issue is confirmed (cookie missing vs Admin SDK init vs
+  // verifySessionCookie reject), strip the [trace] lines back out.
   try {
+    console.info('[trace] getCurrentTrainee start');
+
     const decodedToken = await verifyClientAccess();
-    const db = getAdminDb();
+    console.info('[trace] getCurrentTrainee — verified uid:', decodedToken.uid, 'role:', decodedToken.role);
+
+    let db;
+    try {
+      db = getAdminDb();
+    } catch (initErr) {
+      console.error('[trace] getCurrentTrainee — Admin SDK init failed. ' +
+        'Check FIREBASE_SERVICE_ACCOUNT_KEY on Vercel:', initErr);
+      return null;
+    }
 
     const doc = await db.collection('users').doc(decodedToken.uid).get();
-    if (!doc.exists) return null;
+    if (!doc.exists) {
+      console.warn('[trace] getCurrentTrainee — user doc missing for uid:', decodedToken.uid);
+      return null;
+    }
 
     const data = doc.data()!;
     return {
@@ -33,8 +51,18 @@ export async function getCurrentTrainee(): Promise<QwaamUser | null> {
       ...data,
       createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now(),
     } as QwaamUser;
-  } catch (err) {
-    console.error('getCurrentTrainee error:', err);
+  } catch (err: any) {
+    // Distinguish the common failure modes so the Vercel logs are useful
+    const msg = err?.message || String(err);
+    if (msg.includes('Session not found')) {
+      console.warn('[trace] getCurrentTrainee — qwaam_session cookie missing on request');
+    } else if (msg.includes('Forbidden')) {
+      console.warn('[trace] getCurrentTrainee — auth role mismatch:', msg);
+    } else if (msg.includes('verifySessionCookie') || err?.code?.startsWith?.('auth/')) {
+      console.error('[trace] getCurrentTrainee — session cookie verify failed:', err?.code || msg);
+    } else {
+      console.error('[trace] getCurrentTrainee — unknown error:', err);
+    }
     return null;
   }
 }
