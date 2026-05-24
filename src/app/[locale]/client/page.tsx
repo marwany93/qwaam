@@ -8,6 +8,7 @@ import WorkoutVideoButton from '@/components/client/WorkoutVideoButton';
 import PendingPaymentBanner from '@/components/client/PendingPaymentBanner';
 import ProgressLogTrigger from '@/components/client/ProgressLogTrigger';
 import ReLoginButton from '@/components/client/ReLoginButton';
+import SessionAlert from '@/components/client/SessionAlert';
 // import { getAdminAuth } from '@/lib/firebase-admin';
 
 type PageProps = { params: Promise<{ locale: string }> };
@@ -64,6 +65,14 @@ export default async function ClientDashboard({ params }: PageProps) {
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-10">
+
+      {/* ── Session balance alert — only shown when 0–2 sessions remain ── */}
+      {trainee.sessionTracking && (
+        <SessionAlert
+          sessionsRemaining={trainee.sessionTracking.remainingSessions ?? 0}
+          alreadyRequested={trainee.renewalRequest?.status === 'pending'}
+        />
+      )}
 
       {/* ── Pending payment banner — only when subscription is awaiting verification ── */}
       {isPendingPayment && (
