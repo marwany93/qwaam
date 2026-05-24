@@ -6,6 +6,7 @@ import type { QwaamUser } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { notificationService } from '@/lib/notification-service';
 import { FieldValue } from 'firebase-admin/firestore';
+import { findPlanById } from '@/lib/pricing-config';
 
 /**
  * Retrieves the list of all active trainees.
@@ -510,5 +511,77 @@ export async function deleteSavedMeal(docId: string) {
   } catch (error) {
     console.error('deleteSavedMeal error:', error);
     return { success: false, error: 'فشل حذف الوجبة.' };
+  }
+}
+
+/**
+ * Activates a trainee's subscription after the admin has verified payment
+ * (e.g., InstaPay/wallet transfer). Optionally swaps the plan first if the
+ * coach picked a different one in the UI before confirming.
+ *
+ * Side effects:
+ *   - subscription.status -> 'active'
+ *   - subscription.planId / amountPaid updated if updatedPlanId provided
+ *   - sessionTracking initialized from the (possibly new) plan so the
+ *     totals match what the trainee actually paid for
+ */
+export async function confirmTraineePayment(traineeUid: string, updatedPlanId?: string) {
+  await verifyAdminAccess();
+  if (!traineeUid) return { success: false, error: 'معرّف المتدرب مطلوب.' };
+
+  const db = getAdminDb();
+  try {
+    const traineeRef = db.collection('users').doc(traineeUid);
+    const snap = await traineeRef.get();
+    if (!snap.exists) return { success: false, error: 'المتدرب غير موجود.' };
+
+    const data = snap.data() ?? {};
+    const currentSub = data.traineeData?.subscription ?? null;
+
+    // Resolve which plan to activate: explicit override > current subscription's plan
+    const effectivePlanId: string | undefined = updatedPlanId || currentSub?.planId;
+    if (!effectivePlanId) {
+      return { success: false, error: 'لم يتم تحديد باقة للمتدرب.' };
+    }
+
+    const plan = findPlanById(effectivePlanId);
+    if (!plan) {
+      return { success: false, error: 'الباقة المختارة غير صالحة.' };
+    }
+
+    // Live plans use `sessions`; schedule plans fall back to `days` per week
+    // as a sensible initial session budget for the cycle.
+    const initialSessions = plan.sessions ?? plan.days ?? 0;
+
+    // Build update payload. Always set status + sessionTracking; only
+    // overwrite planId/amountPaid if the admin chose a different plan.
+    const update: Record<string, any> = {
+      'traineeData.subscription.status': 'active',
+      'traineeData.subscription.activatedAt': new Date(),
+      'sessionTracking.totalSessions': initialSessions,
+      'sessionTracking.remainingSessions': initialSessions,
+      'sessionTracking.planStatus': initialSessions > 0 ? 'active' : 'finished',
+      'sessionTracking.lastRenewedAt': new Date(),
+    };
+
+    if (updatedPlanId && updatedPlanId !== currentSub?.planId) {
+      update['traineeData.subscription.planId'] = updatedPlanId;
+      update['traineeData.subscription.amountPaid'] = String(plan.price);
+    }
+
+    await traineeRef.update(update);
+
+    // Refresh both the admin detail page and the trainee's own dashboard
+    revalidatePath(`/admin/client/${traineeUid}`);
+    revalidatePath('/client');
+
+    return {
+      success: true,
+      planId: effectivePlanId,
+      sessions: initialSessions,
+    };
+  } catch (error) {
+    console.error('confirmTraineePayment error:', error);
+    return { success: false, error: 'فشل تأكيد الدفع.' };
   }
 }

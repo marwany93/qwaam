@@ -326,10 +326,9 @@ export default function OnboardingWizard({ initialSubscription }: { initialSubsc
       setIsSuccess(true);
       if (typeof window !== 'undefined') localStorage.removeItem('qwaam_onboarding_draft');
 
-      // Redirect to client portal after brief success state using next-intl router
-      setTimeout(() => {
-        router.push('/client');
-      }, 2000);
+      // No auto-redirect anymore — the trainee needs to see the payment
+      // instructions and take action (transfer via InstaPay/wallet). They'll
+      // click the CTA to enter /client themselves.
 
     } catch (err: any) {
       console.error('[Onboarding] Final submit error:', err);
@@ -353,12 +352,82 @@ export default function OnboardingWizard({ initialSubscription }: { initialSubsc
 
   if (isSuccess) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 gap-6 animate-in zoom-in duration-500">
-        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-4xl shadow-lg">
-          🎉
+      <div
+        dir="rtl"
+        className="bg-white rounded-3xl shadow-2xl shadow-qwaam-pink/10 border border-border-light overflow-hidden max-w-xl w-full mx-auto animate-in fade-in zoom-in duration-500"
+      >
+        {/* Celebration header */}
+        <div className="bg-gradient-to-br from-qwaam-pink to-pink-500 text-white px-8 py-10 text-center">
+          <div className="w-20 h-20 mx-auto bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-5xl shadow-xl mb-4">
+            🎉
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-black mb-2 leading-tight">
+            شكراً لتسجيلك في قوام!
+          </h2>
+          <p className="font-bold opacity-90 text-sm leading-relaxed">
+            لإتمام تفعيل حسابك، يرجى تحويل مبلغ الباقة عبر إحدى الطرق التالية.
+          </p>
         </div>
-        <h2 className="text-2xl font-black text-text-main">{t('step6.successMessage')}</h2>
-        <div className="w-8 h-8 rounded-full border-4 border-qwaam-pink border-t-transparent animate-spin" />
+
+        {/* Payment instructions */}
+        <div className="px-6 sm:px-8 py-6 space-y-5">
+
+          {/* Amount summary (if we know the plan) */}
+          {initialSubscription && (
+            <div className="bg-qwaam-pink-light/40 border border-qwaam-pink/20 rounded-2xl px-5 py-4 flex items-center justify-between gap-3">
+              <span className="text-xs font-black text-text-muted uppercase tracking-wider">المبلغ المطلوب</span>
+              <span className="text-2xl font-black text-qwaam-pink" dir="ltr">
+                {initialSubscription.totalPrice} <span className="text-xs font-bold">EGP</span>
+              </span>
+            </div>
+          )}
+
+          {/* Payment methods */}
+          <div className="bg-gray-50 border border-border-light rounded-2xl p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">💸</span>
+              <h3 className="font-black text-text-main text-base">طرق الدفع المتاحة</h3>
+            </div>
+
+            <ul className="space-y-2 text-sm font-bold text-text-main">
+              <li className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-qwaam-pink" />
+                InstaPay
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-qwaam-pink" />
+                أي محفظة إلكترونية (Vodafone Cash / Etisalat Cash / Orange Cash)
+              </li>
+            </ul>
+
+            {/* Phone number — large, copyable, LTR */}
+            <div className="bg-white border-2 border-dashed border-qwaam-pink rounded-xl p-4 text-center">
+              <p className="text-xs font-black text-text-muted uppercase tracking-wider mb-1">
+                رقم التحويل
+              </p>
+              <p className="text-2xl font-black text-qwaam-pink tracking-wide select-all" dir="ltr">
+                01001280161
+              </p>
+              <p className="text-[11px] font-bold text-text-muted mt-2">
+                اضغطي مطوّلاً على الرقم لنسخه
+              </p>
+            </div>
+          </div>
+
+          {/* Next-step note */}
+          <p className="text-xs font-bold text-text-muted leading-relaxed text-center px-2">
+            بعد إتمام التحويل، سيقوم المدرّب بمراجعة الدفع وتفعيل باقتك خلال وقت قصير. ستتمكنين من تصفح حسابك الآن، وسيتم تفعيل المحتوى تلقائياً.
+          </p>
+
+          {/* CTA */}
+          <button
+            type="button"
+            onClick={() => router.push('/client')}
+            className="w-full py-4 rounded-2xl bg-qwaam-pink text-white font-black text-base shadow-lg shadow-qwaam-pink/30 hover:bg-pink-600 active:scale-[0.99] transition-all"
+          >
+            انتقل إلى حسابي ←
+          </button>
+        </div>
       </div>
     );
   }

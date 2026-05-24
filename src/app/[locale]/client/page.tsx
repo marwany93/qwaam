@@ -5,6 +5,7 @@ import ClientChat from '@/components/client/ClientChat';
 import ProgressToggleButton from '@/components/client/ProgressToggleButton';
 import RenewalRequestButton from '@/components/client/RenewalRequestButton';
 import WorkoutVideoButton from '@/components/client/WorkoutVideoButton';
+import PendingPaymentBanner from '@/components/client/PendingPaymentBanner';
 // import { getAdminAuth } from '@/lib/firebase-admin';
 
 type PageProps = { params: Promise<{ locale: string }> };
@@ -53,8 +54,15 @@ export default async function ClientDashboard({ params }: PageProps) {
     snack:     { label: 'وجبة خفيفة', icon: '🍎' },
   };
 
+  const isPendingPayment = trainee.traineeData?.subscription?.status === 'pending_payment';
+
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-10">
+
+      {/* ── Pending payment banner — only when subscription is awaiting verification ── */}
+      {isPendingPayment && (
+        <PendingPaymentBanner amountPaid={trainee.traineeData?.subscription?.amountPaid} />
+      )}
 
       {/* ── Graphic Greeting Banner ── */}
       <div className="bg-qwaam-pink rounded-3xl p-8 sm:p-12 text-white shadow-xl shadow-qwaam-pink/20 relative overflow-hidden flex flex-col justify-center">

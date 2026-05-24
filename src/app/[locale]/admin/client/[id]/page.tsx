@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import SessionManagerCard from '@/components/admin/SessionManagerCard';
 import TraineeTabsWrapper from '@/components/admin/TraineeTabsWrapper';
+import PendingPaymentCard from '@/components/admin/PendingPaymentCard';
 import { Link } from '@/i18n/navigation';
 import { ChevronRightIcon } from '@heroicons/react/24/solid';
 
@@ -122,6 +123,15 @@ export default async function TraineeDetailPage({ params }: PageProps) {
         </div>
 
       </div>
+
+      {/* ── Pending payment card — only when trainee hasn't been verified yet ── */}
+      {trainee.traineeData?.subscription?.status === 'pending_payment' && (
+        <PendingPaymentCard
+          traineeUid={traineeUid}
+          currentPlanId={trainee.traineeData.subscription.planId}
+          amountPaid={trainee.traineeData.subscription.amountPaid}
+        />
+      )}
 
       {/* ── Main Tab System Client Wrapper ── */}
       <TraineeTabsWrapper 
