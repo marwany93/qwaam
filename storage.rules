@@ -1,0 +1,93 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Qwaam — Firebase Storage Rules
+//
+// Privacy model:
+//   - The bucket is PRIVATE. All reads/writes go through Firebase SDKs that
+//     attach an ID token; signed download URLs from getDownloadURL() are
+//     short-lived and require the token to remain valid.
+//   - Every per-user path is hierarchical: collection/{uid}/{fileName}.
+//     The {uid} segment is what these rules match against for ownership.
+//   - Trainees own their folders (full read + write). Coaches NEVER write
+//     to trainee files — read-only access, and only for trainees that
+//     coach is explicitly assigned to in Firestore.
+//
+// MIME + size caps are enforced server-side as a defense-in-depth measure;
+// the client-side guards in PhotoUpload / PendingPaymentBanner / Onboarding
+// must already pass first, but a bypassed/modified client cannot upload
+// oversized or non-image files past these rules.
+// ─────────────────────────────────────────────────────────────────────────────
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isCoach() {
+      return isSignedIn() && request.auth.token.role == 'coach';
+    }
+
+    // Cross-checks Firestore at rule-evaluation time so a stale custom
+    // claim can't grant a coach access to a trainee they no longer own.
+    // Requires the Firestore rule on users/{traineeUid} to allow coaches
+    // to `get` user docs (already in place per the hardened ruleset).
+    function isAssignedCoach(traineeUid) {
+      return isCoach()
+        && firestore.get(/databases/(default)/documents/users/$(traineeUid))
+             .data.traineeData.assignedCoachUid == request.auth.uid;
+    }
+
+    // Shared upload guards — image MIME + bytes cap (cap is per-collection)
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    function underSize(maxBytes) {
+      return request.resource.size < maxBytes;
+    }
+
+    // ── Onboarding / InBody uploads (15 MB cap) ─────────────────────────────
+    // Used by the OnboardingWizard for inbody scans and body photos. Files
+    // can be PDFs or images, so we don't enforce isImage() here — wizard's
+    // own client guards select sane types.
+    match /trainee_uploads/{userId}/{fileName=**} {
+      allow read:   if isOwner(userId) || isAssignedCoach(userId);
+      allow create: if isOwner(userId) && underSize(15 * 1024 * 1024);
+      allow update, delete: if isOwner(userId);
+    }
+
+    // ── Payment proofs (10 MB cap) ──────────────────────────────────────────
+    // Trainee uploads a screenshot of their InstaPay/wallet transfer.
+    // The assigned coach reads it via the PendingPaymentCard thumbnail.
+    match /payment_proofs/{userId}/{fileName=**} {
+      allow read:   if isOwner(userId) || isAssignedCoach(userId);
+      allow create: if isOwner(userId) && isImage() && underSize(10 * 1024 * 1024);
+      allow update, delete: if isOwner(userId);
+    }
+
+    // ── Progress photos (5 MB cap — tightened for fast gallery loads) ──────
+    // Trainee uploads Before/Side/Back photos when logging progress entries.
+    // The assigned coach views them through the privacy-blurred gallery.
+    // 5 MB keeps gallery scroll smooth on mobile data.
+    match /progress_photos/{userId}/{fileName=**} {
+      allow read:   if isOwner(userId) || isAssignedCoach(userId);
+      allow create: if isOwner(userId) && isImage() && underSize(5 * 1024 * 1024);
+      allow update, delete: if isOwner(userId);
+    }
+
+    // ── Default deny ────────────────────────────────────────────────────────
+    // Any path not explicitly allowed above is locked down. Add new
+    // collections with their own match block — don't relax this rule.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
