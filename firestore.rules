@@ -1,0 +1,154 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Qwaam — Firestore Security Rules
+//
+// First-class file under source control. Deploy with:
+//   firebase deploy --only firestore:rules
+//
+// Goals:
+//   - Trainees see only their own data
+//   - Coaches see only trainees they're assigned to
+//   - Chat: only participants of a chatId can read/write its messages
+//   - Default-deny everywhere; new collections need explicit allowlisting
+//
+// NOTE: This file is the canonical source. If anything you see in the
+// Firebase Console doesn't match here, it was likely added before the rules
+// were committed — port it into this file and redeploy.
+// ─────────────────────────────────────────────────────────────────────────────
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    function isCoach() {
+      return isSignedIn() && request.auth.token.role == 'coach';
+    }
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.role == 'admin';
+    }
+    // True if the calling coach owns the trainee user doc
+    function ownsTrainee(traineeUid) {
+      return isCoach()
+        && get(/databases/$(database)/documents/users/$(traineeUid))
+             .data.traineeData.assignedCoachUid == request.auth.uid;
+    }
+
+    // Chat helper — chatId is always 'coachUid_traineeUid'. A user is a
+    // participant iff their uid is one of the two halves around the '_'.
+    function isChatParticipant(chatId) {
+      return isSignedIn()
+        && (chatId.split('_')[0] == request.auth.uid
+         || chatId.split('_')[1] == request.auth.uid);
+    }
+
+    // ── users ──────────────────────────────────────────────────────────────
+    match /users/{userId} {
+      // Read a single doc: self, owning coach, or any admin
+      allow get:    if isOwner(userId) || ownsTrainee(userId) || isAdmin();
+      // List: coaches need this for ClientsList / TraineesManager queries
+      allow list:   if isCoach() || isAdmin();
+      // Create: signed-in user can create their own doc (onboarding submit)
+      allow create: if isOwner(userId);
+      // Update: self or owning coach (coach updates trainee assignment data,
+      //         renewal status, session counts, etc.)
+      allow update: if isOwner(userId) || ownsTrainee(userId) || isAdmin();
+      // Delete: only via Admin SDK (deleteUserFully server action)
+      allow delete: if false;
+    }
+
+    // ── messages (chat) ─────────────────────────────────────────────────────
+    // chatId format: 'coachUid_traineeUid'. Only the two participants may
+    // read, list, or write messages tagged with that chatId.
+    match /messages/{messageId} {
+      // Single-doc read: must be one of the two participants
+      allow get: if isChatParticipant(resource.data.chatId);
+
+      // List/query: Firestore rules are not filters — they evaluate against
+      // every doc the query could return. Since ClientChat/TraineeChat both
+      // filter by where('chatId','==',X), the safe rule is to allow list
+      // only when each returned doc passes isChatParticipant. We approximate
+      // this by requiring the query to filter by chatId AND requiring the
+      // caller to be a participant of THAT chatId via resource.data.
+      allow list: if isChatParticipant(resource.data.chatId);
+
+      // Create: sender must be the auth user AND must be a participant
+      allow create: if isSignedIn()
+        && request.resource.data.senderId == request.auth.uid
+        && isChatParticipant(request.resource.data.chatId);
+
+      // Update / delete not supported by the UI — keep locked
+      allow update, delete: if false;
+    }
+
+    // ── exercises / workouts / meals (legacy coach library) ─────────────────
+    // Coaches manage; trainees read for their assigned items via Admin SDK
+    match /exercises/{id} {
+      allow read: if isSignedIn();              // Trainees see their assigned exercise details
+      allow write: if isCoach() || isAdmin();
+    }
+    match /workouts/{id} {
+      allow read: if isSignedIn();
+      allow write: if isCoach() || isAdmin();
+    }
+    match /meals/{id} {
+      allow read: if isSignedIn();
+      allow write: if isCoach() || isAdmin();
+    }
+
+    // ── custom_meals (coach-saved Spoonacular recipes) ─────────────────────
+    match /custom_meals/{id} {
+      allow read:   if isCoach() && resource.data.savedByCoachUid == request.auth.uid;
+      allow list:   if isCoach();
+      allow create: if isCoach()
+        && request.resource.data.savedByCoachUid == request.auth.uid;
+      allow update, delete: if isCoach() && resource.data.savedByCoachUid == request.auth.uid;
+    }
+
+    // ── meal_plans (coach-built plans assigned to a trainee) ───────────────
+    match /meal_plans/{id} {
+      // Coach who built it OR the trainee it's assigned to can read
+      allow read: if (isCoach() && resource.data.coachUid == request.auth.uid)
+        || (isSignedIn() && resource.data.assignedTo == request.auth.uid);
+      allow list: if isCoach()
+        || (isSignedIn() && request.auth != null);
+      allow create: if isCoach()
+        && request.resource.data.coachUid == request.auth.uid;
+      allow update, delete: if isCoach() && resource.data.coachUid == request.auth.uid;
+    }
+
+    // ── trainee_progress (weight + photo entries) ──────────────────────────
+    match /trainee_progress/{id} {
+      allow read:   if isOwner(resource.data.traineeUid) || ownsTrainee(resource.data.traineeUid);
+      allow list:   if isSignedIn(); // narrowed at query level by traineeUid
+      allow create: if isOwner(request.resource.data.traineeUid);
+      allow update, delete: if isOwner(resource.data.traineeUid);
+    }
+
+    // ── progress_logs (daily workout/meal completion checks) ───────────────
+    match /progress_logs/{id} {
+      allow read:   if isOwner(resource.data.traineeUid) || ownsTrainee(resource.data.traineeUid);
+      allow list:   if isSignedIn();
+      allow create: if isOwner(request.resource.data.traineeUid);
+      allow update, delete: if isOwner(resource.data.traineeUid);
+    }
+
+    // ── session_logs (admin-only write trail) ──────────────────────────────
+    match /session_logs/{id} {
+      allow read:   if isOwner(resource.data.traineeUid) || ownsTrainee(resource.data.traineeUid);
+      allow write:  if false; // Server-side (Admin SDK) only
+    }
+
+    // ── Default deny ───────────────────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

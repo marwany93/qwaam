@@ -130,9 +130,13 @@ export default function WeightChart({ data, emptyCta, title = 'منحنى الو
         </div>
       </div>
 
-      {/* Chart — fixed height so the layout doesn't reflow during data updates */}
-      <div className="w-full h-64 sm:h-72" dir="ltr">
-        <ResponsiveContainer width="100%" height="100%">
+      {/* Chart — fixed height so the layout doesn't reflow during data updates.
+          minWidth/minHeight on ResponsiveContainer silence the
+          'width(0) and height(0) of chart should be greater than 0' warning
+          that Recharts throws during the parent tab's slide-in animation,
+          when the wrapper hasn't fully settled its dimensions yet. */}
+      <div className="w-full h-64 sm:h-72" dir="ltr" style={{ minHeight: 256 }}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={256}>
           <AreaChart data={chartData} margin={{ top: 10, right: 12, left: -8, bottom: 0 }}>
             <defs>
               {/* Soft pink gradient — strong at top of curve, fading to nothing at baseline */}
