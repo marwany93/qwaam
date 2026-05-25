@@ -35,7 +35,10 @@ export default function TraineeChat({ coachUid, traineeUid, traineeName }: Props
   const [sending, setSending] = useState(false);
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
   const [startingSession, setStartingSession] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  // Scroll the chat's own container — NOT the window — to the latest message.
+  // scrollIntoView() on a bottom anchor bubbles to the nearest scrollable
+  // ancestor (the page) and pulled the whole layout down on every new message.
+  const messagesRef = useRef<HTMLDivElement>(null);
 
   const chatId = `${coachUid}_${traineeUid}`;
 
@@ -69,7 +72,10 @@ export default function TraineeChat({ coachUid, traineeUid, traineeName }: Props
 
   // Auto-scroll on new messages — no DB write here
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Direct scrollTop assignment keeps the scroll strictly inside this
+    // container — never touches window.scrollY.
+    const el = messagesRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   // Clear the unread badge once on mount (and whenever the coach switches to a
@@ -179,7 +185,7 @@ export default function TraineeChat({ coachUid, traineeUid, traineeName }: Props
         </div>
 
         {/* Message Thread */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-3" dir="rtl">
+        <div ref={messagesRef} className="flex-1 overflow-y-auto p-6 space-y-3" dir="rtl">
           {messages.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-text-muted gap-3">
               <span className="text-5xl grayscale opacity-40">💬</span>
@@ -213,7 +219,6 @@ export default function TraineeChat({ coachUid, traineeUid, traineeName }: Props
               </div>
             );
           })}
-          <div ref={bottomRef} />
         </div>
 
         {/* Message Composer */}

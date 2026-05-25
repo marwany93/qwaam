@@ -33,7 +33,11 @@ export default function ClientChat({ coachUid, traineeUid, traineeName }: Props)
   const [sending, setSending] = useState(false);
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
   const [callOpen, setCallOpen] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  // Scroll the chat's own container — NOT the window — to the latest
+  // message. scrollIntoView() on a bottom anchor bubbles up to whichever
+  // ancestor is the nearest scrollable, which in this dashboard is the
+  // page itself; that's why every incoming message yanked the whole page.
+  const messagesRef = useRef<HTMLDivElement>(null);
 
   const chatId = `${coachUid}_${traineeUid}`;
 
@@ -86,7 +90,10 @@ export default function ClientChat({ coachUid, traineeUid, traineeName }: Props)
   }, [traineeUid]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Direct scrollTop assignment keeps the scroll strictly inside this
+    // container — never touches window.scrollY.
+    const el = messagesRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   // ── Send message ─────────────────────────────────────────
@@ -174,7 +181,7 @@ export default function ClientChat({ coachUid, traineeUid, traineeName }: Props)
         </div>
 
         {/* ── Message Loop ── */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3" dir="rtl">
+        <div ref={messagesRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3" dir="rtl">
           {messages.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-text-muted gap-3">
               <span className="text-5xl grayscale opacity-40">💬</span>
@@ -205,7 +212,6 @@ export default function ClientChat({ coachUid, traineeUid, traineeName }: Props)
               </div>
             );
           })}
-          <div ref={bottomRef} />
         </div>
 
         {/* ── Input Engine ── */}
