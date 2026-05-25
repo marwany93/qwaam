@@ -19,8 +19,14 @@ function walk(value: unknown): unknown {
   if (value === null || value === undefined) return value;
 
   // Firestore Timestamp (admin or client SDK)
-  if (typeof value === 'object' && typeof (value as { toMillis?: unknown }).toMillis === 'function') {
-    return (value as { toMillis: () => number }).toMillis();
+  if (typeof value === 'object') {
+    if (typeof (value as { toMillis?: unknown }).toMillis === 'function') {
+      return (value as { toMillis: () => number }).toMillis();
+    }
+    // Fallback for timestamps missing toMillis() but have toDate()
+    if (typeof (value as { toDate?: unknown }).toDate === 'function') {
+      return (value as { toDate: () => Date }).toDate().getTime();
+    }
   }
   // Native Date (rare, but Firestore Admin sometimes returns these)
   if (value instanceof Date) return value.getTime();

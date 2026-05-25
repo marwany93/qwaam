@@ -46,11 +46,17 @@ export async function getCurrentTrainee(): Promise<QwaamUser | null> {
       return null;
     }
 
+    const data = doc.data() || {};
+    delete data.password;
+    if (data.onboarding && data.onboarding.password) {
+      delete data.onboarding.password;
+    }
+
     // Recursive sanitizer — converts every nested Firestore Timestamp into
     // a plain number so the result is safe to pass back to a Client Component.
     return serializeFirestoreData({
       uid: doc.id,
-      ...doc.data(),
+      ...data,
     }) as QwaamUser;
   } catch (err: any) {
     // Distinguish the common failure modes so the Vercel logs are useful
@@ -207,7 +213,7 @@ export async function submitOnboarding(uid: string, docPayload: Record<string, a
 
     // Strip planSessions from the persisted doc — it's a transport-only hint,
     // not part of the QwaamUser shape. sessionTracking is the source of truth.
-    const { planSessions: _planSessions, ...rest } = docPayload;
+    const { planSessions: _planSessions, password: _password, ...rest } = docPayload;
 
     const payload = {
       ...rest,

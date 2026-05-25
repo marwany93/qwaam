@@ -138,7 +138,8 @@ service cloud.firestore {
       allow read, list:
         if isOwner(resource.data.traineeUid) || ownsTrainee(resource.data.traineeUid);
       allow create: if isOwner(request.resource.data.traineeUid);
-      allow update, delete: if isOwner(resource.data.traineeUid);
+      allow update: if isOwner(resource.data.traineeUid) && request.resource.data.traineeUid == resource.data.traineeUid;
+      allow delete: if isOwner(resource.data.traineeUid);
     }
 
     // ── progress_logs (daily workout/meal completion checks) ───────────────
@@ -147,7 +148,8 @@ service cloud.firestore {
       allow read, list:
         if isOwner(resource.data.traineeUid) || ownsTrainee(resource.data.traineeUid);
       allow create: if isOwner(request.resource.data.traineeUid);
-      allow update, delete: if isOwner(resource.data.traineeUid);
+      allow update: if isOwner(resource.data.traineeUid) && request.resource.data.traineeUid == resource.data.traineeUid;
+      allow delete: if isOwner(resource.data.traineeUid);
     }
 
     // ── session_logs (admin-only write trail) ──────────────────────────────

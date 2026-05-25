@@ -14,18 +14,29 @@ import { serializeFirestoreData } from '@/lib/firestore-serialize';
  * Only callable by authenticated coaches.
  */
 export async function getClients(): Promise<QwaamUser[]> {
-  await verifyAdminAccess();
+  const decodedClaims = await verifyAdminAccess();
 
   const db = getAdminDb();
-  const snapshot = await db.collection('users').where('role', '==', 'trainee').get();
+  let query: FirebaseFirestore.Query = db.collection('users').where('role', '==', 'trainee');
+
+  if (decodedClaims.role === 'coach') {
+    query = query.where('traineeData.assignedCoachUid', '==', decodedClaims.uid);
+  }
+
+  const snapshot = await query.get();
 
   // serializeFirestoreData walks the whole tree and converts every nested
   // Timestamp (lastRenewedAt, requestedAt, activatedAt, paymentScreenshotAt,
   // any future ones) into a plain millis number. Without this, React rejects
   // the payload at the Server/Client Component boundary.
-  return snapshot.docs.map((doc) =>
-    serializeFirestoreData({ uid: doc.id, ...doc.data() }) as QwaamUser,
-  );
+  return snapshot.docs.map((doc) => {
+    const data = doc.data() || {};
+    delete data.password;
+    if (data.onboarding && data.onboarding.password) {
+      delete data.onboarding.password;
+    }
+    return serializeFirestoreData({ uid: doc.id, ...data }) as QwaamUser;
+  });
 }
 
 /**
@@ -117,23 +128,32 @@ export async function addClient(formData: FormData) {
  * Fetches all trainees.
  */
 export async function getTrainees(): Promise<QwaamUser[]> {
-  await verifyAdminAccess();
+  const decodedClaims = await verifyAdminAccess();
   const db = getAdminDb();
   // Newest sign-ups first — requires composite index (role ASC, createdAt DESC)
   // declared in firestore.indexes.json.
-  const snapshot = await db
+  let query: FirebaseFirestore.Query = db
     .collection('users')
-    .where('role', '==', 'trainee')
-    .orderBy('createdAt', 'desc')
-    .get();
+    .where('role', '==', 'trainee');
+
+  if (decodedClaims.role === 'coach') {
+    query = query.where('traineeData.assignedCoachUid', '==', decodedClaims.uid);
+  }
+
+  const snapshot = await query.orderBy('createdAt', 'desc').get();
 
   // Recursive sanitizer converts every nested Firestore Timestamp
   // (createdAt, sessionTracking.lastRenewedAt, renewalRequest.requestedAt,
   // subscription.activatedAt, subscription.paymentScreenshotAt, …) into a
   // plain number so the result is safe to pass to a Client Component.
-  return snapshot.docs.map((doc) =>
-    serializeFirestoreData({ uid: doc.id, ...doc.data() }) as QwaamUser,
-  );
+  return snapshot.docs.map((doc) => {
+    const data = doc.data() || {};
+    delete data.password;
+    if (data.onboarding && data.onboarding.password) {
+      delete data.onboarding.password;
+    }
+    return serializeFirestoreData({ uid: doc.id, ...data }) as QwaamUser;
+  });
 }
 
 /**
