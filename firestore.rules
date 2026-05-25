@@ -104,38 +104,48 @@ service cloud.firestore {
     }
 
     // ── custom_meals (coach-saved Spoonacular recipes) ─────────────────────
+    // Reads opened to any signed-in user so trainees can resolve the meal
+    // titles referenced from their assigned meal_plans without a complex
+    // cross-collection check. Write surface remains coach-only and scoped
+    // to the coach who saved the recipe.
     match /custom_meals/{id} {
-      allow read:   if isCoach() && resource.data.savedByCoachUid == request.auth.uid;
-      allow list:   if isCoach();
+      allow read:   if isSignedIn();
       allow create: if isCoach()
         && request.resource.data.savedByCoachUid == request.auth.uid;
       allow update, delete: if isCoach() && resource.data.savedByCoachUid == request.auth.uid;
     }
 
     // ── meal_plans (coach-built plans assigned to a trainee) ───────────────
+    // list rule mirrors the read rule. Firestore evaluates list per-candidate-
+    // doc, so the client MUST filter their query by coachUid (coach) or
+    // assignedTo (trainee) — otherwise non-matching docs land in the
+    // candidate set and the rule fails with permission-denied.
     match /meal_plans/{id} {
-      // Coach who built it OR the trainee it's assigned to can read
-      allow read: if (isCoach() && resource.data.coachUid == request.auth.uid)
+      allow read, list:
+        if (isCoach() && resource.data.coachUid == request.auth.uid)
         || (isSignedIn() && resource.data.assignedTo == request.auth.uid);
-      allow list: if isCoach()
-        || (isSignedIn() && request.auth != null);
       allow create: if isCoach()
         && request.resource.data.coachUid == request.auth.uid;
       allow update, delete: if isCoach() && resource.data.coachUid == request.auth.uid;
     }
 
     // ── trainee_progress (weight + photo entries) ──────────────────────────
+    // list rule mirrors read — clients MUST filter by where('traineeUid','==',X)
+    // for the rule to pass on each candidate doc. The previous
+    // 'allow list: if isSignedIn()' was tautological and would have let any
+    // signed-in user list every trainee's progress.
     match /trainee_progress/{id} {
-      allow read:   if isOwner(resource.data.traineeUid) || ownsTrainee(resource.data.traineeUid);
-      allow list:   if isSignedIn(); // narrowed at query level by traineeUid
+      allow read, list:
+        if isOwner(resource.data.traineeUid) || ownsTrainee(resource.data.traineeUid);
       allow create: if isOwner(request.resource.data.traineeUid);
       allow update, delete: if isOwner(resource.data.traineeUid);
     }
 
     // ── progress_logs (daily workout/meal completion checks) ───────────────
+    // Same fix as trainee_progress — per-doc ownership check on list.
     match /progress_logs/{id} {
-      allow read:   if isOwner(resource.data.traineeUid) || ownsTrainee(resource.data.traineeUid);
-      allow list:   if isSignedIn();
+      allow read, list:
+        if isOwner(resource.data.traineeUid) || ownsTrainee(resource.data.traineeUid);
       allow create: if isOwner(request.resource.data.traineeUid);
       allow update, delete: if isOwner(resource.data.traineeUid);
     }
