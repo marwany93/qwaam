@@ -4,10 +4,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { QwaamUser } from '@/types';
 import AssignCoachDropdown from '@/components/admin/AssignCoachDropdown';
+import DeleteUserModal from '@/components/admin/DeleteUserModal';
 import {
   MagnifyingGlassIcon,
   ChevronRightIcon,
   ChevronLeftIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 
 interface Coach {
@@ -34,17 +36,26 @@ type PageSize = typeof PAGE_SIZE_OPTIONS[number];
 export default function TraineesManager({ trainees, coaches, adminUid, locale }: Props) {
   const t = useTranslations();
 
+  // Local mirror of the prop so we can optimistically remove rows on delete
+  // without waiting for a Server Component re-render.
+  const [localTrainees, setLocalTrainees] = useState<QwaamUser[]>(trainees);
+  // Keep local state in sync if the parent prop changes (e.g. router.refresh()).
+  useEffect(() => { setLocalTrainees(trainees); }, [trainees]);
+
   const [search, setSearch] = useState('');
   const [pageSize, setPageSize] = useState<PageSize>(10);
   const [page, setPage] = useState(1);
 
+  // Hard-delete modal target
+  const [toDelete, setToDelete] = useState<QwaamUser | null>(null);
+
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    if (!needle) return trainees;
-    return trainees.filter((tr) =>
+    if (!needle) return localTrainees;
+    return localTrainees.filter((tr) =>
       tr.name?.toLowerCase().includes(needle) || tr.email?.toLowerCase().includes(needle),
     );
-  }, [trainees, search]);
+  }, [localTrainees, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -55,7 +66,7 @@ export default function TraineesManager({ trainees, coaches, adminUid, locale }:
   useEffect(() => { setPage(1); }, [search, pageSize]);
 
   // ── Empty: no trainees at all ─────────────────────────────
-  if (trainees.length === 0) {
+  if (localTrainees.length === 0) {
     return (
       <div className="bg-white rounded-3xl p-12 text-center border border-border-light shadow-sm" dir="rtl">
         <span className="text-5xl block grayscale opacity-50 mb-3">👥</span>
@@ -65,6 +76,7 @@ export default function TraineesManager({ trainees, coaches, adminUid, locale }:
   }
 
   return (
+    <>
     <div className="bg-white rounded-3xl border border-border-light shadow-sm overflow-hidden flex flex-col" dir="rtl">
 
       {/* Toolbar */}
@@ -111,6 +123,7 @@ export default function TraineesManager({ trainees, coaches, adminUid, locale }:
                   <th className="px-5 py-3">{t('admin.email')}</th>
                   <th className="px-5 py-3 w-40">{t('admin.primaryGoal')}</th>
                   <th className="px-5 py-3 w-72 text-left">{t('admin.coach')}</th>
+                  <th className="px-5 py-3 w-16 text-left">{t('admin.actions') || 'إجراءات'}</th>
                 </tr>
               </thead>
 
@@ -179,6 +192,18 @@ export default function TraineesManager({ trainees, coaches, adminUid, locale }:
                           />
                         )}
                       </td>
+
+                      {/* Actions — hard delete */}
+                      <td className="px-5 py-3.5 text-left">
+                        <button
+                          type="button"
+                          onClick={() => setToDelete(trainee)}
+                          title="حذف نهائي"
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-50 border border-border-light text-red-500 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-all"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -221,5 +246,22 @@ export default function TraineesManager({ trainees, coaches, adminUid, locale }:
         </>
       )}
     </div>
+
+    {/* Hard-delete confirmation modal — requires typing the email to confirm */}
+    {toDelete && (
+      <DeleteUserModal
+        open={!!toDelete}
+        onClose={() => setToDelete(null)}
+        onDeleted={() => {
+          // Optimistic local removal so the row disappears immediately
+          // without waiting for a router.refresh() round-trip.
+          setLocalTrainees((prev) => prev.filter((tr) => tr.uid !== toDelete.uid));
+        }}
+        uid={toDelete.uid}
+        name={toDelete.name}
+        email={toDelete.email}
+      />
+    )}
+    </>
   );
 }
