@@ -8,6 +8,7 @@ import WorkoutVideoButton from '@/components/client/WorkoutVideoButton';
 import PendingPaymentBanner from '@/components/client/PendingPaymentBanner';
 import ProgressLogTrigger from '@/components/client/ProgressLogTrigger';
 import TraineeWeightChartCard from '@/components/client/TraineeWeightChartCard';
+import ProgressGallery from '@/components/client/ProgressGallery';
 import ReLoginButton from '@/components/client/ReLoginButton';
 import SessionAlert from '@/components/client/SessionAlert';
 // import { getAdminAuth } from '@/lib/firebase-admin';
@@ -156,6 +157,9 @@ export default async function ClientDashboard({ params }: PageProps) {
 
       {/* ── Weight Chart — prominent visual progress feedback ── */}
       <TraineeWeightChartCard initialData={weightHistory} />
+
+      {/* ── Progress photos gallery — privacy-blurred by default ── */}
+      <ProgressGallery entries={weightHistory} title="صور تقدمك" />
 
       {/* ── Progress Log Trigger — sits above the workouts/meals grid ── */}
       <ProgressLogTrigger />

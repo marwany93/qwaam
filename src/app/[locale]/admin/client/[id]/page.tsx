@@ -18,6 +18,7 @@ import SessionManagerCard from '@/components/admin/SessionManagerCard';
 import TraineeTabsWrapper from '@/components/admin/TraineeTabsWrapper';
 import PendingPaymentCard from '@/components/admin/PendingPaymentCard';
 import WeightChart from '@/components/client/WeightChart';
+import ProgressGallery from '@/components/client/ProgressGallery';
 import { Link } from '@/i18n/navigation';
 import { ChevronRightIcon } from '@heroicons/react/24/solid';
 
@@ -140,6 +141,9 @@ export default async function TraineeDetailPage({ params }: PageProps) {
 
       {/* ── Trainee weight chart — coach-facing progress view ── */}
       <WeightChart data={weightHistory} title={`منحنى وزن ${trainee.name}`} />
+
+      {/* ── Progress photos — privacy-blurred by default ── */}
+      <ProgressGallery entries={weightHistory} title={`صور ${trainee.name}`} />
 
       {/* ── Main Tab System Client Wrapper ── */}
       <TraineeTabsWrapper 

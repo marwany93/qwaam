@@ -1,29 +1,26 @@
 'use client';
 
-import { Fragment, useRef, useState, useTransition } from 'react';
+import { Fragment, useState, useTransition } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage, auth } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import { logProgress, type LogProgressInput } from '@/actions/client-actions';
 import {
   XMarkIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
-  ArrowUpTrayIcon,
   ChartBarIcon,
 } from '@heroicons/react/24/solid';
+import PhotoUpload, { type PhotoSide } from '@/components/client/PhotoUpload';
 
 interface Props {
   open: boolean;
   onClose: () => void;
 }
 
-type PhotoSlot = 'front' | 'side' | 'back';
-
-const PHOTO_SLOTS: { key: PhotoSlot; label: string; arabic: string }[] = [
-  { key: 'front', label: 'Front', arabic: 'أمامية' },
-  { key: 'side',  label: 'Side',  arabic: 'جانبية' },
-  { key: 'back',  label: 'Back',  arabic: 'خلفية' },
+const PHOTO_SLOTS: { key: PhotoSide; arabic: string }[] = [
+  { key: 'front', arabic: 'أمامية' },
+  { key: 'side',  arabic: 'جانبية' },
+  { key: 'back',  arabic: 'خلفية' },
 ];
 
 const inputCls =
@@ -41,23 +38,17 @@ export default function LogProgressForm({ open, onClose }: Props) {
   const [thighs, setThighs] = useState('');
   const [notes, setNotes] = useState('');
 
-  // Photos: per-slot file + uploaded url + uploading flag
-  const [photos, setPhotos] = useState<Record<PhotoSlot, { url?: string; uploading: boolean }>>({
-    front: { uploading: false },
-    side:  { uploading: false },
-    back:  { uploading: false },
+  // Photo URLs by slot (uploads are managed inside <PhotoUpload />)
+  const [photoUrls, setPhotoUrls] = useState<Record<PhotoSide, string | undefined>>({
+    front: undefined, side: undefined, back: undefined,
   });
-  const fileRefs = {
-    front: useRef<HTMLInputElement>(null),
-    side:  useRef<HTMLInputElement>(null),
-    back:  useRef<HTMLInputElement>(null),
-  };
+  // Track in-flight uploads so we can block submit until they all finish
+  const [uploadingSlots, setUploadingSlots] = useState<Set<PhotoSide>>(new Set());
+  const anyPhotoUploading = uploadingSlots.size > 0;
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isPending, startTx] = useTransition();
-
-  const anyPhotoUploading = Object.values(photos).some((p) => p.uploading);
 
   // ── Reset on close ────────────────────────────────────────
   const handleClose = () => {
@@ -68,49 +59,22 @@ export default function LogProgressForm({ open, onClose }: Props) {
       setWeight(''); setBodyFat('');
       setChest(''); setWaist(''); setAbs(''); setGlutes(''); setThighs('');
       setNotes('');
-      setPhotos({ front: { uploading: false }, side: { uploading: false }, back: { uploading: false } });
+      setPhotoUrls({ front: undefined, side: undefined, back: undefined });
+      setUploadingSlots(new Set());
       setError(''); setSuccess('');
     }, 200);
   };
 
-  // ── Photo upload ──────────────────────────────────────────
-  const handlePhotoChange = async (slot: PhotoSlot, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      setError('يجب اختيار صورة فقط.');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setError('حجم الصورة يجب أن يكون أقل من 5 ميجابايت.');
-      return;
-    }
-
-    const uid = auth.currentUser?.uid;
-    if (!uid) {
-      setError('انتهت الجلسة. أعيدي تسجيل الدخول.');
-      return;
-    }
-
-    setError('');
-    setPhotos((p) => ({ ...p, [slot]: { ...p[slot], uploading: true } }));
-
-    try {
-      // Hierarchical path: progress_photos/{uid}/{timestamp}_{type}.{ext}
-      // The {uid} segment lets Storage rules enforce ownership via path matching.
-      const ext = file.name.split('.').pop() || 'jpg';
-      const path = `progress_photos/${uid}/${Date.now()}_${slot}.${ext}`;
-      const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-      setPhotos((p) => ({ ...p, [slot]: { url, uploading: false } }));
-    } catch (err) {
-      console.error(`Upload (${slot}) failed:`, err);
-      setError('فشل رفع الصورة. حاولي مجدداً.');
-      setPhotos((p) => ({ ...p, [slot]: { ...p[slot], uploading: false } }));
-    }
+  // ── PhotoUpload callbacks ─────────────────────────────────
+  const handleUploaded = (url: string, slot: PhotoSide) => {
+    setPhotoUrls((p) => ({ ...p, [slot]: url }));
+  };
+  const handleUploadingChange = (uploading: boolean, slot: PhotoSide) => {
+    setUploadingSlots((prev) => {
+      const next = new Set(prev);
+      if (uploading) next.add(slot); else next.delete(slot);
+      return next;
+    });
   };
 
   // ── Submit ────────────────────────────────────────────────
@@ -141,18 +105,18 @@ export default function LogProgressForm({ open, onClose }: Props) {
     const hasMeasurements = Object.values(m).some((v) => v !== undefined);
 
     // Build photos object only when at least one url is set
-    const photoUrls = {
-      frontUrl: photos.front.url,
-      sideUrl:  photos.side.url,
-      backUrl:  photos.back.url,
+    const photoPayload = {
+      frontUrl: photoUrls.front,
+      sideUrl:  photoUrls.side,
+      backUrl:  photoUrls.back,
     };
-    const hasPhotos = Object.values(photoUrls).some(Boolean);
+    const hasPhotos = Object.values(photoPayload).some(Boolean);
 
     const payload: LogProgressInput = {
       weight: weightNum,
       bodyFat: bodyFat ? Number(bodyFat) : undefined,
       measurements: hasMeasurements ? m : undefined,
-      photos: hasPhotos ? photoUrls : undefined,
+      photos: hasPhotos ? photoPayload : undefined,
       notes: notes.trim() || undefined,
     };
 
@@ -257,43 +221,23 @@ export default function LogProgressForm({ open, onClose }: Props) {
                     </div>
                   </div>
 
-                  {/* Photos */}
+                  {/* Photos — delegated to PhotoUpload (shared with admin gallery) */}
                   <div className="space-y-3">
                     <h4 className="font-black text-text-main text-sm">الصور (اختياري)</h4>
                     <div className="grid grid-cols-3 gap-3">
                       {PHOTO_SLOTS.map((slot) => {
-                        const state = photos[slot.key];
                         return (
-                          <div key={slot.key} className="space-y-1.5">
-                            <p className="text-[11px] font-black text-text-muted text-center">{slot.arabic}</p>
-                            <button
-                              type="button"
-                              onClick={() => fileRefs[slot.key].current?.click()}
-                              disabled={state.uploading || isPending}
-                              className="relative w-full aspect-square rounded-2xl border-2 border-dashed border-qwaam-pink/40 bg-qwaam-pink-light/20 hover:bg-qwaam-pink-light/40 transition-all overflow-hidden flex items-center justify-center disabled:cursor-not-allowed"
-                            >
-                              {state.url ? (
-                                <>
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img src={state.url} alt={slot.arabic} className="w-full h-full object-cover" />
-                                  <span className="absolute bottom-1 right-1 bg-green-500 text-white rounded-full p-1 shadow-md">
-                                    <CheckCircleIcon className="w-3.5 h-3.5" />
-                                  </span>
-                                </>
-                              ) : state.uploading ? (
-                                <span className="w-6 h-6 border-2 border-qwaam-pink border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <ArrowUpTrayIcon className="w-6 h-6 text-qwaam-pink/70" />
-                              )}
-                            </button>
-                            <input
-                              ref={fileRefs[slot.key]}
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => handlePhotoChange(slot.key, e)}
-                              className="hidden"
-                            />
-                          </div>
+                          <PhotoUpload
+                            key={slot.key}
+                            uid={auth.currentUser?.uid ?? ''}
+                            side={slot.key}
+                            label={slot.arabic}
+                            currentUrl={photoUrls[slot.key]}
+                            disabled={isPending}
+                            onUploaded={handleUploaded}
+                            onUploadingChange={handleUploadingChange}
+                            onError={setError}
+                          />
                         );
                       })}
                     </div>
