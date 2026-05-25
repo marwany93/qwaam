@@ -9,6 +9,7 @@ import {
 } from '@/actions/assignment-actions';
 import { getWorkouts, getMeals } from '@/actions/library-actions';
 import { getTraineeProgressLogsByDate } from '@/actions/progress-actions';
+import { getProgressHistory } from '@/actions/client-actions';
 import {
   UserCircleIcon,
   CalendarDaysIcon,
@@ -16,6 +17,7 @@ import {
 import SessionManagerCard from '@/components/admin/SessionManagerCard';
 import TraineeTabsWrapper from '@/components/admin/TraineeTabsWrapper';
 import PendingPaymentCard from '@/components/admin/PendingPaymentCard';
+import WeightChart from '@/components/client/WeightChart';
 import { Link } from '@/i18n/navigation';
 import { ChevronRightIcon } from '@heroicons/react/24/solid';
 
@@ -47,12 +49,14 @@ export default async function TraineeDetailPage({ params }: PageProps) {
 
   const todayDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
 
-  // Resolve IDs to full objects for the Assignments Tab
-  const [assignedWorkouts, assignedMeals, progressLogs] = await Promise.all([
+  // Resolve IDs to full objects for the Assignments Tab + weight history
+  const [assignedWorkouts, assignedMeals, progressLogs, weightHistoryRes] = await Promise.all([
     getAssignedWorkouts(assignedWorkoutIds),
     getAssignedMeals(assignedMealIds),
-    getTraineeProgressLogsByDate(traineeUid, todayDate)
+    getTraineeProgressLogsByDate(traineeUid, todayDate),
+    getProgressHistory(traineeUid),
   ]);
+  const weightHistory = weightHistoryRes.data ?? [];
 
   const joinDate = new Date(trainee.createdAt as number).toLocaleDateString('ar-SA', {
     year: 'numeric',
@@ -133,6 +137,9 @@ export default async function TraineeDetailPage({ params }: PageProps) {
           paymentScreenshotUrl={trainee.traineeData.subscription.paymentScreenshotUrl}
         />
       )}
+
+      {/* ── Trainee weight chart — coach-facing progress view ── */}
+      <WeightChart data={weightHistory} title={`منحنى وزن ${trainee.name}`} />
 
       {/* ── Main Tab System Client Wrapper ── */}
       <TraineeTabsWrapper 

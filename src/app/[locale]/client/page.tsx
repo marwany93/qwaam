@@ -1,5 +1,5 @@
 import { setRequestLocale } from 'next-intl/server';
-import { getCurrentTrainee, fetchMyWorkouts, fetchMyMeals } from '@/actions/client-actions';
+import { getCurrentTrainee, fetchMyWorkouts, fetchMyMeals, getProgressHistory } from '@/actions/client-actions';
 import { getMyProgressLogsByDate } from '@/actions/progress-actions';
 import ClientChat from '@/components/client/ClientChat';
 import ProgressToggleButton from '@/components/client/ProgressToggleButton';
@@ -7,6 +7,7 @@ import RenewalRequestButton from '@/components/client/RenewalRequestButton';
 import WorkoutVideoButton from '@/components/client/WorkoutVideoButton';
 import PendingPaymentBanner from '@/components/client/PendingPaymentBanner';
 import ProgressLogTrigger from '@/components/client/ProgressLogTrigger';
+import TraineeWeightChartCard from '@/components/client/TraineeWeightChartCard';
 import ReLoginButton from '@/components/client/ReLoginButton';
 import SessionAlert from '@/components/client/SessionAlert';
 // import { getAdminAuth } from '@/lib/firebase-admin';
@@ -41,11 +42,13 @@ export default async function ClientDashboard({ params }: PageProps) {
   const todayDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
 
   // Parallel Document Materializations
-  const [workouts, meals, progressLogs] = await Promise.all([
+  const [workouts, meals, progressLogs, progressHistoryRes] = await Promise.all([
     fetchMyWorkouts(assignedWorkoutIds),
     fetchMyMeals(assignedMealIds),
-    getMyProgressLogsByDate(todayDate)
+    getMyProgressLogsByDate(todayDate),
+    getProgressHistory(),
   ]);
+  const weightHistory = progressHistoryRes.data ?? [];
 
   const firstName = trainee.name.split(' ')[0] || 'بطل';
 
@@ -150,6 +153,9 @@ export default async function ClientDashboard({ params }: PageProps) {
           </div>
         </div>
       )}
+
+      {/* ── Weight Chart — prominent visual progress feedback ── */}
+      <TraineeWeightChartCard initialData={weightHistory} />
 
       {/* ── Progress Log Trigger — sits above the workouts/meals grid ── */}
       <ProgressLogTrigger />
