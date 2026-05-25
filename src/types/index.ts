@@ -2,21 +2,28 @@ import type { Timestamp } from 'firebase/firestore';
 
 export type UserRole = 'coach' | 'trainee';
 
+/**
+ * Post-serialization shape — every Firestore Timestamp has already been
+ * converted to a plain number (millis) by serializeFirestoreData() before
+ * any user object reaches Client Components. Don't widen these date fields
+ * back to `any` or `Timestamp`; doing so silently re-introduces the
+ * "Only plain objects can be passed to Client Components" error.
+ */
 export interface QwaamUser {
   uid: string;
   role: UserRole;
   name: string;
   email: string;
-  createdAt: number | Timestamp;
+  createdAt: number;                       // millis
   sessionTracking?: {
     totalSessions: number;
     remainingSessions: number;
     planStatus: 'active' | 'finished';
-    lastRenewedAt?: any;
+    lastRenewedAt?: number;                // millis
   };
   renewalRequest?: {
     requested: boolean;
-    requestedAt: any;
+    requestedAt?: number;                  // millis
     status: 'pending' | 'fulfilled';
   };
   activeRoomUrl?: string | null;
@@ -31,8 +38,10 @@ export interface QwaamUser {
       amountPaid: string;
       dietAdded: boolean;
       status: 'pending_payment' | 'active' | 'expired' | 'cancelled';
-      createdAt: string;
+      createdAt: string;                   // ISO string (set client-side at submit)
+      activatedAt?: number;                // millis — set by confirmTraineePayment
       paymentScreenshotUrl?: string;
+      paymentScreenshotAt?: number;        // millis — set by updatePaymentScreenshot
     } | null;
   };
 }

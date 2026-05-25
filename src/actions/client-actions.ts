@@ -11,6 +11,7 @@ import { sendNotification } from '@/actions/notification-actions';
 import { WelcomeTemplate } from '@/emails/WelcomeTemplate';
 import { headers } from 'next/headers';
 import { findPlanById } from '@/lib/pricing-config';
+import { serializeFirestoreData } from '@/lib/firestore-serialize';
 
 // تهيئة Resend
 //const resend = new Resend(process.env.RESEND_API_KEY);
@@ -45,12 +46,12 @@ export async function getCurrentTrainee(): Promise<QwaamUser | null> {
       return null;
     }
 
-    const data = doc.data()!;
-    return {
+    // Recursive sanitizer — converts every nested Firestore Timestamp into
+    // a plain number so the result is safe to pass back to a Client Component.
+    return serializeFirestoreData({
       uid: doc.id,
-      ...data,
-      createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now(),
-    } as QwaamUser;
+      ...doc.data(),
+    }) as QwaamUser;
   } catch (err: any) {
     // Distinguish the common failure modes so the Vercel logs are useful
     const msg = err?.message || String(err);

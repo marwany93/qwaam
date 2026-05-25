@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache';
 import { notificationService } from '@/lib/notification-service';
 import { FieldValue } from 'firebase-admin/firestore';
 import { findPlanById } from '@/lib/pricing-config';
+import { serializeFirestoreData } from '@/lib/firestore-serialize';
 
 /**
  * Retrieves the list of all active trainees.
@@ -16,19 +17,15 @@ export async function getClients(): Promise<QwaamUser[]> {
   await verifyAdminAccess();
 
   const db = getAdminDb();
-  // Query users where role == 'trainee'
   const snapshot = await db.collection('users').where('role', '==', 'trainee').get();
-  
-  return snapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      uid: doc.id,
-      ...data,
-      // Admin SDK uses Firebase Admin Timestamp
-      // Next.js requires plain objects to pass back to Server/Client Components
-      createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now()
-    } as QwaamUser;
-  });
+
+  // serializeFirestoreData walks the whole tree and converts every nested
+  // Timestamp (lastRenewedAt, requestedAt, activatedAt, paymentScreenshotAt,
+  // any future ones) into a plain millis number. Without this, React rejects
+  // the payload at the Server/Client Component boundary.
+  return snapshot.docs.map((doc) =>
+    serializeFirestoreData({ uid: doc.id, ...doc.data() }) as QwaamUser,
+  );
 }
 
 /**
@@ -130,14 +127,13 @@ export async function getTrainees(): Promise<QwaamUser[]> {
     .orderBy('createdAt', 'desc')
     .get();
 
-  return snapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      uid: doc.id,
-      ...data,
-      createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now()
-    } as QwaamUser;
-  });
+  // Recursive sanitizer converts every nested Firestore Timestamp
+  // (createdAt, sessionTracking.lastRenewedAt, renewalRequest.requestedAt,
+  // subscription.activatedAt, subscription.paymentScreenshotAt, …) into a
+  // plain number so the result is safe to pass to a Client Component.
+  return snapshot.docs.map((doc) =>
+    serializeFirestoreData({ uid: doc.id, ...doc.data() }) as QwaamUser,
+  );
 }
 
 /**
