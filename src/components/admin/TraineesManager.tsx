@@ -123,7 +123,7 @@ export default function TraineesManager({ trainees, coaches, adminUid, locale }:
                   <th className="px-5 py-3">{t('admin.email')}</th>
                   <th className="px-5 py-3 w-40">{t('admin.primaryGoal')}</th>
                   <th className="px-5 py-3 w-72 text-left">{t('admin.coach')}</th>
-                  <th className="px-5 py-3 w-16 text-left">{t('admin.actions') || 'إجراءات'}</th>
+                  <th className="px-5 py-3 w-16 text-left">{t('admin.actions')}</th>
                 </tr>
               </thead>
 

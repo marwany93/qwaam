@@ -100,7 +100,10 @@
     "name": "Name",
     "email": "Email",
     "coach": "Coach",
-    "assigned": "Assigned"
+    "assigned": "Assigned",
+    "actions": "Actions",
+    "deleteTrainee": "Delete Trainee",
+    "confirmDelete": "Confirm Delete"
   },
   "client": {
     "title": "Client Portal",

@@ -100,7 +100,10 @@
     "name": "الاسم",
     "email": "البريد الإلكتروني",
     "coach": "المدرب",
-    "assigned": "تم التعيين"
+    "assigned": "تم التعيين",
+    "actions": "إجراءات",
+    "deleteTrainee": "حذف المتدرّبة",
+    "confirmDelete": "تأكيد الحذف"
   },
   "client": {
     "title": "بوابة المتدرب",
