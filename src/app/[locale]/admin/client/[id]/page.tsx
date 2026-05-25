@@ -121,8 +121,8 @@ export default async function TraineeDetailPage({ params }: PageProps) {
         <div className="lg:col-span-1 h-full">
           <SessionManagerCard 
             traineeUid={traineeUid}
-            totalSessions={trainee.sessionTracking?.totalSessions ?? 12}
-            remainingSessions={trainee.sessionTracking?.remainingSessions ?? 12}
+            totalSessions={trainee.sessionTracking?.totalSessions ?? 0}
+            remainingSessions={trainee.sessionTracking?.remainingSessions ?? 0}
             planStatus={trainee.sessionTracking?.planStatus ?? 'active'}
           />
         </div>
