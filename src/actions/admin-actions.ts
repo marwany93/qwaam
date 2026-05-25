@@ -272,6 +272,7 @@ export async function renewTraineePlan(traineeUid: string, additionalSessions: n
       'sessionTracking.planStatus':        'active',
       'sessionTracking.lastRenewedAt':     new Date(),
       'renewalRequest.status':             'fulfilled',
+      'traineeData.subscription.status':   'active',
     });
 
     // Read the updated totals back for the UI response (single additional read, safe)
@@ -556,15 +557,21 @@ export async function confirmTraineePayment(traineeUid: string, updatedPlanId?: 
     // as a sensible initial session budget for the cycle.
     const initialSessions = plan.sessions ?? plan.days ?? 0;
 
+    const currentTotal = data.sessionTracking?.totalSessions || 0;
+    const currentRemaining = data.sessionTracking?.remainingSessions || 0;
+    const newTotal = currentTotal + initialSessions;
+    const newRemaining = currentRemaining + initialSessions;
+
     // Build update payload. Always set status + sessionTracking; only
     // overwrite planId/amountPaid if the admin chose a different plan.
     const update: Record<string, any> = {
       'traineeData.subscription.status': 'active',
       'traineeData.subscription.activatedAt': new Date(),
-      'sessionTracking.totalSessions': initialSessions,
-      'sessionTracking.remainingSessions': initialSessions,
-      'sessionTracking.planStatus': initialSessions > 0 ? 'active' : 'finished',
+      'sessionTracking.totalSessions': newTotal,
+      'sessionTracking.remainingSessions': newRemaining,
+      'sessionTracking.planStatus': newRemaining > 0 ? 'active' : 'finished',
       'sessionTracking.lastRenewedAt': new Date(),
+      'renewalRequest.status': 'fulfilled',
     };
 
     if (updatedPlanId && updatedPlanId !== currentSub?.planId) {

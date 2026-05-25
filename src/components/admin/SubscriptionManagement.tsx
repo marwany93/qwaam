@@ -11,7 +11,7 @@ interface Props {
 
 export default function SubscriptionManagement({ traineeUid, sessionTracking }: Props) {
   // Safe Action State
-  const [renewAmount, setRenewAmount] = useState<number>(12);
+  const [renewAmount, setRenewAmount] = useState<number | ''>('');
   const [loadingRenew, setLoadingRenew] = useState(false);
   const [renewError, setRenewError] = useState('');
   const [renewSuccess, setRenewSuccess] = useState('');
@@ -24,7 +24,7 @@ export default function SubscriptionManagement({ traineeUid, sessionTracking }: 
   const [overrideSuccess, setOverrideSuccess] = useState('');
 
   const handleRenewPlan = async () => {
-    if (renewAmount <= 0) {
+    if (renewAmount === '' || renewAmount <= 0) {
       setRenewError('يرجى إدخال عدد حصص صحيح');
       return;
     }
@@ -92,7 +92,7 @@ export default function SubscriptionManagement({ traineeUid, sessionTracking }: 
           <div className="flex-[2] flex items-end">
             <button
               onClick={handleRenewPlan}
-              disabled={loadingRenew || renewAmount <= 0}
+              disabled={loadingRenew || renewAmount === '' || renewAmount <= 0}
               className="w-full h-[50px] mt-[20px] flex items-center justify-center gap-2 rounded-xl font-black text-white bg-qwaam-pink hover:bg-pink-600 shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loadingRenew ? 'جاري التجديد...' : 'تجديد الآن'}
