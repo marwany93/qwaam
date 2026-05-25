@@ -40,22 +40,26 @@ interface TooltipShape {
 function ChartTooltip({ active, payload }: TooltipShape) {
   if (!active || !payload?.length) return null;
   const point = payload[0];
+  // Defensive: only render once Recharts has actually injected a value
+  // (active can flicker true with an empty value during fast cursor moves)
+  if (point.value == null || typeof point.value !== 'number') return null;
+
   const weight = point.value;
   const dateMs = point.payload?.dateMs ?? 0;
 
   return (
     <div
       dir="rtl"
-      className="bg-white px-4 py-3 rounded-xl shadow-lg border border-border-light min-w-[160px]"
+      // z-50 + solid white bg + ring keeps the tooltip readable above the
+      // gradient fill and dots even when the cursor sits on the line
+      className="relative z-50 bg-white px-4 py-3 rounded-xl shadow-xl ring-1 ring-border-light min-w-[160px] pointer-events-none"
     >
       <p className="text-[10px] font-black text-text-muted uppercase tracking-wider mb-1">
         {formatArabicDate(dateMs)}
       </p>
       <p className="font-black text-text-main text-lg leading-none">
         الوزن:{' '}
-        <span className="text-qwaam-pink">
-          {typeof weight === 'number' ? weight.toFixed(1) : weight}
-        </span>{' '}
+        <span className="text-qwaam-pink">{weight.toFixed(1)}</span>{' '}
         <span className="text-xs font-bold text-text-muted">كجم</span>
       </p>
     </div>
@@ -140,10 +144,19 @@ export default function WeightChart({ data, emptyCta, title = 'منحنى الو
 
             <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
             <XAxis
-              dataKey="dateLabel"
+              // Use the raw timestamp as the unique data key so each entry
+              // is its own X-axis point — even when two were logged on the
+              // same calendar day. The tickFormatter still shows the
+              // friendly Arabic date for tick labels.
+              dataKey="dateMs"
+              type="number"
+              scale="time"
+              domain={['dataMin', 'dataMax']}
+              tickFormatter={(ms: number) => formatArabicDate(ms)}
               tick={{ fontSize: 11, fontWeight: 700, fill: '#9ca3af' }}
               tickLine={false}
               axisLine={false}
+              minTickGap={28}
             />
             <YAxis
               domain={[yMin, yMax]}
@@ -153,7 +166,14 @@ export default function WeightChart({ data, emptyCta, title = 'منحنى الو
               width={36}
               unit=" "
             />
-            <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#e91e63', strokeWidth: 1, strokeDasharray: '4 4' }} />
+            <Tooltip
+              content={<ChartTooltip />}
+              cursor={{ stroke: '#e91e63', strokeWidth: 1, strokeDasharray: '4 4' }}
+              // Disable Recharts' built-in tooltip transition so values
+              // never lag behind the cursor / "ghost" the previous point
+              isAnimationActive={false}
+              wrapperStyle={{ zIndex: 50, outline: 'none' }}
+            />
             <Area
               type="monotone"
               dataKey="weight"
