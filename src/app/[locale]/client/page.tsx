@@ -11,6 +11,7 @@ import TraineeWeightChartCard from '@/components/client/TraineeWeightChartCard';
 import ProgressGallery from '@/components/client/ProgressGallery';
 import ReLoginButton from '@/components/client/ReLoginButton';
 import SessionAlert from '@/components/client/SessionAlert';
+import DashboardTabs from '@/components/client/DashboardTabs';
 // import { getAdminAuth } from '@/lib/firebase-admin';
 
 type PageProps = { params: Promise<{ locale: string }> };
@@ -99,8 +100,11 @@ export default async function ClientDashboard({ params }: PageProps) {
         </div>
       </div>
 
-      {/* ── Daily Progress Summary ── */}
-      {/* Only shown when the trainee has at least one item assigned so the card is meaningful */}
+      {/* ── Tabbed dashboard — switches between "Today" + "My Progress" ── */}
+      <DashboardTabs
+        todayContent={
+          <>
+      {/* Daily Progress Summary — high priority, top of Today tab */}
       {(workouts.length > 0 || meals.length > 0) && (
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-border-light shadow-sm" dir="rtl">
           <h2 className="text-base font-black text-text-main mb-5 flex items-center gap-2">
@@ -155,16 +159,7 @@ export default async function ClientDashboard({ params }: PageProps) {
         </div>
       )}
 
-      {/* ── Weight Chart — prominent visual progress feedback ── */}
-      <TraineeWeightChartCard initialData={weightHistory} />
-
-      {/* ── Progress photos gallery — privacy-blurred by default ── */}
-      <ProgressGallery entries={weightHistory} title="صور تقدمك" />
-
-      {/* ── Progress Log Trigger — sits above the workouts/meals grid ── */}
-      <ProgressLogTrigger />
-
-      {/* ── 2x1 Desktop Grid Structure ── */}
+      {/* ── 2x1 Desktop Grid: training plan + live chat ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
 
         {/* Center Content: Interactive Cards */}
@@ -358,6 +353,21 @@ export default async function ClientDashboard({ params }: PageProps) {
         </div>
 
       </div>
+          </>
+        }
+        progressContent={
+          <>
+            {/* Weight chart — featured at the top of the Progress tab */}
+            <TraineeWeightChartCard initialData={weightHistory} />
+
+            {/* Privacy-blurred Before/After gallery */}
+            <ProgressGallery entries={weightHistory} title="صور تقدمك" />
+
+            {/* Log-entry trigger — last so it acts as the closing CTA */}
+            <ProgressLogTrigger />
+          </>
+        }
+      />
 
     </div>
   );
