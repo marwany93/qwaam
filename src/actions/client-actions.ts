@@ -297,6 +297,35 @@ export async function requestPasswordReset(email: string) {
 }
 
 /**
+ * "Buy More Sessions" flow: sets the trainee's subscription status back to
+ * `pending_payment` so the PendingPaymentBanner reappears on the client
+ * dashboard and the admin sees PendingPaymentCard on the trainee detail page.
+ * Clears any stale payment screenshot so the trainee can upload a fresh one.
+ */
+export async function requestMoreSessions(): Promise<{ success: boolean; message: string }> {
+  try {
+    const decoded = await verifyClientAccess();
+    const db = getAdminDb();
+    const userRef = db.collection('users').doc(decoded.uid);
+
+    await userRef.update({
+      'traineeData.subscription.status': 'pending_payment',
+      'traineeData.subscription.paymentScreenshotUrl': null,
+      'traineeData.subscription.paymentScreenshotAt': null,
+      'renewalRequest.requested': true,
+      'renewalRequest.requestedAt': new Date(),
+      'renewalRequest.status': 'pending',
+    });
+
+    revalidatePath('/client');
+    return { success: true, message: 'تم إرسال طلبك بنجاح، سيتواصل معك المدرب قريباً.' };
+  } catch (err: any) {
+    console.error('requestMoreSessions error:', err);
+    return { success: false, message: 'حدث خطأ أثناء إرسال الطلب.' };
+  }
+}
+
+/**
  * MVP renewal request: flags the trainee's document so the coach sees a
  * pending renewal in the admin panel. No payment flow — the coach contacts
  * the trainee to collect payment then manually renews via the admin panel.

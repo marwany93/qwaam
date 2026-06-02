@@ -110,7 +110,11 @@
     "welcome": "Welcome back,",
     "myPlan": "My Training Plan",
     "myMeals": "My Meal Plan",
-    "progress": "My Progress"
+    "progress": "My Progress",
+    "buyMoreSessions": "Buy More Sessions",
+    "requestSentSuccessfully": "Request sent! Your coach will contact you shortly.",
+    "requestingSession": "Sending request...",
+    "sessionRequestPending": "Awaiting payment confirmation"
   },
   "auth": {
     "login": "Login",

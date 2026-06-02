@@ -110,7 +110,11 @@
     "welcome": "مرحباً،",
     "myPlan": "خطتي التدريبية",
     "myMeals": "خطة وجباتي",
-    "progress": "تقدمي"
+    "progress": "تقدمي",
+    "buyMoreSessions": "اشتري حصصاً إضافية",
+    "requestSentSuccessfully": "تم إرسال طلبك بنجاح، سيتواصل معك المدرب قريباً.",
+    "requestingSession": "جاري الإرسال...",
+    "sessionRequestPending": "في انتظار تأكيد الدفع"
   },
   "auth": {
     "login": "تسجيل الدخول",

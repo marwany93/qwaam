@@ -245,10 +245,17 @@ export default function ClientsList({ coachUid }: Props) {
 
                         {/* Status */}
                         <td className="px-5 py-3.5">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 text-green-700 text-[11px] font-extrabold border border-green-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 block animate-pulse" />
-                            نشطة
-                          </span>
+                          {client.traineeData?.subscription?.status === 'pending_payment' ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-yellow-50 text-yellow-800 text-[11px] font-extrabold border border-yellow-300">
+                              <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 block animate-pulse" />
+                              في انتظار الدفع
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 text-green-700 text-[11px] font-extrabold border border-green-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-green-500 block animate-pulse" />
+                              نشطة
+                            </span>
+                          )}
                         </td>
 
                         {/* Joined */}
