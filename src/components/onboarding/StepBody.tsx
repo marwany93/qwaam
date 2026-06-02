@@ -100,6 +100,7 @@ export default function StepBody() {
         >
           <input
             type="number"
+            step="0.1"
             {...register('weight', { valueAsNumber: true })}
             placeholder="65"
             dir="ltr"

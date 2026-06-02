@@ -323,7 +323,7 @@ export default function EditProfileForm({ uid, defaultData, currentInbody, curre
             
             <div className="grid grid-cols-2 gap-4">
               <FormField label={t('profile.weight')} error={errors.weight?.message} required>
-                <input type="number" {...register('weight', { valueAsNumber: true })} min={20} max={300} className={inputCls(!!errors.weight)} />
+                <input type="number" step="0.1" {...register('weight', { valueAsNumber: true })} min={20} max={300} className={inputCls(!!errors.weight)} />
               </FormField>
               <FormField label={t('profile.height')} error={errors.height?.message} required>
                 <input type="number" {...register('height', { valueAsNumber: true })} min={100} max={250} className={inputCls(!!errors.height)} />
