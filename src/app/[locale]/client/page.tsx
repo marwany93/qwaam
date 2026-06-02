@@ -75,7 +75,6 @@ export default async function ClientDashboard({ params }: PageProps) {
       {trainee.sessionTracking && !isPendingPayment && (
         <SessionAlert
           sessionsRemaining={trainee.sessionTracking.remainingSessions ?? 0}
-          alreadyRequested={trainee.renewalRequest?.status === 'pending'}
         />
       )}
 

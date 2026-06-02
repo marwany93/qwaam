@@ -297,12 +297,13 @@ export async function requestPasswordReset(email: string) {
 }
 
 /**
- * Full renewal flow: trainee has already selected a plan and uploaded proof.
- * 1. Writes a `renewal_requests` document so the admin can review in one place.
- * 2. Updates subscription.status → 'pending_payment' with the chosen plan + proof
- *    so PendingPaymentBanner appears and PendingPaymentCard is pre-filled.
+ * Creates a renewal request after the trainee has completed the wizard
+ * (selected a plan, paid, and uploaded proof). Only called on explicit submit.
+ * 1. Writes a `renewal_requests` document for the admin to review.
+ * 2. Updates subscription.status → 'pending_payment' with plan + proof so
+ *    PendingPaymentBanner appears and PendingPaymentCard is pre-filled.
  */
-export async function requestPlanRenewal(
+export async function createRenewalRequest(
   planId: string,
   proofUrl: string,
 ): Promise<{ success: boolean; message: string }> {
@@ -339,62 +340,11 @@ export async function requestPlanRenewal(
     revalidatePath('/client');
     return { success: true, message: 'تم إرسال طلبك بنجاح، سيتواصل معك المدرب قريباً.' };
   } catch (err: any) {
-    console.error('requestPlanRenewal error:', err);
+    console.error('createRenewalRequest error:', err);
     return { success: false, message: 'حدث خطأ أثناء إرسال الطلب.' };
   }
 }
 
-/**
- * "Buy More Sessions" flow: sets the trainee's subscription status back to
- * `pending_payment` so the PendingPaymentBanner reappears on the client
- * dashboard and the admin sees PendingPaymentCard on the trainee detail page.
- * Clears any stale payment screenshot so the trainee can upload a fresh one.
- */
-export async function requestMoreSessions(): Promise<{ success: boolean; message: string }> {
-  try {
-    const decoded = await verifyClientAccess();
-    const db = getAdminDb();
-    const userRef = db.collection('users').doc(decoded.uid);
-
-    await userRef.update({
-      'traineeData.subscription.status': 'pending_payment',
-      'traineeData.subscription.paymentScreenshotUrl': null,
-      'traineeData.subscription.paymentScreenshotAt': null,
-      'renewalRequest.requested': true,
-      'renewalRequest.requestedAt': new Date(),
-      'renewalRequest.status': 'pending',
-    });
-
-    revalidatePath('/client');
-    return { success: true, message: 'تم إرسال طلبك بنجاح، سيتواصل معك المدرب قريباً.' };
-  } catch (err: any) {
-    console.error('requestMoreSessions error:', err);
-    return { success: false, message: 'حدث خطأ أثناء إرسال الطلب.' };
-  }
-}
-
-/**
- * MVP renewal request: flags the trainee's document so the coach sees a
- * pending renewal in the admin panel. No payment flow — the coach contacts
- * the trainee to collect payment then manually renews via the admin panel.
- */
-export async function requestRenewal(): Promise<{ success: boolean; message: string }> {
-  try {
-    const decodedToken = await verifyClientAccess();
-    const db = getAdminDb();
-
-    await db.collection('users').doc(decodedToken.uid).update({
-      'renewalRequest.requested': true,
-      'renewalRequest.requestedAt': new Date(),
-      'renewalRequest.status': 'pending',
-    });
-
-    return { success: true, message: 'تم إرسال طلب التجديد، سيتواصل معك المدرب قريباً.' };
-  } catch (err: any) {
-    console.error('requestRenewal error:', err);
-    return { success: false, message: 'حدث خطأ أثناء إرسال الطلب.' };
-  }
-}
 
 /**
  * Saves a payment proof screenshot URL (already uploaded to Firebase Storage

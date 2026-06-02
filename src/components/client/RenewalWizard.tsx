@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { getPlans, type Plan, type PlanLocation, type PlanType } from '@/lib/pricing-config';
 import PhotoUpload from '@/components/client/PhotoUpload';
-import { requestPlanRenewal } from '@/actions/client-actions';
+import { createRenewalRequest } from '@/actions/client-actions';
 import {
   ShoppingCartIcon,
   CheckCircleIcon,
@@ -19,6 +19,7 @@ interface Props {
 }
 
 const INSTAPAY_NUMBER = '01001280161';
+const VODAFONE_CASH_NUMBER = '01001280161';
 
 export default function RenewalWizard({ uid }: Props) {
   const router = useRouter();
@@ -39,7 +40,7 @@ export default function RenewalWizard({ uid }: Props) {
     if (!selectedPlan || !proofUrl) return;
     setSubmitError('');
     startTx(async () => {
-      const res = await requestPlanRenewal(selectedPlan.id, proofUrl);
+      const res = await createRenewalRequest(selectedPlan.id, proofUrl);
       if (res.success) {
         setStep(4);
         router.refresh();
@@ -198,18 +199,37 @@ export default function RenewalWizard({ uid }: Props) {
             </div>
 
             {/* Transfer instructions */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               <p className="text-sm font-bold text-text-main leading-relaxed">
-                حوّلي المبلغ عبر <span className="font-black">InstaPay</span> أو محفظة إلكترونية على:
+                حوّلي المبلغ عبر أي من الطرق التالية:
               </p>
-              <div className="bg-white border-2 border-dashed border-qwaam-pink rounded-xl p-3 flex items-center justify-between gap-3">
-                <span className="text-xl font-black text-qwaam-pink tracking-widest select-all" dir="ltr">
-                  {INSTAPAY_NUMBER}
-                </span>
-                <span className="text-[10px] font-bold text-text-muted max-w-[80px] leading-tight">
-                  اضغطي مطوّلاً للنسخ
-                </span>
+
+              {/* InstaPay */}
+              <div className="bg-white border border-border-light rounded-xl p-3 space-y-1">
+                <p className="text-[10px] font-black text-text-muted uppercase tracking-wider">InstaPay</p>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-lg font-black text-qwaam-pink tracking-widest select-all" dir="ltr">
+                    {INSTAPAY_NUMBER}
+                  </span>
+                  <span className="text-[10px] font-bold text-text-muted leading-tight text-left">
+                    اضغطي مطوّلاً للنسخ
+                  </span>
+                </div>
               </div>
+
+              {/* Vodafone Cash */}
+              <div className="bg-white border border-border-light rounded-xl p-3 space-y-1">
+                <p className="text-[10px] font-black text-text-muted uppercase tracking-wider">Vodafone Cash</p>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-lg font-black text-qwaam-pink tracking-widest select-all" dir="ltr">
+                    {VODAFONE_CASH_NUMBER}
+                  </span>
+                  <span className="text-[10px] font-bold text-text-muted leading-tight text-left">
+                    اضغطي مطوّلاً للنسخ
+                  </span>
+                </div>
+              </div>
+
               <p className="text-xs font-bold text-text-muted">
                 بعد إتمام التحويل، اضغطي &quot;التالي&quot; لرفع صورة الإيصال.
               </p>
