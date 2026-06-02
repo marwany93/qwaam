@@ -72,8 +72,8 @@ export default async function ClientDashboard({ params }: PageProps) {
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-10">
 
-      {/* ── Session balance alert — only shown when 0–2 sessions remain ── */}
-      {trainee.sessionTracking && (
+      {/* ── Session balance alert — hidden when pending_payment banner is already shown ── */}
+      {trainee.sessionTracking && !isPendingPayment && (
         <SessionAlert
           sessionsRemaining={trainee.sessionTracking.remainingSessions ?? 0}
           alreadyRequested={trainee.renewalRequest?.status === 'pending'}
