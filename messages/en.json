@@ -114,7 +114,32 @@
     "buyMoreSessions": "Buy More Sessions",
     "requestSentSuccessfully": "Request sent! Your coach will contact you shortly.",
     "requestingSession": "Sending request...",
-    "sessionRequestPending": "Awaiting payment confirmation"
+    "sessionRequestPending": "Awaiting payment confirmation",
+    "renewal": {
+      "title": "Buy More Sessions",
+      "step1": "Select Plan",
+      "step2": "Payment Info",
+      "step3": "Upload Proof",
+      "home": "Home",
+      "gym": "Gym",
+      "live": "Live",
+      "schedule": "Schedule",
+      "sessions": "sessions",
+      "daysWeek": "days/week",
+      "popular": "Popular",
+      "selectedPlan": "Selected Plan",
+      "transferInstruction": "Transfer the amount via InstaPay or e-wallet to:",
+      "proofInstruction": "Upload a screenshot of your transfer receipt to speed up activation:",
+      "uploadProof": "Receipt Photo",
+      "next": "Next",
+      "back": "Back",
+      "cancel": "Cancel",
+      "submit": "Submit Request",
+      "submitting": "Submitting...",
+      "successTitle": "Request Sent!",
+      "successDesc": "Your coach will contact you shortly to activate your new plan.",
+      "errorSubmit": "Failed to submit request. Please try again."
+    }
   },
   "auth": {
     "login": "Login",

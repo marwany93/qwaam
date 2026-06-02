@@ -297,6 +297,54 @@ export async function requestPasswordReset(email: string) {
 }
 
 /**
+ * Full renewal flow: trainee has already selected a plan and uploaded proof.
+ * 1. Writes a `renewal_requests` document so the admin can review in one place.
+ * 2. Updates subscription.status → 'pending_payment' with the chosen plan + proof
+ *    so PendingPaymentBanner appears and PendingPaymentCard is pre-filled.
+ */
+export async function requestPlanRenewal(
+  planId: string,
+  proofUrl: string,
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const decoded = await verifyClientAccess();
+    const plan = findPlanById(planId);
+    if (!plan) return { success: false, message: 'الباقة المختارة غير صالحة.' };
+    if (!proofUrl) return { success: false, message: 'يرجى رفع صورة إيصال الدفع أولاً.' };
+
+    const db = getAdminDb();
+
+    // Write renewal_requests document (admin reads this to get pre-filled values)
+    await db.collection('renewal_requests').add({
+      traineeUid: decoded.uid,
+      planId,
+      amount: plan.price,
+      proofUrl,
+      status: 'pending',
+      createdAt: new Date(),
+    });
+
+    // Update trainee subscription so existing banners + admin card work
+    await db.collection('users').doc(decoded.uid).update({
+      'traineeData.subscription.status': 'pending_payment',
+      'traineeData.subscription.planId': planId,
+      'traineeData.subscription.amountPaid': String(plan.price),
+      'traineeData.subscription.paymentScreenshotUrl': proofUrl,
+      'traineeData.subscription.paymentScreenshotAt': new Date(),
+      'renewalRequest.requested': true,
+      'renewalRequest.requestedAt': new Date(),
+      'renewalRequest.status': 'pending',
+    });
+
+    revalidatePath('/client');
+    return { success: true, message: 'تم إرسال طلبك بنجاح، سيتواصل معك المدرب قريباً.' };
+  } catch (err: any) {
+    console.error('requestPlanRenewal error:', err);
+    return { success: false, message: 'حدث خطأ أثناء إرسال الطلب.' };
+  }
+}
+
+/**
  * "Buy More Sessions" flow: sets the trainee's subscription status back to
  * `pending_payment` so the PendingPaymentBanner reappears on the client
  * dashboard and the admin sees PendingPaymentCard on the trainee detail page.

@@ -2,7 +2,7 @@
 
 import { getAdminAuth, getAdminDb, getAdminStorage } from '@/lib/firebase-admin';
 import { verifyAdminAccess } from '@/lib/auth-utils';
-import type { QwaamUser } from '@/types';
+import type { QwaamUser, RenewalRequest } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { notificationService } from '@/lib/notification-service';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -518,6 +518,38 @@ export async function deleteSavedMeal(docId: string) {
 
 
 /**
+ * Fetches the latest pending renewal request for a trainee so the admin
+ * detail page can pre-fill PendingPaymentCard with the chosen plan + proof.
+ */
+export async function getPendingRenewalRequest(
+  traineeUid: string,
+): Promise<RenewalRequest | null> {
+  await verifyAdminAccess();
+  if (!traineeUid) return null;
+
+  const db = getAdminDb();
+  const snap = await db
+    .collection('renewal_requests')
+    .where('traineeUid', '==', traineeUid)
+    .where('status', '==', 'pending')
+    .limit(1)
+    .get();
+
+  if (snap.empty) return null;
+  const doc = snap.docs[0];
+  const d = doc.data();
+  return {
+    id: doc.id,
+    traineeUid: d.traineeUid,
+    planId: d.planId,
+    amount: d.amount,
+    proofUrl: d.proofUrl,
+    status: d.status,
+    createdAt: d.createdAt?.toMillis?.() ?? Date.now(),
+  };
+}
+
+/**
  * Activates a trainee's subscription after the admin has verified payment
  * (e.g., InstaPay/wallet transfer). Optionally swaps the plan first if the
  * coach picked a different one in the UI before confirming.
@@ -573,6 +605,17 @@ export async function confirmTraineePayment(traineeUid: string, updatedPlanId?: 
     }
 
     await traineeRef.update(update);
+
+    // Mark any pending renewal_request as fulfilled so it no longer shows in the UI
+    const pendingReq = await db
+      .collection('renewal_requests')
+      .where('traineeUid', '==', traineeUid)
+      .where('status', '==', 'pending')
+      .limit(1)
+      .get();
+    if (!pendingReq.empty) {
+      await pendingReq.docs[0].ref.update({ status: 'fulfilled', fulfilledAt: new Date() });
+    }
 
     // Refresh both the admin detail page and the trainee's own dashboard
     revalidatePath(`/admin/client/${traineeUid}`);

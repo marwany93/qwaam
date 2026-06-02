@@ -11,10 +11,17 @@ import {
 export type PhotoSide = 'front' | 'side' | 'back';
 
 interface Props {
-  /** Auth uid — used in the storage path. */
+  /** Auth uid — used in the default storage path. */
   uid: string;
-  /** Which body angle this upload represents — front/side/back. */
-  side: PhotoSide;
+  /** Which body angle this upload represents — front/side/back. Defaults to 'front'. */
+  side?: PhotoSide;
+  /**
+   * Override the storage path prefix. When provided the path becomes
+   * `${pathPrefix}/${Date.now()}.{ext}` instead of the default
+   * `progress_photos/{uid}/{timestamp}_{side}.{ext}`.
+   * Example: `payment_proofs/${uid}`
+   */
+  pathPrefix?: string;
   /** Display label rendered above the tile (e.g., 'أمامية'). */
   label?: string;
   /** Currently-stored URL — if present, the tile renders a thumbnail with a checkmark. */
@@ -42,7 +49,7 @@ interface Props {
  * remains private. No public ACLs are ever set.
  */
 export default function PhotoUpload({
-  uid, side, label, currentUrl, disabled,
+  uid, side = 'front', pathPrefix, label, currentUrl, disabled,
   onUploaded, onError, onUploadingChange,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -73,7 +80,9 @@ export default function PhotoUpload({
     onUploadingChange?.(true, side);
     try {
       const ext = file.name.split('.').pop() || 'jpg';
-      const path = `progress_photos/${uid}/${Date.now()}_${side}.${ext}`;
+      const path = pathPrefix
+        ? `${pathPrefix}/${Date.now()}.${ext}`
+        : `progress_photos/${uid}/${Date.now()}_${side}.${ext}`;
       const storageRef = ref(storage, path);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);

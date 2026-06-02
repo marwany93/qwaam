@@ -16,6 +16,9 @@ interface Props {
   currentPlanId?: string;
   amountPaid?: string | null;
   paymentScreenshotUrl?: string | null;
+  /** If set, this renewal_request was submitted by the trainee via the wizard
+   *  (plan + proof already chosen) — the confirm button uses these values. */
+  renewalRequestId?: string;
 }
 
 // Pretty Arabic label for a plan id, e.g. "home-live-12" → "منزلي / لايف · 12 حصة · 780 EGP"
@@ -38,6 +41,7 @@ export default function PendingPaymentCard({
   currentPlanId,
   amountPaid,
   paymentScreenshotUrl,
+  renewalRequestId,
 }: Props) {
   const router = useRouter();
   const [selectedPlanId, setSelectedPlanId] = useState<string>(currentPlanId ?? '');
@@ -94,7 +98,9 @@ export default function PendingPaymentCard({
             </span>
           </div>
           <p className="text-sm font-bold text-text-muted mt-1">
-            المتدرّب أتمّ التسجيل وفي انتظار تأكيد التحويل لتفعيل الباقة.
+            {renewalRequestId
+              ? 'اختارت المتدرّبة الباقة ورفعت إيصال الدفع — راجع التفاصيل وأكّد.'
+              : 'المتدرّب أتمّ التسجيل وفي انتظار تأكيد التحويل لتفعيل الباقة.'}
           </p>
         </div>
       </div>

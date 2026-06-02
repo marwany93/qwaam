@@ -114,7 +114,32 @@
     "buyMoreSessions": "اشتري حصصاً إضافية",
     "requestSentSuccessfully": "تم إرسال طلبك بنجاح، سيتواصل معك المدرب قريباً.",
     "requestingSession": "جاري الإرسال...",
-    "sessionRequestPending": "في انتظار تأكيد الدفع"
+    "sessionRequestPending": "في انتظار تأكيد الدفع",
+    "renewal": {
+      "title": "اشتري حصصاً إضافية",
+      "step1": "اختاري الباقة",
+      "step2": "تفاصيل الدفع",
+      "step3": "إيصال التحويل",
+      "home": "منزلي",
+      "gym": "جيم",
+      "live": "لايف",
+      "schedule": "جدول",
+      "sessions": "حصة",
+      "daysWeek": "أيام/أسبوع",
+      "popular": "الأشهر",
+      "selectedPlan": "الباقة المختارة",
+      "transferInstruction": "حوّلي المبلغ عبر InstaPay أو محفظة إلكترونية على:",
+      "proofInstruction": "ارفعي صورة إيصال التحويل لتسريع التفعيل:",
+      "uploadProof": "صورة الإيصال",
+      "next": "التالي",
+      "back": "رجوع",
+      "cancel": "إلغاء",
+      "submit": "إرسال الطلب",
+      "submitting": "جاري الإرسال...",
+      "successTitle": "تم إرسال طلبك بنجاح!",
+      "successDesc": "سيتواصل معك المدرب قريباً لتفعيل باقتك الجديدة.",
+      "errorSubmit": "حدث خطأ أثناء إرسال الطلب. حاولي مجدداً."
+    }
   },
   "auth": {
     "login": "تسجيل الدخول",

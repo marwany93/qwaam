@@ -3,8 +3,7 @@ import { getCurrentTrainee, fetchMyWorkouts, fetchMyMeals, getProgressHistory } 
 import { getMyProgressLogsByDate } from '@/actions/progress-actions';
 import ClientChat from '@/components/client/ClientChat';
 import ProgressToggleButton from '@/components/client/ProgressToggleButton';
-import RenewalRequestButton from '@/components/client/RenewalRequestButton';
-import BuyMoreSessionsButton from '@/components/client/BuyMoreSessionsButton';
+import RenewalWizard from '@/components/client/RenewalWizard';
 import WorkoutVideoButton from '@/components/client/WorkoutVideoButton';
 import PendingPaymentBanner from '@/components/client/PendingPaymentBanner';
 import ProgressLogTrigger from '@/components/client/ProgressLogTrigger';
@@ -206,11 +205,11 @@ export default async function ClientDashboard({ params }: PageProps) {
                 </div>
               </div>
 
-              {/* Buy more sessions — shown when plan is finished or ≤2 sessions remain */}
+              {/* Renewal wizard — shown when plan is finished or ≤2 sessions remain */}
               {(trainee.sessionTracking.planStatus === 'finished' || trainee.sessionTracking.remainingSessions <= 2) && (
                 isPendingPayment
                   ? null
-                  : <BuyMoreSessionsButton />
+                  : <RenewalWizard uid={trainee.uid} />
               )}
             </section>
           )}

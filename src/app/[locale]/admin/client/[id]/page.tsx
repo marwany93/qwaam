@@ -10,6 +10,7 @@ import {
 import { getWorkouts, getMeals } from '@/actions/library-actions';
 import { getTraineeProgressLogsByDate } from '@/actions/progress-actions';
 import { getProgressHistory } from '@/actions/client-actions';
+import { getPendingRenewalRequest } from '@/actions/admin-actions';
 import {
   UserCircleIcon,
   CalendarDaysIcon,
@@ -51,11 +52,12 @@ export default async function TraineeDetailPage({ params }: PageProps) {
   const todayDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
 
   // Resolve IDs to full objects for the Assignments Tab + weight history
-  const [assignedWorkouts, assignedMeals, progressLogs, weightHistoryRes] = await Promise.all([
+  const [assignedWorkouts, assignedMeals, progressLogs, weightHistoryRes, renewalRequest] = await Promise.all([
     getAssignedWorkouts(assignedWorkoutIds),
     getAssignedMeals(assignedMealIds),
     getTraineeProgressLogsByDate(traineeUid, todayDate),
     getProgressHistory(traineeUid),
+    getPendingRenewalRequest(traineeUid),
   ]);
   const weightHistory = weightHistoryRes.data ?? [];
 
@@ -133,9 +135,10 @@ export default async function TraineeDetailPage({ params }: PageProps) {
       {trainee.traineeData?.subscription?.status === 'pending_payment' && (
         <PendingPaymentCard
           traineeUid={traineeUid}
-          currentPlanId={trainee.traineeData.subscription.planId}
-          amountPaid={trainee.traineeData.subscription.amountPaid}
-          paymentScreenshotUrl={trainee.traineeData.subscription.paymentScreenshotUrl}
+          currentPlanId={renewalRequest?.planId ?? trainee.traineeData.subscription.planId}
+          amountPaid={renewalRequest ? String(renewalRequest.amount) : trainee.traineeData.subscription.amountPaid}
+          paymentScreenshotUrl={renewalRequest?.proofUrl ?? trainee.traineeData.subscription.paymentScreenshotUrl}
+          renewalRequestId={renewalRequest?.id}
         />
       )}
 

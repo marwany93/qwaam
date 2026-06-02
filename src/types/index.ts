@@ -242,6 +242,20 @@ export interface OnboardingFormData {
   password: string;
 }
 
+// ── Renewal Requests ──────────────────────────────────────────────────────────
+// Written by the trainee after choosing a plan + uploading proof; read by
+// the admin to pre-fill PendingPaymentCard without re-entering values.
+
+export interface RenewalRequest {
+  id: string;
+  traineeUid: string;
+  planId: string;
+  amount: number;        // EGP — denormalized from plan.price at request time
+  proofUrl: string;
+  status: 'pending' | 'fulfilled';
+  createdAt: number;     // millis
+}
+
 // ── Discount / Gamification ───────────────────────────────────────────────────
 
 

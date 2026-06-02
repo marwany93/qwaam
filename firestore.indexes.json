@@ -48,6 +48,14 @@
         { "fieldPath": "chatId", "order": "ASCENDING" },
         { "fieldPath": "timestamp", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "renewal_requests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "traineeUid", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
