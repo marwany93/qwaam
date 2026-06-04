@@ -137,30 +137,35 @@ export default function RenewalWizard({ uid }: Props) {
               ))}
             </div>
 
-            {/* Plan cards grid */}
-            <div className="grid grid-cols-2 gap-2">
-              {plans.map((plan) => (
-                <button
-                  key={plan.id}
-                  type="button"
-                  onClick={() => setSelectedPlan(plan)}
-                  className={`p-3 rounded-xl border-2 text-right transition-all ${
-                    selectedPlan?.id === plan.id
-                      ? 'border-qwaam-pink bg-qwaam-pink-light'
-                      : 'border-border-light bg-white hover:border-qwaam-pink/50'
-                  }`}
-                >
-                  {plan.popular && (
-                    <span className="inline-block text-[9px] font-black bg-qwaam-yellow px-1.5 py-0.5 rounded-full text-text-main mb-1">
-                      الأشهر
-                    </span>
-                  )}
-                  <p className="font-black text-text-main text-sm leading-tight">
-                    {plan.sessions ? `${plan.sessions} حصة` : `${plan.days} أيام/أسبوع`}
-                  </p>
-                  <p className="font-black text-qwaam-pink text-base mt-0.5" dir="ltr">{plan.price} EGP</p>
-                </button>
-              ))}
+            {/* Plan cards grid — 1 col on mobile, 2 cols on sm+.
+                Odd last card is centered at half-width so rows stay balanced. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {plans.map((plan, idx) => {
+                const isLastOdd = plans.length % 2 !== 0 && idx === plans.length - 1;
+                return (
+                  <button
+                    key={plan.id}
+                    type="button"
+                    onClick={() => setSelectedPlan(plan)}
+                    className={`p-3 rounded-xl border-2 text-right transition-all
+                      ${isLastOdd ? 'sm:col-span-2 sm:w-1/2 sm:mx-auto' : ''}
+                      ${selectedPlan?.id === plan.id
+                        ? 'border-qwaam-pink bg-qwaam-pink-light'
+                        : 'border-border-light bg-white hover:border-qwaam-pink/50'
+                      }`}
+                  >
+                    {plan.popular && (
+                      <span className="inline-block text-[9px] font-black bg-qwaam-yellow px-1.5 py-0.5 rounded-full text-text-main mb-1">
+                        الأشهر
+                      </span>
+                    )}
+                    <p className="font-black text-text-main text-sm leading-tight">
+                      {plan.sessions ? `${plan.sessions} حصة` : `${plan.days} أيام/أسبوع`}
+                    </p>
+                    <p className="font-black text-qwaam-pink text-base mt-0.5" dir="ltr">{plan.price} EGP</p>
+                  </button>
+                );
+              })}
             </div>
 
             <div className="flex gap-2">
