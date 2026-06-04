@@ -385,7 +385,7 @@ function SpinWheelModal({
                         className="w-full py-4 rounded-2xl bg-qwaam-pink text-white font-black text-base shadow-lg shadow-qwaam-pink/25 hover:-translate-y-0.5 hover:shadow-xl transition-all active:translate-y-0 flex items-center justify-center gap-2"
                       >
                         <span className="text-xl">🎡</span>
-                        ألفي العجلة!
+                        لفي العجلة!
                       </button>
 
                       <p className="text-center text-[11px] text-text-muted font-medium">
@@ -546,7 +546,7 @@ export default function PricingClient() {
               </div>
             ) : (
               <div className="relative z-10 shrink-0 bg-white/20 border border-white/30 font-bold text-sm rounded-xl px-4 py-2">
-                ألفي الآن ←
+                لفي الآن ←
               </div>
             )}
           </button>
