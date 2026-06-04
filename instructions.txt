@@ -1,0 +1,17 @@
+Act as a Senior DevOps Engineer. I need to secure the project and clean up the repository by updating the `.gitignore` file based on a recent audit of the root directory.
+
+TASK 1: Security & Cleanup Audit
+Review the root directory and add the following to `.gitignore` if they aren't already there:
+1. Sensitive Secrets: `firebase-key.json`, `.env.local` (Extremely Important!).
+2. Build & Cache: `.next/`, `.npm-cache/`, `tsconfig.tsbuildinfo`, `.claude/`, `.agent/`.
+3. Generated Reports & Logs: `lighthouse-report.json`, `*_REPORT.md` (unless needed for documentation), and any `_bmad*` temporary folders.
+4. Dependencies: Ensure `node_modules/` is ignored.
+
+TASK 2: Untrack if already committed
+If any of the sensitive files (especially `firebase-key.json` or `.env.local`) were previously committed to Git, provide the commands to untrack them from the index without deleting the local files:
+`git rm --cached <filename>`
+
+TASK 3: Update CLAUDE.md
+Document the updated Git ignore strategy in the 'System Architecture' or 'Security' section of `CLAUDE.md` to ensure future AI sessions don't try to commit these files.
+
+Verify the .gitignore logic and commit the changes to `main`.

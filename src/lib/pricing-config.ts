@@ -43,8 +43,8 @@ export const PRICING_CONFIG: PlanCategory[] = [
     plans: [
       { id: 'home-sched-2', days: 2, price: 300 },
       { id: 'home-sched-3', days: 3, price: 330 },
-      { id: 'home-sched-4', days: 4, price: 350 },
-      { id: 'home-sched-5', days: 5, price: 370, popular: true },
+      { id: 'home-sched-4', days: 4, price: 350, popular: true },
+      { id: 'home-sched-5', days: 5, price: 370 },
       { id: 'home-sched-7', days: 6, price: 400 },
     ],
   },
@@ -66,8 +66,8 @@ export const PRICING_CONFIG: PlanCategory[] = [
     plans: [
       { id: 'gym-sched-2', days: 2, price: 200 },
       { id: 'gym-sched-3', days: 3, price: 230 },
-      { id: 'gym-sched-4', days: 4, price: 350 },
-      { id: 'gym-sched-5', days: 5, price: 270, popular: true },
+      { id: 'gym-sched-4', days: 4, price: 250, popular: true },
+      { id: 'gym-sched-5', days: 5, price: 270 },
       { id: 'gym-sched-7', days: 6, price: 300 },
     ],
   },
