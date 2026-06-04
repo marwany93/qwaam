@@ -597,17 +597,18 @@ export default function PricingClient() {
             <span className="inline-flex w-6 h-6 rounded-full bg-qwaam-pink text-white text-xs font-black items-center justify-center">3</span>
             {t('choosePlan')}
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="flex flex-wrap justify-center gap-6">
             {plans.map((plan) => (
-              <PlanCard
-                key={plan.id}
-                plan={plan}
-                isSelected={selectedPlan?.id === plan.id}
-                onSelect={() => setSelectedPlan(plan)}
-                isLive={type === 'live'}
-                discount={appliedDiscount}
-                t={t}
-              />
+              <div key={plan.id} className="min-w-[150px] flex-1 max-w-[200px]">
+                <PlanCard
+                  plan={plan}
+                  isSelected={selectedPlan?.id === plan.id}
+                  onSelect={() => setSelectedPlan(plan)}
+                  isLive={type === 'live'}
+                  discount={appliedDiscount}
+                  t={t}
+                />
+              </div>
             ))}
           </div>
         </div>
