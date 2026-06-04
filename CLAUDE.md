@@ -10,6 +10,27 @@ Every single time you add a feature, refactor code, fix a bug, or change configu
 
 ---
 
+## 0. Security & Git Hygiene
+
+### Files That Must NEVER Be Committed
+| File / Pattern | Reason |
+|---------------|--------|
+| `firebase-key.json`, `*.json.key` | Firebase service account private key — full Admin SDK access |
+| `.env.local`, `.env.*.local`, `.env` | All secrets: Firebase config, Resend API key, Spoonacular key, etc. |
+| `.claude/`, `.agent/` | AI session data, conversation history |
+
+These are all listed in `.gitignore`. Before every commit, verify none of these are staged (`git status`).
+
+### .gitignore Coverage (as of 2026-06-04)
+- **Secrets:** `.env*`, `firebase-key.json`, `*.json.key`
+- **Build/cache:** `.next/`, `out/`, `build/`, `.npm-cache/`, `tsconfig.tsbuildinfo`
+- **AI tooling:** `.claude/`, `.agent/`
+- **Reports/temp:** `lighthouse-report.json`, `*_REPORT.md`, `_bmad*/`
+- **Dependencies:** `node_modules/`
+- **OS/test:** `.DS_Store`, `Thumbs.db`, `playwright-report/`, `test-results/`
+
+---
+
 ## 1. System Architecture Overview
 
 | Layer | Technology | Version |
@@ -319,3 +340,4 @@ Both functions read the `__session` HttpOnly cookie, verify with Firebase Admin,
 | 2026-06-04 | Fixed "ألفي العجلة" → "لفي العجلة" typo in public pricing | `PricingClient.tsx` |
 | 2026-06-04 | Fixed RenewalWizard plan card grid: symmetrical responsive layout with per-breakpoint col math | `RenewalWizard.tsx` |
 | 2026-06-04 | Added CLAUDE.md (this file); fixed PricingClient Step 3 grid for 5-plan support | `CLAUDE.md` (new), `PricingClient.tsx` |
+| 2026-06-04 | Security audit: hardened `.gitignore` (added `.agent/`, `tsconfig.tsbuildinfo`, `.npm-cache/`, `*_REPORT.md`, `_bmad*/`, `lighthouse-report.json`); documented security rules in CLAUDE.md | `.gitignore`, `CLAUDE.md` |
