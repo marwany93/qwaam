@@ -53,6 +53,9 @@ These are all listed in `.gitignore`. Before every commit, verify none of these 
 
 **Auth flow:** Firebase Auth (client) → POST `/api/auth/session` exchanges ID token for a 14-day HttpOnly session cookie → All server actions call `verifyAdminAccess()` / `verifyClientAccess()` which validate the session cookie and check the user's Firestore role.
 
+**Required environment variables for deep-links:**
+- `NEXT_PUBLIC_APP_URL` — **Must be set in production** (e.g. `https://qwaam.net`). Used in `requestPasswordReset` (`src/actions/client-actions.ts`) to build the password-reset deep-link embedded in the Resend email. Without it, the action falls back to deriving the host from Next.js `headers()`, which can produce `http://localhost:3000` if the header is missing or misconfigured on the hosting platform.
+
 ---
 
 ## 2. Folder Directory Map
@@ -340,4 +343,5 @@ Both functions read the `__session` HttpOnly cookie, verify with Firebase Admin,
 | 2026-06-04 | Fixed "ألفي العجلة" → "لفي العجلة" typo in public pricing | `PricingClient.tsx` |
 | 2026-06-04 | Fixed RenewalWizard plan card grid: symmetrical responsive layout with per-breakpoint col math | `RenewalWizard.tsx` |
 | 2026-06-04 | Added CLAUDE.md (this file); fixed PricingClient Step 3 grid for 5-plan support | `CLAUDE.md` (new), `PricingClient.tsx` |
+| 2026-06-04 | Fix password-reset email URL: use `NEXT_PUBLIC_APP_URL` env var (headers fallback) instead of hardcoded localhost | `client-actions.ts`, `CLAUDE.md` |
 | 2026-06-04 | Security audit: hardened `.gitignore` (added `.agent/`, `tsconfig.tsbuildinfo`, `.npm-cache/`, `*_REPORT.md`, `_bmad*/`, `lighthouse-report.json`); documented security rules in CLAUDE.md | `.gitignore`, `CLAUDE.md` |

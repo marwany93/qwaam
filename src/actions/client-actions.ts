@@ -256,12 +256,12 @@ export async function requestPasswordReset(email: string) {
       throw error;
     }
 
-    // --- 🚀 بداية التعديل الذكي للدومين ---
+    // Derive the app base URL: env var (production) takes priority,
+    // headers-derived value is the fallback for local/preview environments.
     const headerList = await headers();
-    const host = headerList.get('host'); // بيجيب الدومين الحالي (مثلاً qwaam-xyz.vercel.app)
+    const host = headerList.get('host');
     const protocol = host?.includes('localhost') ? 'http' : 'https';
-    const baseUrl = `${protocol}://${host}`;
-    // --- نهاية التعديل الذكي ---
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? `${protocol}://${host}`;
 
     // 2. جلب الاسم (نفس الكود القديم)
     let userName = 'متدربتنا';
