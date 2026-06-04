@@ -137,32 +137,54 @@ export default function RenewalWizard({ uid }: Props) {
               ))}
             </div>
 
-            {/* Plan cards grid — 1 col on mobile, 2 cols on sm+.
-                Odd last card is centered at half-width so rows stay balanced. */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {/* Plan cards grid.
+                4 plans (live)     → grid-cols-2 mobile  |  grid-cols-4 sm+  (1 perfect row)
+                5 plans (schedule) → grid-cols-2 mobile  |  grid-cols-4 sm  |  grid-cols-5 lg
+                The lone last odd card is constrained to exactly one column-width and
+                centered so every row looks symmetrical at every breakpoint. */}
+            <div className={`grid gap-3 ${
+              plans.length <= 4
+                ? 'grid-cols-2 sm:grid-cols-4'
+                : 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-5'
+            }`}>
               {plans.map((plan, idx) => {
                 const isLastOdd = plans.length % 2 !== 0 && idx === plans.length - 1;
+                const isSelected = selectedPlan?.id === plan.id;
                 return (
                   <button
                     key={plan.id}
                     type="button"
                     onClick={() => setSelectedPlan(plan)}
-                    className={`p-3 rounded-xl border-2 text-right transition-all
-                      ${isLastOdd ? 'sm:col-span-2 sm:w-1/2 sm:mx-auto' : ''}
-                      ${selectedPlan?.id === plan.id
-                        ? 'border-qwaam-pink bg-qwaam-pink-light'
-                        : 'border-border-light bg-white hover:border-qwaam-pink/50'
-                      }`}
+                    className={[
+                      'relative p-3 rounded-2xl border-2 text-right transition-all duration-150',
+                      'hover:-translate-y-0.5 hover:shadow-md active:scale-95',
+                      // Odd last card: span full row but constrain to one-col width, centered
+                      isLastOdd
+                        ? 'col-span-2 w-[calc(50%-6px)] mx-auto sm:col-span-4 sm:w-[calc(25%-9px)] lg:col-span-1 lg:w-auto lg:mx-0'
+                        : '',
+                      isSelected
+                        ? 'border-qwaam-pink bg-qwaam-pink-light shadow-md shadow-qwaam-pink/15'
+                        : 'border-border-light bg-white hover:border-qwaam-pink/50',
+                    ].join(' ')}
                   >
+                    {isSelected && (
+                      <span className="absolute top-1.5 left-1.5 w-4 h-4 rounded-full bg-qwaam-pink flex items-center justify-center">
+                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10">
+                          <path d="M2 5l2.5 2.5L8 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </span>
+                    )}
                     {plan.popular && (
-                      <span className="inline-block text-[9px] font-black bg-qwaam-yellow px-1.5 py-0.5 rounded-full text-text-main mb-1">
-                        الأشهر
+                      <span className="inline-block text-[9px] font-black bg-qwaam-yellow px-1.5 py-0.5 rounded-full text-text-main mb-1.5">
+                        ⭐ الأشهر
                       </span>
                     )}
                     <p className="font-black text-text-main text-sm leading-tight">
                       {plan.sessions ? `${plan.sessions} حصة` : `${plan.days} أيام/أسبوع`}
                     </p>
-                    <p className="font-black text-qwaam-pink text-base mt-0.5" dir="ltr">{plan.price} EGP</p>
+                    <p className={`font-black text-base mt-1 ${isSelected ? 'text-qwaam-pink' : 'text-text-main'}`} dir="ltr">
+                      {plan.price} EGP
+                    </p>
                   </button>
                 );
               })}
