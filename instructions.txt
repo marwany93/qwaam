@@ -1,17 +1,22 @@
-Act as a Senior DevOps Engineer. I need to secure the project and clean up the repository by updating the `.gitignore` file based on a recent audit of the root directory.
+Act as a Senior Fullstack Engineer. We have a bug where the "Forget Password" email contains a link hardcoded to `http://localhost:3000`, causing a connection failure on production viewports (as seen in WhatsApp Image 2026-06-04 at 19.45.17.jpeg).
 
-TASK 1: Security & Cleanup Audit
-Review the root directory and add the following to `.gitignore` if they aren't already there:
-1. Sensitive Secrets: `firebase-key.json`, `.env.local` (Extremely Important!).
-2. Build & Cache: `.next/`, `.npm-cache/`, `tsconfig.tsbuildinfo`, `.claude/`, `.agent/`.
-3. Generated Reports & Logs: `lighthouse-report.json`, `*_REPORT.md` (unless needed for documentation), and any `_bmad*` temporary folders.
-4. Dependencies: Ensure `node_modules/` is ignored.
+Task 1: Locate the Forget Password Logic
+- Scan the authentication actions or components (check `src/app/[locale]/(public)/login/page.tsx`, `src/actions/client-actions.ts`, or wherever the password reset email/action is triggered).
+- Find where the reset link is being constructed.
 
-TASK 2: Untrack if already committed
-If any of the sensitive files (especially `firebase-key.json` or `.env.local`) were previously committed to Git, provide the commands to untrack them from the index without deleting the local files:
-`git rm --cached <filename>`
+Task 2: Make the Domain Dynamic
+- Replace any hardcoded `http://localhost:3000` strings with an environment variable: `process.env.NEXT_PUBLIC_APP_URL`.
+- If the link is constructed inside a Server Action, you can alternatively derive it dynamically using Next.js headers:
+```ts
+  import { headers } from 'next/headers';
+  const host = (await headers()).get('host');
+  const protocol = host?.includes('localhost') ? 'http' : 'https';
+  const resetLink = `${protocol}://${host}/${locale}/reset-password?token=...`;
 
-TASK 3: Update CLAUDE.md
-Document the updated Git ignore strategy in the 'System Architecture' or 'Security' section of `CLAUDE.md` to ensure future AI sessions don't try to commit these files.
+Choose the safest dynamic method based on how our Firebase Auth / Resend reset flow is built.
 
-Verify the .gitignore logic and commit the changes to `main`.
+Task 3: Sync Environment Variables Documentation
+
+    Add a note in CLAUDE.md under System Architecture / Auth Flow stating that NEXT_PUBLIC_APP_URL is a required environment variable for handling deep-links like password resets.
+
+Verify that the build is clean (npx tsc --noEmit) and commit the fix to main.
