@@ -19,7 +19,6 @@ interface Props {
 }
 
 const INSTAPAY_NUMBER = '01001280161';
-const VODAFONE_CASH_NUMBER = '01001280161';
 
 export default function RenewalWizard({ uid }: Props) {
   const router = useRouter();
@@ -228,7 +227,7 @@ export default function RenewalWizard({ uid }: Props) {
             {/* Transfer instructions */}
             <div className="space-y-3">
               <p className="text-sm font-bold text-text-main leading-relaxed">
-                حوّلي المبلغ عبر أي من الطرق التالية:
+                حوّلي المبلغ عبر InstaPay فقط:
               </p>
 
               {/* InstaPay */}
@@ -244,18 +243,7 @@ export default function RenewalWizard({ uid }: Props) {
                 </div>
               </div>
 
-              {/* Vodafone Cash */}
-              <div className="bg-white border border-border-light rounded-xl p-3 space-y-1">
-                <p className="text-[10px] font-black text-text-muted uppercase tracking-wider">Vodafone Cash</p>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-lg font-black text-qwaam-pink tracking-widest select-all" dir="ltr">
-                    {VODAFONE_CASH_NUMBER}
-                  </span>
-                  <span className="text-[10px] font-bold text-text-muted leading-tight text-left">
-                    اضغطي مطوّلاً للنسخ
-                  </span>
-                </div>
-              </div>
+
 
               <p className="text-xs font-bold text-text-muted">
                 بعد إتمام التحويل، اضغطي &quot;التالي&quot; لرفع صورة الإيصال.

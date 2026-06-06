@@ -365,7 +365,7 @@ export default function OnboardingWizard({ initialSubscription }: { initialSubsc
             شكراً لتسجيلك في قوام!
           </h2>
           <p className="font-bold opacity-90 text-sm leading-relaxed">
-            لإتمام تفعيل حسابك، يرجى تحويل مبلغ الباقة عبر إحدى الطرق التالية.
+            لإتمام تفعيل حسابك، يرجى تحويل مبلغ الباقة عبر InstaPay.
           </p>
         </div>
 
@@ -386,17 +386,13 @@ export default function OnboardingWizard({ initialSubscription }: { initialSubsc
           <div className="bg-gray-50 border border-border-light rounded-2xl p-5 space-y-4">
             <div className="flex items-center gap-2">
               <span className="text-2xl">💸</span>
-              <h3 className="font-black text-text-main text-base">طرق الدفع المتاحة</h3>
+              <h3 className="font-black text-text-main text-base">InstaPay فقط</h3>
             </div>
 
             <ul className="space-y-2 text-sm font-bold text-text-main">
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-qwaam-pink" />
                 InstaPay
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-qwaam-pink" />
-                أي محفظة إلكترونية (Vodafone Cash / Etisalat Cash / Orange Cash)
               </li>
             </ul>
 
