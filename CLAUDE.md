@@ -51,7 +51,7 @@ These are all listed in `.gitignore`. Before every commit, verify none of these 
 | External API | Spoonacular (recipes) | REST |
 | Build Bundler | Turbopack (dev) | — |
 
-**Auth flow:** Firebase Auth (client) → POST `/api/auth/session` exchanges ID token for a 14-day HttpOnly session cookie → All server actions call `verifyAdminAccess()` / `verifyClientAccess()` which validate the session cookie and check the user's Firestore role.
+**Auth flow:** Firebase Auth (client) → POST `/api/auth/session` exchanges ID token for a 14-day HttpOnly session cookie (`qwaam_session`) → All server actions call `verifyAdminAccess()` / `verifyClientAccess()` which validate the session cookie via `verifySessionCookie()` and read the role from Firebase **Custom Claims** (`decodedClaims.role`). See section 7 for details.
 
 **Required environment variables for deep-links:**
 - `NEXT_PUBLIC_APP_URL` — **Must be set in production** (e.g. `https://qwaam.net`). Used in `requestPasswordReset` (`src/actions/client-actions.ts`) to build the password-reset deep-link embedded in the Resend email. Without it, the action falls back to deriving the host from Next.js `headers()`, which can produce `http://localhost:3000` if the header is missing or misconfigured on the hosting platform.
@@ -142,27 +142,40 @@ D:\Antigravity Qwaam\
 ## 3. Core Business Logic
 
 ### Session Tracking
-Each trainee's `users/{uid}` document contains a `sessionTracking` field:
+The canonical shapes live in `src/types/index.ts` (`QwaamUser`). All Firestore
+`Timestamp`s are serialized to millis (numbers) before they reach Client Components.
+
+The trainee's `users/{uid}` document carries an optional `sessionTracking` field:
 ```ts
-sessionTracking: {
-  totalSessions: number;      // Total sessions in the active plan
-  usedSessions: number;       // Sessions consumed
-  planStartDate: Timestamp;
-  planEndDate: Timestamp;
-  planId: string;             // e.g. "home-live-16"
+sessionTracking?: {
+  totalSessions: number;
+  remainingSessions: number;                 // stored directly (not derived)
+  planStatus: 'active' | 'finished';
+  lastRenewedAt?: number;                     // millis
 }
 ```
-`remainingSessions = totalSessions - usedSessions`
 
-A `subscription.status` field on the user doc drives UI state:
-- `'active'` — Normal training period
-- `'pending_payment'` — Trainee has submitted a renewal request; awaiting coach approval
-- `'finished'` — Sessions depleted or plan expired
+The subscription lives **nested under `traineeData.subscription`** (not top-level):
+```ts
+traineeData.subscription?: {
+  planId: string;
+  amountPaid: string;
+  dietAdded: boolean;
+  status: 'pending_payment' | 'active' | 'expired' | 'cancelled';
+  createdAt: string;                          // ISO string (set client-side at submit)
+  activatedAt?: number;                       // millis — set by confirmTraineePayment
+  paymentScreenshotUrl?: string;
+  paymentScreenshotAt?: number;               // millis — set by updatePaymentScreenshot
+} | null;
+```
+The `subscription.status` value drives the dashboard UI state (`pending_payment`
+shows the PendingPaymentBanner; `active` shows normal content). `planStatus`
+(`'finished'`) plus low `remainingSessions` drive RenewalWizard visibility.
 
 ### Renewal Request Flow
 1. Trainee opens **RenewalWizard** (`src/components/client/RenewalWizard.tsx`)
 2. Selects location → plan type → specific plan (Step 1)
-3. Views InstaPay / Vodafone Cash payment details (Step 2)
+3. Views InstaPay payment details (Step 2) — **InstaPay only**
 4. Uploads proof screenshot via `PhotoUpload` (Step 3)
 5. Clicks Submit → calls `createRenewalRequest(planId, proofUrl)` server action
 6. Action writes to `renewal_requests` collection + sets `subscription.status = 'pending_payment'` on user doc
@@ -189,9 +202,8 @@ A `subscription.status` field on the user doc drives UI state:
 
 All plans defined in `src/lib/pricing-config.ts`. **This is the single source of truth.**
 
-Payment numbers (in `RenewalWizard.tsx`):
+Payment method (in `RenewalWizard.tsx`): **InstaPay only**
 - InstaPay: `01001280161`
-- Vodafone Cash: `01001280161`
 
 Nutrition add-on (in `PricingClient.tsx` public wizard only): **+200 EGP** (`NUTRITION_ADDON_PRICE`)
 
@@ -208,8 +220,8 @@ Nutrition add-on (in `PricingClient.tsx` public wizard only): **+200 EGP** (`NUT
 |---------|-----------|-------------|---------|
 | `home-sched-2` | 2 | 300 | — |
 | `home-sched-3` | 3 | 330 | — |
-| `home-sched-4` | 4 | 350 | — |
-| `home-sched-5` | 5 | 370 | ⭐ Yes |
+| `home-sched-4` | 4 | 350 | ⭐ Yes |
+| `home-sched-5` | 5 | 370 | — |
 | `home-sched-7` | **6** | 400 | — |
 
 ⚠️ **Note:** `home-sched-7` has `days: 6` (not 7). The ID was kept as `-7` for Firestore backward compatibility with existing subscriptions.
@@ -227,8 +239,8 @@ Nutrition add-on (in `PricingClient.tsx` public wizard only): **+200 EGP** (`NUT
 |---------|-----------|-------------|---------|
 | `gym-sched-2` | 2 | 200 | — |
 | `gym-sched-3` | 3 | 230 | — |
-| `gym-sched-4` | 4 | 350 | — |
-| `gym-sched-5` | 5 | 270 | ⭐ Yes |
+| `gym-sched-4` | 4 | 250 | ⭐ Yes |
+| `gym-sched-5` | 5 | 270 | — |
 | `gym-sched-7` | **6** | 300 | — |
 
 ⚠️ **Note:** Same as home — `gym-sched-7` has `days: 6`. ID kept for backward compatibility.
@@ -326,7 +338,20 @@ const { uid } = await verifyAdminAccess();
 // Trainee routes:
 const { uid } = await verifyClientAccess();
 ```
-Both functions read the `__session` HttpOnly cookie, verify with Firebase Admin, and check the user's `role` in Firestore. They throw/return errors if unauthenticated or unauthorized.
+Both functions (in `src/lib/auth-utils.ts`) read the `qwaam_session` HttpOnly
+cookie and validate it via `getAdminAuth().verifySessionCookie(cookie, true)`.
+**The role check is done against Firebase Custom Claims** — `decodedClaims.role`
+(`'coach'`/`'admin'` for `verifyAdminAccess`, `'trainee'` for `verifyClientAccess`).
+They throw if the cookie is missing/expired or the claim doesn't match.
+
+Firestore is used **only as a fallback / self-heal path**, never as the primary
+source of the role:
+- `verifyClientAccess`: if the claim isn't `trainee`, it checks whether a `users/{uid}`
+  doc exists and, if so, re-sets the `trainee` custom claim (auto-heal) rather than
+  rejecting outright.
+- `POST /api/auth/session`: on login it reads `users/{uid}.role` as the source of
+  truth and silently re-syncs the custom claim if it drifted, so subsequent
+  `verifySessionCookie` calls see the correct claim.
 
 ---
 
@@ -345,3 +370,4 @@ Both functions read the `__session` HttpOnly cookie, verify with Firebase Admin,
 | 2026-06-04 | Added CLAUDE.md (this file); fixed PricingClient Step 3 grid for 5-plan support | `CLAUDE.md` (new), `PricingClient.tsx` |
 | 2026-06-04 | Fix password-reset email URL: use `NEXT_PUBLIC_APP_URL` env var (headers fallback) instead of hardcoded localhost | `client-actions.ts`, `CLAUDE.md` |
 | 2026-06-04 | Security audit: hardened `.gitignore` (added `.agent/`, `tsconfig.tsbuildinfo`, `.npm-cache/`, `*_REPORT.md`, `_bmad*/`, `lighthouse-report.json`); documented security rules in CLAUDE.md | `.gitignore`, `CLAUDE.md` |
+| 2026-06-15 | Docs reconcile: fixed session cookie name (`qwaam_session`), rewrote §7 auth to Custom-Claims-first (Firestore fallback only), regenerated §4 pricing tables from `pricing-config.ts` (gym-sched-4 = 250; popular flags → sched-4 not sched-5), rewrote §3 `sessionTracking`/`subscription` shapes to match `types/index.ts`, switched payment refs to InstaPay-only | `CLAUDE.md`, `STATE.md` |

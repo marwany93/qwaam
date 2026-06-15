@@ -1,6 +1,6 @@
 # Qwaam — Project State (Dynamic Memory)
 
-> **Last Updated: 2026-04-10 | Session: ef19391e**
+> **Last Updated: 2026-06-15**
 > Update this file at the end of every session via `UPDATE MEMORY`.
 
 ---
@@ -50,10 +50,9 @@
 
 ## 🐛 Active Bugs / Tech Debt
 
-- **`ClientsList.tsx` — Missing Firestore composite index (P1)**
-  - Current workaround: queries entire `users` collection without server-side filter, filters manually client-side
-  - **Fix**: Create Firestore composite index on `(role ASC, traineeData.assignedCoachUid ASC)` → replace with proper `query(collection(...), where('role', '==', 'trainee'), where('traineeData.assignedCoachUid', '==', coachUid))`
-  - Risk: Scales poorly; reads all users regardless of coach boundary
+- **`ClientsList.tsx` — Missing Firestore composite index (P1) — ✅ RESOLVED (2026-06-15)**
+  - The composite index `(role ASC, traineeData.assignedCoachUid ASC, createdAt DESC)` now exists in `firestore.indexes.json`.
+  - `ClientsList.tsx` now uses the proper server-side indexed query: `query(collection(db,'users'), where('role','==','trainee'), where('traineeData.assignedCoachUid','==',coachUid), orderBy('createdAt','desc'))` — no more full-collection read / client-side coach filtering. (Local `useMemo` filtering remains, but only for the in-page search box, not for coach scoping.)
 
 - **`TraineeChat.tsx` — Unread reset fires on every message render, not just initial open (P2)**
   - `updateDoc` resetting `unreadCount` is inside `useEffect([messages])` — fires on every new message received
