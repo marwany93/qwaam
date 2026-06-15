@@ -118,7 +118,7 @@ export default function PendingPaymentBanner({ amountPaid, initialScreenshotUrl 
               </>
             )}
             {!amountPaid && ' مبلغ الباقة '}
-            عبر <span className="font-black">InstaPay</span> أو محفظة إلكترونية على الرقم:
+            عبر <span className="font-black">InstaPay</span> على الرقم:
           </p>
 
           <div className="mt-3 inline-flex items-center gap-3 bg-white border-2 border-dashed border-qwaam-pink rounded-xl px-4 py-2.5">

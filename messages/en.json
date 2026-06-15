@@ -128,7 +128,7 @@
       "daysWeek": "days/week",
       "popular": "Popular",
       "selectedPlan": "Selected Plan",
-      "transferInstruction": "Transfer the amount via InstaPay or e-wallet to:",
+      "transferInstruction": "Transfer the amount via InstaPay to:",
       "proofInstruction": "Upload a screenshot of your transfer receipt to speed up activation:",
       "uploadProof": "Receipt Photo",
       "next": "Next",
