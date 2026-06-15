@@ -62,15 +62,17 @@
   - Should display actual coach name initial from decoded session claims
   - No coach name is passed to `Sidebar` currently
 
-- **`console.log("Busting Vercel Cache - v2")` in `session/route.ts` (P3)**
-  - Debug artifact at bottom of file — should be removed before any release
+- **`console.log("Busting Vercel Cache - v2")` in `session/route.ts` (P3) — ✅ RESOLVED (2026-06-15)**
+  - Debug artifact removed. (Note: a decorated `console.error("🚨 🔥 SERVER ERROR DETAILS:", ...)` remains inside the POST catch block — legitimate error logging, left in place.)
+
+- **InstaPay-only payment copy — ✅ DONE (2026-06-15)**
+  - Payment flow is InstaPay-only. Removed leftover "Vodafone Cash / محفظة إلكترونية / e-wallet" wording from `transferInstruction` (ar+en) and `PendingPaymentBanner.tsx`. `RenewalWizard.tsx` is the canonical reference. Remaining mentions of "wallet" are code comments only (storage.rules, admin-actions.ts, OnboardingWizard.tsx).
 
 ---
 
 ## ⏭️ Immediate Next Steps
 
-1. **Fix `ClientsList` Firestore query** — Add composite index in Firebase Console, then restore the indexed `where()` query and remove manual client-side filtering + debug logs.
-2. **Wire coach name to Sidebar** — Pass coach `name` (from `decodedClaims` or a Firestore fetch) down through `admin/layout.tsx` → `<Sidebar>` prop.
-3. **Implement `unreadCount` increment on trainee-send** — The current system tracks unread reactively but the increment logic (trainee side sending a message) needs verification/implementation in the client portal.
-4. **Build `/admin/messages`** — Aggregated messages view (currently nav item exists but route is a stub).
-5. **Build `/client` dashboard** — Trainee portal: view assigned workouts/meals, send messages.
+1. **Wire coach name to Sidebar** — Pass coach `name` (from `decodedClaims` or a Firestore fetch) down through `admin/layout.tsx` → `<Sidebar>` prop.
+2. **Implement `unreadCount` increment on trainee-send** — The current system tracks unread reactively but the increment logic (trainee side sending a message) needs verification/implementation in the client portal.
+3. **Build `/admin/messages`** — Aggregated messages view (currently nav item exists but route is a stub).
+4. **Build `/client` dashboard** — Trainee portal: view assigned workouts/meals, send messages.
