@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, Fragment } from 'react';
+import { useLocale } from 'next-intl';
 import { Tab, Dialog, Transition } from '@headlessui/react';
 import type { Exercise, Workout, TargetMuscle, Equipment, WeightLevel } from '@/types';
 import {
@@ -11,6 +12,13 @@ import {
   PlusIcon, TrashIcon, XMarkIcon, MagnifyingGlassIcon, PencilIcon,
 } from '@heroicons/react/24/outline';
 import MealsManager from '@/components/admin/library/MealsManager';
+import ExerciseBrowser from '@/components/admin/library/ExerciseBrowser';
+import {
+  MUSCLE_FORM_OPTIONS,
+  EQUIPMENT_LIST,
+  muscleLabel,
+  equipmentLabel,
+} from '@/lib/exercise-taxonomy';
 
 // ── Shared Modal Shell ────────────────────────────────────────────────────────
 
@@ -63,8 +71,8 @@ const labelCls = 'block text-xs font-black text-text-muted mb-1.5 uppercase trac
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const TARGET_MUSCLES: TargetMuscle[] = ['Chest', 'Back', 'Legs', 'Core', 'Arms', 'Shoulders', 'Glutes', 'Full Body'];
-const EQUIPMENT_LIST: Equipment[]    = ['Bodyweight', 'Dumbbell', 'Barbell', 'Machine', 'Cable', 'Resistance Band', 'Kettlebell'];
+// Muscle + equipment lists come from the shared taxonomy (src/lib/exercise-taxonomy.ts).
+// The form offers MUSCLE_FORM_OPTIONS (canonical set, no legacy Legs/Arms).
 const WEIGHT_LEVELS: WeightLevel[]   = ['bodyweight', 'light', 'medium', 'heavy', 'max'];
 const WEIGHT_LEVEL_AR: Record<WeightLevel, string> = {
   bodyweight: 'وزن الجسم', light: 'خفيف', medium: 'متوسط', heavy: 'ثقيل', max: 'أقصى جهد',
@@ -95,6 +103,7 @@ function ExerciseForm({
 }) {
   const [form, setForm] = useState<ExerciseFormState>(initial);
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
+  const locale = useLocale();
 
   return (
     <form onSubmit={e => { e.preventDefault(); onSubmit(form); }} className="space-y-5">
@@ -110,13 +119,13 @@ function ExerciseForm({
         <div>
           <label className={labelCls}>العضلة المستهدفة</label>
           <select className={selectCls} value={form.targetMuscle} onChange={e => set('targetMuscle', e.target.value)}>
-            {TARGET_MUSCLES.map(m => <option key={m} value={m}>{m}</option>)}
+            {MUSCLE_FORM_OPTIONS.map(m => <option key={m} value={m}>{muscleLabel(m, locale)}</option>)}
           </select>
         </div>
         <div>
           <label className={labelCls}>المعدات المطلوبة</label>
           <select className={selectCls} value={form.equipment} onChange={e => set('equipment', e.target.value)}>
-            {EQUIPMENT_LIST.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+            {EQUIPMENT_LIST.map(eq => <option key={eq} value={eq}>{equipmentLabel(eq, locale)}</option>)}
           </select>
         </div>
         <div>
@@ -499,51 +508,13 @@ export default function LibraryContent({ exercises, workouts }: {
             {exercises.length === 0 ? (
               <EmptyState icon="🏋️‍♀️" title="مكتبة التمارين فارغة" desc="أضف التمارين الأساسية لتتمكن من بناء البرامج." />
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {exercises.map(ex => (
-                  <div key={ex.id} className="group bg-white rounded-2xl border-2 border-border-light p-5 hover:border-qwaam-pink/40 hover:shadow-md transition-all relative flex flex-col gap-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h4 className="font-black text-text-main text-lg leading-tight">{ex.nameAr}</h4>
-                        <p className="text-xs font-bold text-text-muted" dir="ltr">{ex.nameEn}</p>
-                      </div>
-                      {/* Action buttons — reveal on hover */}
-                      <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-all">
-                        <button
-                          onClick={() => setEditingExercise(ex)}
-                          className="p-1.5 rounded-lg text-text-muted hover:text-qwaam-pink hover:bg-qwaam-pink-light transition-colors"
-                          title="تعديل"
-                        >
-                          <PencilIcon className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteExercise(ex.id)}
-                          disabled={deletingId === ex.id}
-                          className="p-1.5 rounded-lg text-red-300 hover:text-red-600 hover:bg-red-50 transition-colors"
-                          title="حذف"
-                        >
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      <span className="bg-qwaam-pink-light text-qwaam-pink text-[11px] font-black px-2.5 py-1 rounded-full">{ex.targetMuscle}</span>
-                      <span className="bg-gray-100 text-gray-600 text-[11px] font-black px-2.5 py-1 rounded-full">{ex.equipment}</span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-center mt-auto">
-                      <StatChip label="جولات" value={String(ex.defaultSets)} />
-                      <StatChip label="تكرارات" value={ex.defaultReps} ltr />
-                      <StatChip label="راحة" value={`${ex.defaultRest}ث`} ltr />
-                    </div>
-                    {ex.videoUrl && (
-                      <a href={ex.videoUrl} target="_blank" rel="noopener noreferrer"
-                        className="text-xs font-bold text-qwaam-pink underline underline-offset-2 hover:text-pink-600 transition-colors">
-                        ▶ شاهد الشرح
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <ExerciseBrowser
+                exercises={exercises}
+                mode="view"
+                onEdit={setEditingExercise}
+                onDelete={handleDeleteExercise}
+                deletingId={deletingId}
+              />
             )}
           </Tab.Panel>
 
