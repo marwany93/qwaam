@@ -54,7 +54,8 @@ These are all listed in `.gitignore`. Before every commit, verify none of these 
 **Auth flow:** Firebase Auth (client) → POST `/api/auth/session` exchanges ID token for a 14-day HttpOnly session cookie (`qwaam_session`) → All server actions call `verifyAdminAccess()` / `verifyClientAccess()` which validate the session cookie via `verifySessionCookie()` and read the role from Firebase **Custom Claims** (`decodedClaims.role`). See section 7 for details.
 
 **Required environment variables for deep-links:**
-- `NEXT_PUBLIC_APP_URL` — **Must be set in production** (e.g. `https://qwaam.net`). Used in `requestPasswordReset` (`src/actions/client-actions.ts`) to build the password-reset deep-link embedded in the Resend email. Without it, the action falls back to deriving the host from Next.js `headers()`, which can produce `http://localhost:3000` if the header is missing or misconfigured on the hosting platform.
+- `NEXT_PUBLIC_APP_URL` — **Must be set in production** (e.g. `https://qwaam.net`). Used in `requestPasswordReset` (`src/actions/client-actions.ts`) to build the password-reset deep-link embedded in the Resend email, and in the subscription-reminders cron to build the "renew" CTA link. Without it, the reset action falls back to deriving the host from Next.js `headers()` (can produce `http://localhost:3000`), and the cron email omits the CTA button.
+- `CRON_SECRET` — **Must be set in production (Vercel env)**. Guards `GET /api/cron/subscription-reminders`. Vercel automatically attaches `Authorization: Bearer <CRON_SECRET>` to scheduled cron requests; the route rejects anything else with 401. Set it locally in `.env` too if invoking the route by hand.
 
 ---
 
@@ -166,11 +167,43 @@ traineeData.subscription?: {
   activatedAt?: number;                       // millis — set by confirmTraineePayment
   paymentScreenshotUrl?: string;
   paymentScreenshotAt?: number;               // millis — set by updatePaymentScreenshot
+  // ── Month-based Schedule plans (duration model) — see below ──
+  billingModel?: 'session' | 'duration';      // 'duration' = month model; absent/'session' = legacy
+  scheduleStartAt?: number | null;            // millis — day coach uploads schedule; null = awaiting
+  scheduleEndsAt?: number | null;             // millis — addOneMonth(scheduleStartAt)
+  renewalReminderSentAt?: number | null;      // millis — dedupes 7-day reminder; reset on renewal
 } | null;
 ```
 The `subscription.status` value drives the dashboard UI state (`pending_payment`
-shows the PendingPaymentBanner; `active` shows normal content). `planStatus`
-(`'finished'`) plus low `remainingSessions` drive RenewalWizard visibility.
+shows the PendingPaymentBanner; `active` shows normal content). For Live/legacy
+plans, `planStatus` (`'finished'`) plus low `remainingSessions` drive
+RenewalWizard visibility; for duration-model Schedule plans it's date-driven.
+
+### Schedule plans: month-based duration model (Issue #1)
+**Only Schedule plans (have `days`, no `sessions`) use this model. Live plans are
+untouched and stay session-count based.** The single discriminator is
+`isSchedulePlan(planId)` (`src/lib/pricing-config.ts`).
+
+- **Duration = one calendar month** from a start anchor, computed by
+  `addOneMonth()` (`src/lib/date-utils.ts`, Asia/Riyadh, clamps Jan 31 → Feb 28/29).
+- **Start anchor = the day the coach uploads the schedule.** `assignWorkout`
+  sets `scheduleStartAt=now` + `scheduleEndsAt=addOneMonth(now)` **once** — the
+  first time it runs for a duration-model trainee whose `scheduleStartAt` is null.
+  Never re-anchored on later assignments/edits.
+- **Marker `billingModel='duration'`** is stamped by `confirmTraineePayment`,
+  `submitOnboarding` (schedule branch), and `renewTraineePlan` (schedule branch).
+  On these paths `sessionTracking` is zeroed (sessions not tracked).
+- **Grandfather (no migration):** legacy schedule subs have no `billingModel` →
+  keep their old session-count UI/behavior until they renew, at which point
+  `renewTraineePlan`/`confirmTraineePayment` move them onto the duration model.
+- **`planStatus`/`status`:** computed-on-load in the dashboard; the daily cron
+  (`/api/cron/subscription-reminders`) persists `planStatus='finished'` +
+  `subscription.status='expired'` once `now >= scheduleEndsAt`.
+- **Client UI** (`client/page.tsx`) branches by `billingModel==='duration'`:
+  `ScheduleStatusCard` (awaiting-upload / active period + progress + motivation)
+  replaces the session widget; `ScheduleAlert` replaces `SessionAlert` with a
+  date-based 7-day reminder / ended banner. Copy lives in the `schedule` i18n
+  namespace (`messages/ar.json` + `en.json`), dates formatted in Asia/Riyadh.
 
 ### Renewal Request Flow
 1. Trainee opens **RenewalWizard** (`src/components/client/RenewalWizard.tsx`)
@@ -182,11 +215,15 @@ shows the PendingPaymentBanner; `active` shows normal content). `planStatus`
 7. Coach approves in admin dashboard → `confirmTraineePayment()` action activates subscription + marks `renewal_request` as `fulfilled`
 
 ### RenewalWizard Visibility Rule (client/page.tsx)
+**Live / legacy session model** (session-count driven):
 ```tsx
 {(planStatus === 'finished' || remainingSessions <= 2) && !isPendingPayment && (
   <RenewalWizard uid={trainee.uid} />
 )}
 ```
+**Duration-model Schedule plans** (date driven): the RenewalWizard is rendered
+inside `ScheduleStatusCard` when the period is ending (`0 < scheduleEndsAt - now
+<= 7 days`) or ended (`now >= scheduleEndsAt`), never on `remainingSessions`.
 
 ### SessionAlert Visibility Rule
 ```tsx
@@ -206,6 +243,8 @@ Payment method (in `RenewalWizard.tsx`): **InstaPay only**
 - InstaPay: `01001280161`
 
 Nutrition add-on (in `PricingClient.tsx` public wizard only): **+200 EGP** (`NUTRITION_ADDON_PRICE`)
+
+> **Billing model note:** `sessions` (Live) and `days` (Schedule) still define the plans below, but **Schedule plans are billed as one calendar month** (duration model — see §3), not as a session count. The `days` value now means "training days per week" only; it is no longer consumed as a session budget.
 
 ### HOME + LIVE (video call sessions per month)
 | Plan ID | Sessions | Price (EGP) | Popular |
@@ -325,6 +364,7 @@ All user-facing UI is `dir="rtl"` by default. Arabic is the primary language. Us
 
 **Composite Indexes** (`firestore.indexes.json`):
 - `renewal_requests`: traineeUid ASC + status ASC
+- `users`: role ASC + `traineeData.subscription.billingModel` ASC + `traineeData.subscription.scheduleEndsAt` ASC — powers the subscription-reminders cron query (no full-collection scan)
 
 ---
 
@@ -373,3 +413,7 @@ source of the role:
 | 2026-06-15 | Docs reconcile: fixed session cookie name (`qwaam_session`), rewrote §7 auth to Custom-Claims-first (Firestore fallback only), regenerated §4 pricing tables from `pricing-config.ts` (gym-sched-4 = 250; popular flags → sched-4 not sched-5), rewrote §3 `sessionTracking`/`subscription` shapes to match `types/index.ts`, switched payment refs to InstaPay-only | `CLAUDE.md`, `STATE.md` |
 | 2026-06-15 | Completed InstaPay-only refactor in user-facing copy: dropped "Vodafone Cash / محفظة إلكترونية / e-wallet" from `transferInstruction` (ar+en) and PendingPaymentBanner | `ar.json`, `en.json`, `PendingPaymentBanner.tsx` |
 | 2026-06-15 | Removed leftover debug `console.log("Busting Vercel Cache - v2")` from session route | `api/auth/session/route.ts` |
+| 2026-07-08 | **Issue #1** — Schedule plans moved to month-based (duration) model. Added `billingModel`/`scheduleStartAt`/`scheduleEndsAt`/`renewalReminderSentAt` to subscription; `isSchedulePlan` helper + `date-utils.ts` (`addOneMonth`, `formatDateRiyadh`, Asia/Riyadh). Live plans untouched. | `types/index.ts`, `pricing-config.ts`, `date-utils.ts` (new) |
+| 2026-07-08 | Lifecycle: `confirmTraineePayment`/`submitOnboarding`/`renewTraineePlan` branch schedule → duration setup (no more `remainingSessions=plan.days`); `assignWorkout` anchors `scheduleStartAt` once on first upload | `admin-actions.ts`, `client-actions.ts`, `assignment-actions.ts` |
+| 2026-07-08 | Client UI: `ScheduleStatusCard` + `ScheduleAlert` (date-based) replace session widget/alert for duration plans; new `schedule` i18n namespace (ar+en) | `client/page.tsx`, `ScheduleStatusCard.tsx` (new), `ScheduleAlert.tsx` (new), `ar.json`, `en.json` |
+| 2026-07-08 | Vercel Cron `/api/cron/subscription-reminders` (CRON_SECRET-guarded): 7-day reminder email + expiry flip; `RenewalReminderTemplate`; users composite index; `vercel.json` | `vercel.json` (new), `api/cron/subscription-reminders/route.ts` (new), `RenewalReminderTemplate.tsx` (new), `firestore.indexes.json` |

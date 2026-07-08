@@ -1,7 +1,22 @@
 # Qwaam — Project State (Dynamic Memory)
 
-> **Last Updated: 2026-06-15**
+> **Last Updated: 2026-07-08**
 > Update this file at the end of every session via `UPDATE MEMORY`.
+
+---
+
+## ✅ Recently Completed
+
+- **Issue #1 — Month-based Schedule subscriptions** (2026-07-08)
+  - Scope: only Schedule plans (have `days`, no `sessions`) move to a one-calendar-month duration model; **Live plans untouched**. Discriminator: `isSchedulePlan(planId)` in `pricing-config.ts`.
+  - `types/index.ts` — subscription gains `billingModel`, `scheduleStartAt`, `scheduleEndsAt`, `renewalReminderSentAt`.
+  - `src/lib/date-utils.ts` (new) — `addOneMonth` (Asia/Riyadh, calendar-month clamp), `formatDateRiyadh`, `ONE_DAY_MS`.
+  - Lifecycle server actions branch schedule → duration: `confirmTraineePayment`, `submitOnboarding` (stays `pending_payment` until coach confirms), `renewTraineePlan` (resets period + migrates grandfathered legacy clients). `assignWorkout` anchors `scheduleStartAt`/`scheduleEndsAt` **once** on the coach's first upload.
+  - Client UI: `ScheduleStatusCard.tsx` + `ScheduleAlert.tsx` (new) render dates instead of session counts; `client/page.tsx` branches by `billingModel`. New `schedule` i18n namespace in `ar.json` + `en.json` (ar + en).
+  - Vercel Cron: `vercel.json` + `src/app/api/cron/subscription-reminders/route.ts` (nodejs, `CRON_SECRET`-guarded) — 7-day reminder email (`RenewalReminderTemplate.tsx`) + expiry flip. Composite index added to `firestore.indexes.json` (`users`: role + subscription.billingModel + subscription.scheduleEndsAt).
+  - **New env var: `CRON_SECRET`** (Vercel + local `.env`).
+  - Grandfather: no migration/backfill — legacy schedule clients keep session-count UI until they renew.
+  - TypeScript: `tsc --noEmit` clean per commit.
 
 ---
 
