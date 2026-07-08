@@ -9,7 +9,7 @@ import {
   addWorkout,     updateWorkout,  deleteWorkout,
 } from '@/actions/library-actions';
 import {
-  PlusIcon, TrashIcon, XMarkIcon, MagnifyingGlassIcon, PencilIcon,
+  PlusIcon, TrashIcon, XMarkIcon, PencilIcon,
 } from '@heroicons/react/24/outline';
 import MealsManager from '@/components/admin/library/MealsManager';
 import ExerciseBrowser from '@/components/admin/library/ExerciseBrowser';
@@ -235,23 +235,30 @@ function AddWorkoutModal({ open, onClose, exercises }: {
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [rows, setRows] = useState<WorkoutExRow[]>([
-    { exerciseId: '', sets: '', reps: '', weightLevel: 'medium', rest: '', notes: '' },
-  ]);
-  const [exSearch, setExSearch] = useState('');
+  // One row per selected exercise (no duplicates). The muscle-grouped browser
+  // toggles membership; overrides are edited in the selected-list below.
+  const [rows, setRows] = useState<WorkoutExRow[]>([]);
 
-  function addRow() { setRows(r => [...r, { exerciseId: '', sets: '', reps: '', weightLevel: 'medium', rest: '', notes: '' }]); }
-  function removeRow(i: number) { setRows(r => r.filter((_, idx) => idx !== i)); }
-  function updateRow(i: number, k: keyof WorkoutExRow, v: any) {
-    setRows(r => r.map((row, idx) => idx === i ? { ...row, [k]: v } : row));
+  function removeRow(exerciseId: string) {
+    setRows(r => r.filter(row => row.exerciseId !== exerciseId));
   }
-  function pickExercise(i: number, exId: string) {
-    const ex = exercises.find(e => e.id === exId);
-    setRows(r => r.map((row, idx) => idx === i ? {
-      ...row, exerciseId: exId,
-      sets: ex?.defaultSets ?? '', reps: ex?.defaultReps ?? '',
-      weightLevel: ex?.defaultWeightLevel ?? 'medium', rest: ex?.defaultRest ?? '',
-    } : row));
+  function updateRow(exerciseId: string, k: keyof WorkoutExRow, v: any) {
+    setRows(r => r.map(row => row.exerciseId === exerciseId ? { ...row, [k]: v } : row));
+  }
+  function toggleExercise(ex: Exercise) {
+    setRows(prev => {
+      if (prev.some(r => r.exerciseId === ex.id)) {
+        return prev.filter(r => r.exerciseId !== ex.id);
+      }
+      return [...prev, {
+        exerciseId: ex.id,
+        sets: ex.defaultSets ?? '',
+        reps: ex.defaultReps ?? '',
+        weightLevel: ex.defaultWeightLevel ?? 'medium',
+        rest: ex.defaultRest ?? '',
+        notes: '',
+      }];
+    });
   }
 
   async function handleSubmit(formData: FormData) {
@@ -267,13 +274,11 @@ function AddWorkoutModal({ open, onClose, exercises }: {
     formData.set('exercisesJson', exercisesJson);
     const res = await addWorkout(formData);
     if (res.error) { setError(res.error); }
-    else { setRows([{ exerciseId: '', sets: '', reps: '', weightLevel: 'medium', rest: '', notes: '' }]); onClose(); }
+    else { setRows([]); onClose(); }
     setLoading(false);
   }
 
-  const filtered = exercises.filter(ex =>
-    !exSearch || ex.nameAr.includes(exSearch) || ex.nameEn.toLowerCase().includes(exSearch.toLowerCase())
-  );
+  const selectedIds = new Set(rows.map(r => r.exerciseId));
 
   return (
     <ModalShell open={open} onClose={onClose} title="📋 بناء برنامج تدريبي">
@@ -301,75 +306,75 @@ function AddWorkoutModal({ open, onClose, exercises }: {
           </div>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="font-black text-text-main">قائمة التمارين</h4>
-            <button type="button" onClick={addRow} className="flex items-center gap-1.5 text-sm font-bold text-qwaam-pink bg-qwaam-pink-light px-3 py-2 rounded-xl hover:bg-pink-100 transition-colors">
-              <PlusIcon className="w-4 h-4" /> إضافة تمرين
-            </button>
-          </div>
-          <div className="relative mb-3">
-            <MagnifyingGlassIcon className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-text-muted" />
-            <input
-              className="w-full pr-9 pl-4 py-2.5 rounded-xl border-2 border-border-light text-sm font-bold outline-none focus:border-qwaam-pink"
-              placeholder="ابحث عن تمرين..."
-              value={exSearch}
-              onChange={e => setExSearch(e.target.value)}
+        <div className="space-y-4">
+          <h4 className="font-black text-text-main">قائمة التمارين</h4>
+
+          {/* Muscle-grouped picker — click an exercise to add/remove it */}
+          <div className="max-h-[42vh] overflow-y-auto pr-1 border border-border-light rounded-2xl p-3 bg-gray-50/50">
+            <ExerciseBrowser
+              exercises={exercises}
+              mode="select"
+              selectedIds={selectedIds}
+              onToggle={toggleExercise}
             />
           </div>
-          <div className="space-y-3 max-h-[36vh] overflow-y-auto pr-1">
-            {rows.map((row, i) => {
-              const picked = exercises.find(e => e.id === row.exerciseId);
-              return (
-                <div key={i} className="bg-white border-2 border-border-light rounded-2xl p-4 space-y-3 group hover:border-qwaam-pink/40 transition-colors relative">
-                  {rows.length > 1 && (
-                    <button type="button" onClick={() => removeRow(i)} className="absolute top-2 left-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
+
+          {/* Selected exercises + per-exercise overrides */}
+          {rows.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-xs font-black text-text-muted uppercase tracking-wider">
+                التمارين المختارة ({rows.length})
+              </p>
+              {rows.map((row) => {
+                const picked = exercises.find(e => e.id === row.exerciseId);
+                if (!picked) return null;
+                return (
+                  <div key={row.exerciseId} className="bg-white border-2 border-border-light rounded-2xl p-4 space-y-3 relative">
+                    <button
+                      type="button"
+                      onClick={() => removeRow(row.exerciseId)}
+                      className="absolute top-2 left-2 text-red-400 hover:text-red-600 transition-colors"
+                      title="إزالة"
+                    >
                       <TrashIcon className="w-5 h-5" />
                     </button>
-                  )}
-                  <div>
-                    <label className={labelCls}>التمرين من المكتبة</label>
-                    <select className={selectCls} value={row.exerciseId} onChange={e => pickExercise(i, e.target.value)} required>
-                      <option value="">— اختر تمرين —</option>
-                      {filtered.map(ex => (
-                        <option key={ex.id} value={ex.id}>{ex.nameAr} ({ex.targetMuscle} · {ex.equipment})</option>
-                      ))}
-                    </select>
-                  </div>
-                  {picked && (
+                    <div>
+                      <p className="font-black text-text-main text-sm leading-tight">{picked.nameAr}</p>
+                      <p className="text-[11px] font-bold text-text-muted" dir="ltr">{picked.nameEn}</p>
+                    </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       <div>
                         <label className={labelCls}>جولات</label>
-                        <input className={inputCls} type="number" min={1} value={row.sets} onChange={e => updateRow(i, 'sets', e.target.value)} placeholder={String(picked.defaultSets)} />
+                        <input className={inputCls} type="number" min={1} value={row.sets} onChange={e => updateRow(row.exerciseId, 'sets', e.target.value)} placeholder={String(picked.defaultSets)} />
                       </div>
                       <div>
                         <label className={labelCls}>تكرارات</label>
-                        <input className={inputCls} dir="ltr" value={row.reps} onChange={e => updateRow(i, 'reps', e.target.value)} placeholder={picked.defaultReps} />
+                        <input className={inputCls} dir="ltr" value={row.reps} onChange={e => updateRow(row.exerciseId, 'reps', e.target.value)} placeholder={picked.defaultReps} />
                       </div>
                       <div>
                         <label className={labelCls}>الثقل</label>
-                        <select className={selectCls} value={row.weightLevel} onChange={e => updateRow(i, 'weightLevel', e.target.value as WeightLevel)}>
+                        <select className={selectCls} value={row.weightLevel} onChange={e => updateRow(row.exerciseId, 'weightLevel', e.target.value as WeightLevel)}>
                           {WEIGHT_LEVELS.map(w => <option key={w} value={w}>{WEIGHT_LEVEL_AR[w]}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className={labelCls}>راحة (ث)</label>
-                        <input className={inputCls} type="number" min={0} value={row.rest} onChange={e => updateRow(i, 'rest', e.target.value)} placeholder={String(picked.defaultRest)} />
+                        <input className={inputCls} type="number" min={0} value={row.rest} onChange={e => updateRow(row.exerciseId, 'rest', e.target.value)} placeholder={String(picked.defaultRest)} />
                       </div>
                       <div className="col-span-2 sm:col-span-4">
                         <label className={labelCls}>ملاحظات (اختياري)</label>
-                        <input className={inputCls} value={row.notes} onChange={e => updateRow(i, 'notes', e.target.value)} placeholder="تعليمات خاصة..." />
+                        <input className={inputCls} value={row.notes} onChange={e => updateRow(row.exerciseId, 'notes', e.target.value)} placeholder="تعليمات خاصة..." />
                       </div>
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {error && <p className="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl border border-red-100 font-bold">{error}</p>}
-        <button type="submit" disabled={loading} className="w-full py-4 rounded-xl bg-text-main text-white font-black text-base shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-50">
+        <button type="submit" disabled={loading || rows.length === 0} className="w-full py-4 rounded-xl bg-text-main text-white font-black text-base shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
           {loading ? 'جاري الحفظ...' : 'حفظ ونشر البرنامج'}
         </button>
       </form>
