@@ -27,6 +27,10 @@ export interface QwaamUser {
     status: 'pending' | 'fulfilled';
   };
   activeRoomUrl?: string | null;
+  // Onboarding answers the trainee entered at signup (or the coach entered on
+  // their behalf via addClient). Display-only for the coach. All fields are
+  // optional — older trainees may not carry every field. See OnboardingData.
+  onboarding?: OnboardingData;
   traineeData?: {
     assignedCoachUid?: string;
     unreadCount?: number;
@@ -236,6 +240,54 @@ export interface ChatMessage {
 
 export type MaritalStatus = 'single' | 'married';
 export type PrimaryGoal = 'fatBurn' | 'gainMuscle' | 'gainWeight';
+
+// ── Stored onboarding shape (users/{uid}.onboarding) ──────────────────────────
+// This is what actually lands in Firestore under the `onboarding` key (built by
+// OnboardingWizard / addClient) — a subset of OnboardingFormData with the file
+// inputs replaced by uploaded URLs. Every field is optional so the coach-facing
+// RegistrationCard can render older docs that predate a given field. This type
+// is DISPLAY support only — it does not change how onboarding is stored.
+export interface OnboardingData {
+  // Personal (Step 2)
+  dateOfBirth?: string;
+  phone?: string;
+  maritalStatus?: MaritalStatus;
+  isPregnant?: boolean;
+  isNursing?: boolean;
+  hasChildren?: boolean;
+  // Health (Step 3)
+  hasInjuries?: boolean;
+  injuryDetails?: string;
+  hasChronicDiseases?: boolean;
+  chronicDiseases?: string[];
+  isSmoker?: boolean;
+  // Goals & Training (Step 4)
+  primaryGoal?: PrimaryGoal;
+  workoutDaysPerWeek?: number;
+  sportsExperience?: string;
+  currentSupplements?: string[];
+  trainedBefore?: boolean;
+  previousGuidesPhotos?: string[];
+  // Body / InBody (Step 5)
+  weight?: number;
+  height?: number;
+  bodyDescription?: string;
+  inbodyUrl?: string;
+  bodyPhotoUrl?: string;
+  measurements?: {
+    chest?: number;
+    shoulders?: number;
+    waist?: number;
+    abdomen?: number;
+    glutes?: number;
+    rightThigh?: number;
+    leftThigh?: number;
+    rightCalf?: number;
+    leftCalf?: number;
+    rightArm?: number;
+    leftArm?: number;
+  };
+}
 
 export interface OnboardingFormData {
   // Step 1
