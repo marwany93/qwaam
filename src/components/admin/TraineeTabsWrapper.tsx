@@ -21,6 +21,8 @@ interface Props {
   coachUid: string;
   progressLogs: any[];
   sessionTracking?: any;
+  /** Paid + active month-based schedule plan with no schedule uploaded yet. */
+  awaitingSchedule?: boolean;
 }
 
 export default function TraineeTabsWrapper({
@@ -33,6 +35,7 @@ export default function TraineeTabsWrapper({
   coachUid,
   progressLogs,
   sessionTracking,
+  awaitingSchedule = false,
 }: Props) {
   return (
     <TabGroup>
@@ -132,6 +135,7 @@ export default function TraineeTabsWrapper({
             assignedMeals={assignedMeals}
             allWorkouts={allWorkouts}
             allMeals={allMeals}
+            awaitingSchedule={awaitingSchedule}
           />
         </TabPanel>
 

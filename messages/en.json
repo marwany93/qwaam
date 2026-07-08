@@ -13,6 +13,10 @@
     "reminderSubject": "Your Qwaam subscription is ending soon",
     "renewCta": "Renew now"
   },
+  "coach": {
+    "awaitingScheduleBadge": "No schedule yet",
+    "awaitingScheduleTooltip": "The trainee has paid and their subscription is active, but no training schedule has been uploaded yet — their month starts the day the schedule is uploaded."
+  },
   "nav": {
     "home": "Home",
     "packages": "Packages",

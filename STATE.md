@@ -7,6 +7,12 @@
 
 ## ✅ Recently Completed
 
+- **Coach "awaiting schedule" indicator** (2026-07-08)
+  - Derived, read-only badge ("لم يُرفع الجدول بعد" / "No schedule yet") for trainees who PAID + activated a month-based schedule plan but whose schedule hasn't been uploaded yet (`billingModel==='duration'` + `status==='active'` + `scheduleStartAt` null).
+  - `src/lib/subscription-utils.ts` (new) — `isAwaitingScheduleUpload(subscription)`.
+  - Shown in `ClientsList.tsx` (status column) and `AssignmentsTab.tsx` header (prop threaded via `TraineeTabsWrapper` from `admin/client/[id]/page.tsx`).
+  - New `coach` i18n namespace (ar + en). Uses existing qwaam-yellow/amber tokens. `tsc --noEmit` clean.
+
 - **Issue #1 — Month-based Schedule subscriptions** (2026-07-08)
   - Scope: only Schedule plans (have `days`, no `sessions`) move to a one-calendar-month duration model; **Live plans untouched**. Discriminator: `isSchedulePlan(planId)` in `pricing-config.ts`.
   - `types/index.ts` — subscription gains `billingModel`, `scheduleStartAt`, `scheduleEndsAt`, `renewalReminderSentAt`.

@@ -17,6 +17,7 @@ import {
 } from '@heroicons/react/24/outline';
 import SessionManagerCard from '@/components/admin/SessionManagerCard';
 import TraineeTabsWrapper from '@/components/admin/TraineeTabsWrapper';
+import { isAwaitingScheduleUpload } from '@/lib/subscription-utils';
 import PendingPaymentCard from '@/components/admin/PendingPaymentCard';
 import WeightChart from '@/components/client/WeightChart';
 import ProgressGallery from '@/components/client/ProgressGallery';
@@ -149,7 +150,7 @@ export default async function TraineeDetailPage({ params }: PageProps) {
       <ProgressGallery entries={weightHistory} title={`صور ${trainee.name}`} />
 
       {/* ── Main Tab System Client Wrapper ── */}
-      <TraineeTabsWrapper 
+      <TraineeTabsWrapper
         traineeUid={traineeUid}
         traineeName={trainee.name}
         assignedWorkouts={assignedWorkouts}
@@ -158,6 +159,7 @@ export default async function TraineeDetailPage({ params }: PageProps) {
         allMeals={allMeals}
         coachUid={coachUid}
         progressLogs={progressLogs}
+        awaitingSchedule={isAwaitingScheduleUpload(trainee.traineeData?.subscription)}
       />
 
     </div>

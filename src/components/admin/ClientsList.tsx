@@ -1,9 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { db, auth } from '@/lib/firebase';
 import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import type { QwaamUser } from '@/types';
+import { isAwaitingScheduleUpload } from '@/lib/subscription-utils';
 import { Link } from '@/i18n/navigation';
 import {
   UserCircleIcon,
@@ -26,6 +28,7 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
 type PageSize = typeof PAGE_SIZE_OPTIONS[number];
 
 export default function ClientsList({ coachUid }: Props) {
+  const t = useTranslations('coach');
   const [clients, setClients] = useState<QwaamUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -216,6 +219,7 @@ export default function ClientsList({ coachUid }: Props) {
                 <tbody className="divide-y divide-border-light">
                   {paged.map((client) => {
                     const unread = client.traineeData?.unreadCount || 0;
+                    const awaitingSchedule = isAwaitingScheduleUpload(client.traineeData?.subscription);
                     return (
                       <tr key={client.uid} className="hover:bg-qwaam-pink-light/15 transition-colors group">
                         {/* Trainee column */}
@@ -245,17 +249,30 @@ export default function ClientsList({ coachUid }: Props) {
 
                         {/* Status */}
                         <td className="px-5 py-3.5">
-                          {client.traineeData?.subscription?.status === 'pending_payment' ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-yellow-50 text-yellow-800 text-[11px] font-extrabold border border-yellow-300">
-                              <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 block animate-pulse" />
-                              في انتظار الدفع
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 text-green-700 text-[11px] font-extrabold border border-green-200">
-                              <span className="w-1.5 h-1.5 rounded-full bg-green-500 block animate-pulse" />
-                              نشطة
-                            </span>
-                          )}
+                          <div className="flex flex-col items-start gap-1.5">
+                            {client.traineeData?.subscription?.status === 'pending_payment' ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-yellow-50 text-yellow-800 text-[11px] font-extrabold border border-yellow-300">
+                                <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 block animate-pulse" />
+                                في انتظار الدفع
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 text-green-700 text-[11px] font-extrabold border border-green-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-500 block animate-pulse" />
+                                نشطة
+                              </span>
+                            )}
+
+                            {/* Coach reminder: paid + active schedule plan, no schedule uploaded yet */}
+                            {awaitingSchedule && (
+                              <span
+                                title={t('awaitingScheduleTooltip')}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-qwaam-yellow/20 text-yellow-800 text-[11px] font-extrabold border border-qwaam-yellow"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 block animate-pulse" />
+                                {t('awaitingScheduleBadge')}
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         {/* Joined */}

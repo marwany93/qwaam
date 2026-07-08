@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useState, useTransition } from 'react';
+import { useTranslations } from 'next-intl';
 import { Dialog, Transition } from '@headlessui/react';
 import type { Workout, Meal } from '@/types';
 import {
@@ -24,6 +25,8 @@ interface Props {
   assignedMeals: Meal[];
   allWorkouts: Workout[];
   allMeals: Meal[];
+  /** Paid + active month-based schedule plan with no schedule uploaded yet. */
+  awaitingSchedule?: boolean;
 }
 
 // Maps difficulty keys → localized Arabic label + Tailwind color class
@@ -47,7 +50,9 @@ export default function AssignmentsTab({
   assignedMeals,
   allWorkouts,
   allMeals,
+  awaitingSchedule = false,
 }: Props) {
+  const t = useTranslations('coach');
   const [dialogType, setDialogType] = useState<'workout' | 'meal' | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -101,6 +106,23 @@ export default function AssignmentsTab({
 
   return (
     <>
+      {/* ── Awaiting-schedule reminder — the coach hasn't uploaded a schedule yet
+             for a paid, active month-based plan (its month hasn't started). ── */}
+      {awaitingSchedule && (
+        <div
+          className="flex items-start gap-3 bg-qwaam-yellow/15 border border-qwaam-yellow rounded-2xl px-4 py-3"
+          dir="rtl"
+        >
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-qwaam-yellow/25 text-yellow-800 text-[11px] font-extrabold border border-qwaam-yellow shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 block animate-pulse" />
+            {t('awaitingScheduleBadge')}
+          </span>
+          <p className="text-xs font-bold text-yellow-900/90 leading-relaxed">
+            {t('awaitingScheduleTooltip')}
+          </p>
+        </div>
+      )}
+
       {/* ── Workouts Section ─────────────────────────────────────────────────── */}
       <section className="space-y-5">
         <div className="flex justify-between items-center" dir="rtl">
