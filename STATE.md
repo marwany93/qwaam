@@ -7,6 +7,13 @@
 
 ## ✅ Recently Completed
 
+- **Issue #2 — Muscle-group exercise library** (2026-07-08)
+  - `TargetMuscle` enum expanded to the canonical taxonomy (Chest, Back, Trapezius, Shoulders, Biceps, Triceps, Forearms, Abs, Core, Glutes, Quadriceps, Hamstrings, Adductors, Abductors, Calves, Full Body, Cardio) + legacy `Legs`/`Arms` kept valid. **No backfill** — legacy-tagged exercises stay until re-tagged via the edit form.
+  - `src/lib/exercise-taxonomy.ts` (new) — `MUSCLE_ORDER`, `MUSCLE_FORM_OPTIONS` (excludes legacy), `MUSCLE_AR`, `EQUIPMENT_AR`, `EQUIPMENT_LIST`, `muscleLabel`/`equipmentLabel`. Single source shared by form/browser/picker. Storage stays English; Arabic is display-only.
+  - `src/components/admin/library/ExerciseBrowser.tsx` (new) — reusable muscle-grouped accordion (hides empty groups, legacy last with badge), equipment filter chips, text search. `view` mode (edit/delete) for the Exercises tab; `select` mode (toggle) for the workout builder.
+  - `LibraryContent.tsx` — Exercises tab uses ExerciseBrowser; add/edit dropdowns localized (no legacy options); inline `AddWorkoutModal` picker replaced with the select-mode browser (build+assign flow unchanged).
+  - Deleted dead `src/components/admin/AddWorkoutModal.tsx`. New `library` i18n namespace (ar+en). `tsc --noEmit` clean per commit.
+
 - **Coach "awaiting schedule" indicator** (2026-07-08)
   - Derived, read-only badge ("لم يُرفع الجدول بعد" / "No schedule yet") for trainees who PAID + activated a month-based schedule plan but whose schedule hasn't been uploaded yet (`billingModel==='duration'` + `status==='active'` + `scheduleStartAt` null).
   - `src/lib/subscription-utils.ts` (new) — `isAwaitingScheduleUpload(subscription)`.

@@ -107,7 +107,7 @@ D:\Antigravity Qwaam\
 │   │   └── notification-actions.ts
 │   ├── components/
 │   │   ├── admin/                          # Coach dashboard components
-│   │   │   └── library/                   # MealPlanBuilder, MealSearch, etc.
+│   │   │   └── library/                   # ExerciseBrowser (muscle-grouped), MealPlanBuilder, MealSearch, etc.
 │   │   ├── client/                         # Trainee portal components
 │   │   ├── onboarding/                     # 6-step wizard components
 │   │   │   └── ui/FormField.tsx
@@ -123,6 +123,7 @@ D:\Antigravity Qwaam\
 │   │   ├── auth-utils.ts                   # verifyAdminAccess / verifyClientAccess
 │   │   ├── firestore-serialize.ts          # Timestamps → millis (safe for RSC→Client boundary)
 │   │   ├── pricing-config.ts               # ★ SINGLE SOURCE OF TRUTH for all plans
+│   │   ├── exercise-taxonomy.ts            # Muscle-group taxonomy (MUSCLE_ORDER/AR, EQUIPMENT_AR, label helpers)
 │   │   ├── onboarding-schema.ts            # Zod schemas for each onboarding step
 │   │   ├── notification-service.ts
 │   │   ├── mail-service.ts
@@ -418,3 +419,4 @@ source of the role:
 | 2026-07-08 | Client UI: `ScheduleStatusCard` + `ScheduleAlert` (date-based) replace session widget/alert for duration plans; new `schedule` i18n namespace (ar+en) | `client/page.tsx`, `ScheduleStatusCard.tsx` (new), `ScheduleAlert.tsx` (new), `ar.json`, `en.json` |
 | 2026-07-08 | Vercel Cron `/api/cron/subscription-reminders` (CRON_SECRET-guarded): 7-day reminder email + expiry flip; `RenewalReminderTemplate`; users composite index; `vercel.json` | `vercel.json` (new), `api/cron/subscription-reminders/route.ts` (new), `RenewalReminderTemplate.tsx` (new), `firestore.indexes.json` |
 | 2026-07-08 | Coach "awaiting schedule" indicator: derived-state badge for trainees who paid + activated a month plan but have no schedule uploaded (`billingModel='duration'` + `status='active'` + `scheduleStartAt` null). Shown in trainees list + AssignmentsTab header. New `isAwaitingScheduleUpload` helper + `coach` i18n namespace (ar+en). Read-only, no new data model. | `subscription-utils.ts` (new), `ClientsList.tsx`, `AssignmentsTab.tsx`, `TraineeTabsWrapper.tsx`, `admin/client/[id]/page.tsx`, `ar.json`, `en.json` |
+| 2026-07-08 | **Issue #2** — Exercise library organized by muscle group. Expanded `TargetMuscle` enum (Chest..Cardio) keeping legacy `Legs`/`Arms` valid (no backfill). New `exercise-taxonomy.ts` (MUSCLE_ORDER/MUSCLE_FORM_OPTIONS/MUSCLE_AR/EQUIPMENT_AR + label helpers). Reusable `ExerciseBrowser` (muscle-grouped accordion + equipment filter chips + search; view/select modes) now powers both the Exercises tab and the workout-builder picker. Add/edit dropdowns localized (store English). New `library` i18n namespace (ar+en). Deleted dead standalone `AddWorkoutModal.tsx`. | `types/index.ts`, `exercise-taxonomy.ts` (new), `library/ExerciseBrowser.tsx` (new), `LibraryContent.tsx`, `ar.json`, `en.json` |
