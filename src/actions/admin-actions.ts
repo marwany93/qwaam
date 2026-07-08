@@ -6,7 +6,7 @@ import type { QwaamUser, RenewalRequest } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { notificationService } from '@/lib/notification-service';
 import { FieldValue } from 'firebase-admin/firestore';
-import { findPlanById } from '@/lib/pricing-config';
+import { findPlanById, isSchedulePlan } from '@/lib/pricing-config';
 import { serializeFirestoreData } from '@/lib/firestore-serialize';
 
 /**
@@ -265,7 +265,31 @@ export async function renewTraineePlan(traineeUid: string, additionalSessions: n
     const snap = await traineeRef.get();
     if (!snap.exists) return { success: false, error: 'المتدرب غير موجود' };
 
-    // FieldValue.increment is atomic: no read-modify-write race possible.
+    // Schedule plans renew onto the month-based duration model: reset the period
+    // so the coach's NEXT schedule upload re-anchors a fresh month. This is also
+    // the path that migrates a grandfathered legacy schedule client onto the new
+    // model. Live plans keep the additive session-count behavior below.
+    const planId = snap.data()?.traineeData?.subscription?.planId as string | undefined;
+    if (planId && isSchedulePlan(planId)) {
+      await traineeRef.update({
+        'traineeData.subscription.billingModel':          'duration',
+        'traineeData.subscription.status':                'active',
+        'traineeData.subscription.scheduleStartAt':       null,
+        'traineeData.subscription.scheduleEndsAt':        null,
+        'traineeData.subscription.renewalReminderSentAt': null,
+        'sessionTracking.totalSessions':     0,
+        'sessionTracking.remainingSessions': 0,
+        'sessionTracking.planStatus':        'active',
+        'sessionTracking.lastRenewedAt':     new Date(),
+        'renewalRequest.status':             'fulfilled',
+      });
+
+      revalidatePath(`/admin/client/${traineeUid}`);
+      revalidatePath('/client');
+      return { success: true, billingModel: 'duration', newTotal: 0, newRemaining: 0 };
+    }
+
+    // Live (session model) — FieldValue.increment is atomic: no race possible.
     await traineeRef.update({
       'sessionTracking.totalSessions':     FieldValue.increment(additionalSessions),
       'sessionTracking.remainingSessions': FieldValue.increment(additionalSessions),
@@ -584,20 +608,41 @@ export async function confirmTraineePayment(traineeUid: string, updatedPlanId?: 
       return { success: false, error: 'الباقة المختارة غير صالحة.' };
     }
 
-    // Live plans use `sessions`; schedule plans fall back to `days` per week
-    // as a sensible initial session budget for the cycle.
-    const initialSessions = plan.sessions ?? plan.days ?? 0;
+    // Branch by plan type. Schedule plans use the month-based duration model
+    // (no session budget); Live plans keep the session-count model unchanged.
+    const schedule = isSchedulePlan(effectivePlanId);
 
     // Build update payload. Always set status + sessionTracking; only
     // overwrite planId/amountPaid if the admin chose a different plan.
-    const update: Record<string, any> = {
-      'traineeData.subscription.status': 'active',
-      'traineeData.subscription.activatedAt': new Date(),
-      'sessionTracking.totalSessions': initialSessions,
-      'sessionTracking.remainingSessions': initialSessions,
-      'sessionTracking.planStatus': initialSessions > 0 ? 'active' : 'finished',
-      'sessionTracking.lastRenewedAt': new Date(),
-    };
+    let update: Record<string, any>;
+
+    if (schedule) {
+      // Duration model: sessions are NOT tracked. scheduleStartAt stays null
+      // until the coach uploads the schedule (assignWorkout anchors it then).
+      update = {
+        'traineeData.subscription.status': 'active',
+        'traineeData.subscription.activatedAt': new Date(),
+        'traineeData.subscription.billingModel': 'duration',
+        'traineeData.subscription.scheduleStartAt': null,
+        'traineeData.subscription.scheduleEndsAt': null,
+        'traineeData.subscription.renewalReminderSentAt': null,
+        'sessionTracking.totalSessions': 0,
+        'sessionTracking.remainingSessions': 0,
+        'sessionTracking.planStatus': 'active',
+        'sessionTracking.lastRenewedAt': new Date(),
+      };
+    } else {
+      // Live: session-count model — unchanged behavior.
+      const initialSessions = plan.sessions ?? 0;
+      update = {
+        'traineeData.subscription.status': 'active',
+        'traineeData.subscription.activatedAt': new Date(),
+        'sessionTracking.totalSessions': initialSessions,
+        'sessionTracking.remainingSessions': initialSessions,
+        'sessionTracking.planStatus': initialSessions > 0 ? 'active' : 'finished',
+        'sessionTracking.lastRenewedAt': new Date(),
+      };
+    }
 
     if (updatedPlanId && updatedPlanId !== currentSub?.planId) {
       update['traineeData.subscription.planId'] = updatedPlanId;
@@ -624,7 +669,8 @@ export async function confirmTraineePayment(traineeUid: string, updatedPlanId?: 
     return {
       success: true,
       planId: effectivePlanId,
-      sessions: initialSessions,
+      sessions: schedule ? 0 : (plan.sessions ?? 0),
+      billingModel: schedule ? 'duration' : 'session',
     };
   } catch (error) {
     console.error('confirmTraineePayment error:', error);

@@ -10,7 +10,7 @@ import { ResetPasswordTemplate } from '@/emails/ResetPasswordTemplate';
 import { sendNotification } from '@/actions/notification-actions';
 import { WelcomeTemplate } from '@/emails/WelcomeTemplate';
 import { headers } from 'next/headers';
-import { findPlanById } from '@/lib/pricing-config';
+import { findPlanById, isSchedulePlan } from '@/lib/pricing-config';
 import { serializeFirestoreData } from '@/lib/firestore-serialize';
 
 // تهيئة Resend
@@ -193,10 +193,14 @@ export async function submitOnboarding(uid: string, docPayload: Record<string, a
     //   2. Derived from traineeData.subscription.planId via the pricing config
     //   3. Fallback to 0 — makes a missing plan visible instead of silently
     //      granting 12 free sessions (the previous default that hid the bug)
+    const planId = docPayload?.traineeData?.subscription?.planId as string | undefined;
+    // Schedule plans use the month-based duration model — sessions are NOT
+    // tracked (the coach's first schedule upload anchors the month later).
+    const schedule = planId ? isSchedulePlan(planId) : false;
+
     let initialSessions = Number(docPayload.planSessions);
 
     if (!Number.isFinite(initialSessions) || initialSessions <= 0) {
-      const planId = docPayload?.traineeData?.subscription?.planId as string | undefined;
       if (planId) {
         const plan = findPlanById(planId);
         initialSessions = plan?.sessions ?? plan?.days ?? 0;
@@ -209,16 +213,41 @@ export async function submitOnboarding(uid: string, docPayload: Record<string, a
     // not part of the QwaamUser shape. sessionTracking is the source of truth.
     const { planSessions: _planSessions, ...rest } = docPayload;
 
-    const payload = {
+    const sessionTracking = schedule
+      ? {
+          totalSessions: 0,
+          remainingSessions: 0,
+          planStatus: 'active',
+          lastRenewedAt: new Date(),
+        }
+      : {
+          totalSessions: initialSessions,
+          remainingSessions: initialSessions,
+          planStatus: initialSessions > 0 ? 'active' : 'finished',
+          lastRenewedAt: new Date(),
+        };
+
+    const payload: Record<string, any> = {
       ...rest,
       createdAt: new Date(),
-      sessionTracking: {
-        totalSessions: initialSessions,
-        remainingSessions: initialSessions,
-        planStatus: initialSessions > 0 ? 'active' : 'finished',
-        lastRenewedAt: new Date(),
-      },
+      sessionTracking,
     };
+
+    // Tag the subscription with the duration model so the coach's first schedule
+    // upload can anchor the month. Status stays 'pending_payment' (set client-side)
+    // until the coach verifies the transfer via confirmTraineePayment.
+    if (schedule && payload.traineeData?.subscription) {
+      payload.traineeData = {
+        ...payload.traineeData,
+        subscription: {
+          ...payload.traineeData.subscription,
+          billingModel: 'duration',
+          scheduleStartAt: null,
+          scheduleEndsAt: null,
+          renewalReminderSentAt: null,
+        },
+      };
+    }
 
     await db.collection('users').doc(uid).set(payload);
 

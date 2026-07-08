@@ -6,6 +6,8 @@ import type { QwaamUser, Workout, Meal } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { FieldValue } from 'firebase-admin/firestore';
 import { notificationService } from '@/lib/notification-service';
+import { isSchedulePlan } from '@/lib/pricing-config';
+import { addOneMonth } from '@/lib/date-utils';
 
 // ── Trainee Query ────────────────────────────────────────
 
@@ -30,19 +32,38 @@ export async function assignWorkout(traineeUid: string, workoutId: string) {
   await verifyAdminAccess();
 
   const db = getAdminDb();
-  await db.collection('users').doc(traineeUid).update({
+  const traineeRef = db.collection('users').doc(traineeUid);
+
+  await traineeRef.update({
     'traineeData.assignedWorkouts': FieldValue.arrayUnion(workoutId),
   });
+
+  // Anchor the month for duration-model Schedule plans on the FIRST upload only.
+  // This is the start anchor — set once, when scheduleStartAt is still null, and
+  // never overwritten on later assignments/edits (protects the client's days if
+  // the coach sets things up late).
+  const doc = await traineeRef.get();
+  const data = doc.exists ? doc.data() : null;
+  const sub = data?.traineeData?.subscription;
+  if (
+    sub?.billingModel === 'duration' &&
+    sub?.planId &&
+    isSchedulePlan(sub.planId) &&
+    (sub.scheduleStartAt === null || sub.scheduleStartAt === undefined)
+  ) {
+    const now = Date.now();
+    await traineeRef.update({
+      'traineeData.subscription.scheduleStartAt': now,
+      'traineeData.subscription.scheduleEndsAt': addOneMonth(now),
+    });
+    revalidatePath('/client');
+  }
 
   revalidatePath(`/admin/client/${traineeUid}`);
 
   // Fetch trainee document for notification safely
-  const doc = await db.collection('users').doc(traineeUid).get();
-  if (doc.exists) {
-    const data = doc.data();
-    if (data?.email && data?.name) {
-      notificationService.notifyNewWorkout(data.email, data.name);
-    }
+  if (data?.email && data?.name) {
+    notificationService.notifyNewWorkout(data.email, data.name);
   }
 
   return { success: true };
