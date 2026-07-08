@@ -144,11 +144,8 @@ export default async function TraineeDetailPage({ params }: PageProps) {
         />
       )}
 
-      {/* ── Registration info (Issue #5) — trained-before answer + guide photos ── */}
-      <RegistrationCard
-        trainedBefore={(trainee as any).onboarding?.trainedBefore ?? false}
-        previousGuidesPhotos={(trainee as any).onboarding?.previousGuidesPhotos ?? []}
-      />
+      {/* ── Registration info (Issue #6) — full onboarding data + trained-before + guide photos ── */}
+      <RegistrationCard onboarding={trainee.onboarding} />
 
       {/* ── Trainee weight chart — coach-facing progress view ── */}
       <WeightChart data={weightHistory} title={`منحنى وزن ${trainee.name}`} />
