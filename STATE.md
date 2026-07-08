@@ -7,6 +7,16 @@
 
 ## ✅ Recently Completed
 
+- **Issue #3 — Manual meal plans connected to the client (Path B)** (2026-07-08)
+  - **Path B**: `meal_plans` is now the source of the trainee's diet and is read by the client. Revived the previously-dead `MealPlanBuilder`; supports single-day and multi-day plans, manual authoring, and the +200 EGP nutrition gate is now actually enforced.
+  - **Data model** (`types/index.ts`): `MealPlanMealRow` (new) enriches each plan row with `description` + full macros (`protein`/`carbs`/`fats`, plural) + a stable `id` + `source`. `MealPlanDay.meals` is now `MealPlanMealRow[]`. `MealPlan` gains optional plan-level `eatingWindow?: {start,end}` ("HH:MM" 24h). Legacy rows (`mealName`, no macros) stay readable — normalized to `description ?? mealName ?? '—'`, missing macros → 0. No migration.
+  - `src/lib/meal-utils.ts` (new) — `normalizeMealRow`, `sumMacros`, `fastingHours` (24 − eating-window length, handles overnight). Pure, shared by builder + client table.
+  - **Row ids**: minted once server-side in `createMealPlan` as `row_<uuid>`; client `tmp-*` placeholders are always reassigned; existing `row_*` ids preserved across edits/reorders. Adherence logs keyed `plan:{planId}:{rowId}` (never reuse a meal-doc id).
+  - **Actions** (`meal-plan-actions.ts`): `createMealPlan` normalizes rows (coerces macros, maps singular `fat`→`fats` at the saved-meal boundary), persists `eatingWindow`, recomputes totals server-side. New `getAssignedMealPlan()` — **gate enforcement point #1**: reads `subscription.dietAdded`, returns `{dietAdded:false, plan:null}` WITHOUT querying `meal_plans` when locked; else returns newest assigned plan (sorted in memory, no index). Uses Admin SDK (bypasses rules).
+  - **Coach UI** (`MealPlanBuilder.tsx`): manual rows (mealType + description + 4 macros typed directly), saved-meal dropdown prefills a new row (`fat`→`fats`), optional eating-window inputs, add/remove days. All strings via the `nutrition` i18n namespace.
+  - **Client UI**: `MealPlanTable.tsx` (new) — desktop table / mobile stacked cards, eating-window header, day selector only when `days.length>1`, per-row adherence toggle, daily total row. `client/page.tsx` Diet Module — **gate enforcement point #2**: locked/upsell when `!dietAdded`; table when a plan exists; legacy `assignedMeals` cards as grandfather fallback; else awaiting state. Today-summary meal counts mirror the same source.
+  - New `nutrition` i18n namespace (ar + en). `tsc --noEmit` clean per commit (6 commits). `meals` library + `assignedMeals` path left intact (fallback + Spoonacular saving). Dead `AddMealModal.tsx` left untouched.
+
 - **Issue #2 — Muscle-group exercise library** (2026-07-08)
   - `TargetMuscle` enum expanded to the canonical taxonomy (Chest, Back, Trapezius, Shoulders, Biceps, Triceps, Forearms, Abs, Core, Glutes, Quadriceps, Hamstrings, Adductors, Abductors, Calves, Full Body, Cardio) + legacy `Legs`/`Arms` kept valid. **No backfill** — legacy-tagged exercises stay until re-tagged via the edit form.
   - `src/lib/exercise-taxonomy.ts` (new) — `MUSCLE_ORDER`, `MUSCLE_FORM_OPTIONS` (excludes legacy), `MUSCLE_AR`, `EQUIPMENT_AR`, `EQUIPMENT_LIST`, `muscleLabel`/`equipmentLabel`. Single source shared by form/browser/picker. Storage stays English; Arabic is display-only.

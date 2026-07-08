@@ -108,7 +108,7 @@ D:\Antigravity Qwaam\
 │   ├── components/
 │   │   ├── admin/                          # Coach dashboard components
 │   │   │   └── library/                   # ExerciseBrowser (muscle-grouped), MealPlanBuilder, MealSearch, etc.
-│   │   ├── client/                         # Trainee portal components
+│   │   ├── client/                         # Trainee portal components (incl. MealPlanTable — gated diet table)
 │   │   ├── onboarding/                     # 6-step wizard components
 │   │   │   └── ui/FormField.tsx
 │   │   ├── pricing/PricingClient.tsx       # Public packages page wizard
@@ -124,6 +124,7 @@ D:\Antigravity Qwaam\
 │   │   ├── firestore-serialize.ts          # Timestamps → millis (safe for RSC→Client boundary)
 │   │   ├── pricing-config.ts               # ★ SINGLE SOURCE OF TRUTH for all plans
 │   │   ├── exercise-taxonomy.ts            # Muscle-group taxonomy (MUSCLE_ORDER/AR, EQUIPMENT_AR, label helpers)
+│   │   ├── meal-utils.ts                   # Meal-plan helpers (normalizeMealRow, sumMacros, fastingHours)
 │   │   ├── onboarding-schema.ts            # Zod schemas for each onboarding step
 │   │   ├── notification-service.ts
 │   │   ├── mail-service.ts
@@ -233,6 +234,23 @@ inside `ScheduleStatusCard` when the period is ending (`0 < scheduleEndsAt - now
 )}
 ```
 `SessionAlert` is purely informational — no server actions, no CTA buttons. It only points users to the RenewalWizard below.
+
+### Nutrition access (the `dietAdded` +200 EGP gate) — Issue #3
+Nutrition is **gated** on `traineeData.subscription.dietAdded === true` (the +200
+EGP add-on). Enforced in **two** places, both required:
+1. **`getAssignedMealPlan()`** (`meal-plan-actions.ts`) — if `dietAdded` is false it
+   returns `{ dietAdded:false, plan:null }` **without** querying `meal_plans` (fails
+   closed on error too). Uses the Admin SDK so Firestore rules aren't the gate.
+2. **Diet Module render** (`client/page.tsx`) — `!dietAdded` → locked/upsell state;
+   `dietAdded && plan` → `MealPlanTable`; `dietAdded && !plan && assignedMeals>0` →
+   legacy `assignedMeals` cards (grandfather); else → awaiting state.
+
+The trainee's diet source is the **newest `meal_plans` doc** where `assignedTo == uid`
+(Path B). The legacy `meals`/`assignedMeals` assign path is kept only for the
+grandfather fallback and for Spoonacular saving. Adherence toggles on plan rows are
+keyed `plan:{planId}:{rowId}` in `progressLogs`. Copy lives in the `nutrition` i18n
+namespace; eating-window fasting hours are computed via `fastingHours()`
+(`meal-utils.ts`), never stored.
 
 ---
 
@@ -357,7 +375,7 @@ All user-facing UI is `dir="rtl"` by default. Arabic is the primary language. Us
 | `workouts` | titleAr/En, difficulty, duration, exercises[] | Read: any authed; Write: coach |
 | `meals` | nameAr/En, type, calories, macros, recipe, imageUrl | Read: any authed; Write: coach |
 | `custom_meals` | title, calories, macros, sourceUrl, savedByCoachUid | Read: any authed; Write: owner coach |
-| `meal_plans` | coachUid, assignedTo, name, days[], totalCalories | Coach or assigned trainee |
+| `meal_plans` | coachUid, assignedTo, name, days[] (rows: mealType/description/calories/protein/carbs/fats/id/source), totalCalories, eatingWindow?, createdAt | Coach or assigned trainee. **Client read path = `getAssignedMealPlan` (Admin SDK), gated on `subscription.dietAdded`.** |
 | `progress_logs` | traineeUid, itemId, type, date, status | Trainee or assigned coach |
 | `trainee_progress` | traineeUid, date, weight, bodyFat, measurements, photos | Trainee or assigned coach |
 | `session_logs` | traineeUid, action, oldValue, newValue, changedBy | Read: trainee+coach; Write: Admin SDK only |
@@ -419,4 +437,5 @@ source of the role:
 | 2026-07-08 | Client UI: `ScheduleStatusCard` + `ScheduleAlert` (date-based) replace session widget/alert for duration plans; new `schedule` i18n namespace (ar+en) | `client/page.tsx`, `ScheduleStatusCard.tsx` (new), `ScheduleAlert.tsx` (new), `ar.json`, `en.json` |
 | 2026-07-08 | Vercel Cron `/api/cron/subscription-reminders` (CRON_SECRET-guarded): 7-day reminder email + expiry flip; `RenewalReminderTemplate`; users composite index; `vercel.json` | `vercel.json` (new), `api/cron/subscription-reminders/route.ts` (new), `RenewalReminderTemplate.tsx` (new), `firestore.indexes.json` |
 | 2026-07-08 | Coach "awaiting schedule" indicator: derived-state badge for trainees who paid + activated a month plan but have no schedule uploaded (`billingModel='duration'` + `status='active'` + `scheduleStartAt` null). Shown in trainees list + AssignmentsTab header. New `isAwaitingScheduleUpload` helper + `coach` i18n namespace (ar+en). Read-only, no new data model. | `subscription-utils.ts` (new), `ClientsList.tsx`, `AssignmentsTab.tsx`, `TraineeTabsWrapper.tsx`, `admin/client/[id]/page.tsx`, `ar.json`, `en.json` |
+| 2026-07-08 | **Issue #3** — Manual meal plans connected to the client (Path B). `meal_plans` is now the trainee's diet source (read via `getAssignedMealPlan`, gated on `subscription.dietAdded`). Enriched `MealPlanMealRow` (description + full macros + stable `row_*` id + source), plan-level `eatingWindow`, legacy rows readable (no migration). New `meal-utils.ts` (normalizeMealRow/sumMacros/fastingHours). `createMealPlan` writes full macros + eatingWindow, mints row ids, maps `fat`→`fats`. Revived `MealPlanBuilder` (manual entry + saved-meal prefill + eating window + multi-day). New client `MealPlanTable` (desktop table / mobile cards, day selector, daily total, adherence toggle `plan:{planId}:{rowId}`). Diet Module gated: locked upsell / table / legacy fallback / awaiting. New `nutrition` i18n namespace (ar+en). `meals`+`assignedMeals` path kept for fallback. | `types/index.ts`, `meal-utils.ts` (new), `meal-plan-actions.ts`, `MealPlanBuilder.tsx`, `MealPlanTable.tsx` (new), `client/page.tsx`, `ar.json`, `en.json` |
 | 2026-07-08 | **Issue #2** — Exercise library organized by muscle group. Expanded `TargetMuscle` enum (Chest..Cardio) keeping legacy `Legs`/`Arms` valid (no backfill). New `exercise-taxonomy.ts` (MUSCLE_ORDER/MUSCLE_FORM_OPTIONS/MUSCLE_AR/EQUIPMENT_AR + label helpers). Reusable `ExerciseBrowser` (muscle-grouped accordion + equipment filter chips + search; view/select modes) now powers both the Exercises tab and the workout-builder picker. Add/edit dropdowns localized (store English). New `library` i18n namespace (ar+en). Deleted dead standalone `AddWorkoutModal.tsx`. | `types/index.ts`, `exercise-taxonomy.ts` (new), `library/ExerciseBrowser.tsx` (new), `LibraryContent.tsx`, `ar.json`, `en.json` |
