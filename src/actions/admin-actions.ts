@@ -8,6 +8,53 @@ import { notificationService } from '@/lib/notification-service';
 import { FieldValue } from 'firebase-admin/firestore';
 import { findPlanById, isSchedulePlan } from '@/lib/pricing-config';
 import { serializeFirestoreData } from '@/lib/firestore-serialize';
+import { randomUUID } from 'crypto';
+
+/**
+ * Uploads coach-provided "previous training guide" photos to the trainee's
+ * Storage folder via the Admin SDK — the coach cannot write to the trainee's
+ * Storage per storage.rules, so this is the only allowed path for add-client.
+ *
+ * Returns getDownloadURL-style token URLs (same shape the client SDK produces),
+ * so the assigned coach can read them later via the existing isAssignedCoach
+ * rule. Images only, <5MB each, capped at `max`. Invalid files are skipped.
+ */
+async function uploadGuidePhotosAdmin(
+  uid: string,
+  files: File[],
+  max = 5,
+): Promise<string[]> {
+  if (!files.length) return [];
+  const bucket = getAdminStorage().bucket();
+  const urls: string[] = [];
+
+  for (let i = 0; i < files.length && urls.length < max; i++) {
+    const file = files[i];
+    if (!file || file.size === 0) continue;
+    if (!file.type.startsWith('image/')) continue;
+    if (file.size > 5 * 1024 * 1024) continue;
+
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `trainee_uploads/${uid}/previous_guides/guide_${i}_${Date.now()}.${ext}`;
+    const token = randomUUID();
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    await bucket.file(path).save(buffer, {
+      metadata: {
+        contentType: file.type,
+        // The download token is what makes the getDownloadURL-style URL work.
+        metadata: { firebaseStorageDownloadTokens: token },
+      },
+    });
+
+    const encoded = encodeURIComponent(path);
+    urls.push(
+      `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encoded}?alt=media&token=${token}`,
+    );
+  }
+
+  return urls;
+}
 
 /**
  * Retrieves the list of all active trainees.
@@ -42,6 +89,13 @@ export async function addClient(formData: FormData) {
   const name = formData.get('name') as string;
   const email = formData.get('email') as string;
 
+  // Issue #5 — coach answers "trained before?" on the client's behalf, plus an
+  // optional set of previous training-guide photos (both strictly optional).
+  const trainedBefore = formData.get('trainedBefore') === 'true';
+  const guideFiles = formData
+    .getAll('previousGuides')
+    .filter((v): v is File => v instanceof File);
+
   // Optional: coach can seed an initial session count when adding a client
   // manually. Defaults to 0 — coach renews via the subscription panel later.
   const sessionsRaw = formData.get('sessions');
@@ -69,6 +123,18 @@ export async function addClient(formData: FormData) {
     // 2. Set Custom Claim 'role: trainee'
     await auth.setCustomUserClaims(userRecord.uid, { role: 'trainee' });
 
+    // 2b. Upload any coach-provided previous-guide photos (server-side, since the
+    // coach can't write to the trainee's Storage). Non-fatal on failure — the
+    // account is more important than the optional photos.
+    let previousGuidesPhotos: string[] = [];
+    if (guideFiles.length) {
+      try {
+        previousGuidesPhotos = await uploadGuidePhotosAdmin(userRecord.uid, guideFiles);
+      } catch (e) {
+        console.error('[addClient] guide-photo upload failed (non-fatal):', e);
+      }
+    }
+
     // 3. Create document in 'users' collection — sessionTracking is
     // initialized here so the document shape is consistent from day one.
     // Without this, manually-added clients had no sessionTracking field at
@@ -89,7 +155,13 @@ export async function addClient(formData: FormData) {
         assignedWorkouts: [],
         assignedMeals: [],
         progress: {}
-      }
+      },
+      // Issue #5 — registration answers the coach entered on the client's behalf.
+      // previousGuidesPhotos is always an array (never null/undefined).
+      onboarding: {
+        trainedBefore,
+        previousGuidesPhotos,
+      },
     });
 
     // 4. Generate the password reset email directly via Firebase Admin

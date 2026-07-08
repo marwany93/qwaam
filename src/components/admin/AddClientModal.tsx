@@ -15,6 +15,8 @@ export default function AddClientModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successLink, setSuccessLink] = useState('');
+  const [trainedBefore, setTrainedBefore] = useState(false);
+  const [guidePreviews, setGuidePreviews] = useState<string[]>([]);
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
@@ -35,7 +37,14 @@ export default function AddClientModal({
   function handleResetAndClose() {
     setSuccessLink('');
     setError('');
+    setTrainedBefore(false);
+    setGuidePreviews([]);
     closeModal();
+  }
+
+  function handleGuideFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []).slice(0, 5);
+    setGuidePreviews(files.map((f) => URL.createObjectURL(f)));
   }
 
   return (
@@ -113,6 +122,65 @@ export default function AddClientModal({
                         placeholder="ahmed@example.com"
                       />
                     </div>
+
+                    {/* Trained before? — coach answers on the client's behalf */}
+                    <div data-testid="add-client-trained-before">
+                      <label className="block text-sm font-bold text-text-main mb-2">هل تدرّب من قبل؟</label>
+                      <input type="hidden" name="trainedBefore" value={String(trainedBefore)} />
+                      <div className="grid grid-cols-2 gap-3">
+                        {[
+                          { val: true, label: 'نعم' },
+                          { val: false, label: 'لا' },
+                        ].map(({ val, label }) => {
+                          const isSelected = trainedBefore === val;
+                          return (
+                            <button
+                              key={String(val)}
+                              type="button"
+                              disabled={loading}
+                              onClick={() => {
+                                setTrainedBefore(val);
+                                if (!val) setGuidePreviews([]);
+                              }}
+                              className={`p-3 rounded-xl border-2 font-bold text-sm transition-all ${isSelected
+                                ? 'bg-qwaam-pink-light border-qwaam-pink text-qwaam-pink'
+                                : 'bg-gray-50/50 border-border-light text-text-muted hover:border-qwaam-pink/50'
+                                }`}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Optional previous-guide photos (only when "yes") */}
+                    {trainedBefore && (
+                      <div>
+                        <label className="block text-sm font-bold text-text-main mb-2">
+                          صور الجداول التدريبية السابقة <span className="font-normal text-text-muted">(اختياري — حتى 5)</span>
+                        </label>
+                        <input
+                          type="file"
+                          name="previousGuides"
+                          accept="image/*"
+                          multiple
+                          disabled={loading}
+                          onChange={handleGuideFiles}
+                          className="block w-full text-sm text-text-muted file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-qwaam-pink-light file:text-qwaam-pink file:font-bold hover:file:bg-qwaam-pink/20 cursor-pointer"
+                        />
+                        {guidePreviews.length > 0 && (
+                          <div className="grid grid-cols-5 gap-2 mt-3">
+                            {guidePreviews.map((url, i) => (
+                              <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-border-light bg-gray-100">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={url} alt={`guide-${i}`} className="w-full h-full object-cover" />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Error Box */}
                     {error && (
