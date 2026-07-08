@@ -15,7 +15,13 @@
   },
   "coach": {
     "awaitingScheduleBadge": "No schedule yet",
-    "awaitingScheduleTooltip": "The trainee has paid and their subscription is active, but no training schedule has been uploaded yet — their month starts the day the schedule is uploaded."
+    "awaitingScheduleTooltip": "The trainee has paid and their subscription is active, but no training schedule has been uploaded yet — their month starts the day the schedule is uploaded.",
+    "registrationTitle": "Registration info",
+    "trainedBeforeQuestion": "Has trained before?",
+    "trainedBeforeYes": "Yes",
+    "trainedBeforeNo": "No",
+    "previousGuidesTitle": "Previous training guide photos",
+    "noPreviousGuides": "No photos uploaded"
   },
   "library": {
     "searchPlaceholder": "Search exercises...",
@@ -304,6 +310,11 @@
       "workoutDaysLabel": "How many days per week can you train?",
       "experienceLabel": "Do you have any previous sports experience?",
       "experiencePlaceholder": "Describe any previous sports experience (optional)...",
+      "trainedBeforeLabel": "Have you trained before?",
+      "trainedBeforeYes": "Yes",
+      "trainedBeforeNo": "No",
+      "previousGuidesLabel": "Photos of your previous training guides/programs",
+      "previousGuidesHint": "Optional — upload up to 5 images (images only, under 5 MB each).",
       "supplementsLabel": "Current Supplements",
       "supplements": {
         "whey": "Whey Protein",

@@ -15,7 +15,13 @@
   },
   "coach": {
     "awaitingScheduleBadge": "لم يُرفع الجدول بعد",
-    "awaitingScheduleTooltip": "دفع المتدرّب واشتراكه مُفعّل، ولم تُرفع خطته التدريبية بعد — تبدأ مدة اشتراكه من يوم رفع الجدول."
+    "awaitingScheduleTooltip": "دفع المتدرّب واشتراكه مُفعّل، ولم تُرفع خطته التدريبية بعد — تبدأ مدة اشتراكه من يوم رفع الجدول.",
+    "registrationTitle": "بيانات التسجيل",
+    "trainedBeforeQuestion": "هل تدرّب من قبل؟",
+    "trainedBeforeYes": "نعم",
+    "trainedBeforeNo": "لا",
+    "previousGuidesTitle": "صور الجداول التدريبية السابقة",
+    "noPreviousGuides": "لا توجد صور مرفوعة"
   },
   "library": {
     "searchPlaceholder": "ابحث عن تمرين...",
@@ -311,6 +317,11 @@
       "workoutDaysLabel": "كم يوم في الأسبوع متاح للتدريب؟",
       "experienceLabel": "هل لديكِ تجربة رياضية سابقة؟",
       "experiencePlaceholder": "اذكري أي خبرة رياضية سابقة (اختياري)...",
+      "trainedBeforeLabel": "هل تدربتِ قبل ذلك؟",
+      "trainedBeforeYes": "نعم",
+      "trainedBeforeNo": "لا",
+      "previousGuidesLabel": "صور برامجكِ/جداولكِ التدريبية السابقة",
+      "previousGuidesHint": "اختياري — يمكنكِ رفع حتى 5 صور (صور فقط، أقل من 5 ميجابايت لكل صورة).",
       "supplementsLabel": "المكملات الغذائية الحالية",
       "supplements": {
         "whey": "بروتين واي",
