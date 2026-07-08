@@ -1,9 +1,14 @@
 // src/lib/firebase.ts
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
+
+// E2E / local-testing flag. When 'true' the client SDK talks to the local
+// Firebase emulators instead of the real project, and App Check is skipped.
+// Default (undefined/anything else) leaves dev + production completely untouched.
+const USE_EMULATOR = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
 
 /**
  * 💡 ملاحظة هندسية:
@@ -34,7 +39,7 @@ const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 // The `self.FIREBASE_APPCHECK_DEBUG_TOKEN = true` line tells the SDK to print
 // the token. After registering it in the console, App Check will accept the
 // same token on every page load from your machine.
-if (typeof window !== 'undefined') {
+if (!USE_EMULATOR && typeof window !== 'undefined') {
   try {
     // Enable the SDK's debug-token printer in development. Production builds
     // must NEVER set this — would leak past reCAPTCHA enforcement.
@@ -73,5 +78,23 @@ if (typeof window !== 'undefined') {
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+// ── Emulator wiring (E2E / local testing only) ────────────────────────────────
+// Connect ONCE — Next.js dev/HMR re-evaluates this module, and the SDK throws
+// "already connected" if connect* runs twice. A module-scoped guard makes it
+// idempotent. Ports mirror the `emulators` block in firebase.json.
+let emulatorsConnected = false;
+if (USE_EMULATOR && !emulatorsConnected) {
+  emulatorsConnected = true;
+  try {
+    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+    connectFirestoreEmulator(db, '127.0.0.1', 8080);
+    connectStorageEmulator(storage, '127.0.0.1', 9199);
+  } catch (err) {
+    // Under HMR the underlying instances may already be pointed at the emulator;
+    // that's fine — swallow the idempotency error, surface anything unexpected.
+    console.warn('[firebase] emulator connect skipped (already connected?):', err);
+  }
+}
 
 export default app;

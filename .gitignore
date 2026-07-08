@@ -43,3 +43,5 @@ Thumbs.db
 playwright-report/
 test-results/
 project.zip
+# Saved auth storageState from global-setup (contains session cookies)
+e2e/.auth/

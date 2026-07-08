@@ -8,6 +8,21 @@ function getAdminApp(): App {
     return getApps()[0];
   }
 
+  // ── Emulator mode (E2E / local testing only) ──────────────────────────────
+  // When the Firebase CLI runs the app under `emulators:exec`, it injects
+  // FIRESTORE_EMULATOR_HOST / FIREBASE_AUTH_EMULATOR_HOST into the environment.
+  // Their presence is our signal to init WITHOUT any real service-account key —
+  // the Admin SDK auto-targets the emulators; only a projectId is required.
+  // These vars are never set in normal dev/production, so the cert path below
+  // is completely unaffected. Never touches firebase-key.json.
+  const useEmulator =
+    !!process.env.FIRESTORE_EMULATOR_HOST || !!process.env.FIREBASE_AUTH_EMULATOR_HOST;
+  if (useEmulator) {
+    return initializeApp({
+      projectId: process.env.GCLOUD_PROJECT || 'qwaam-test',
+    });
+  }
+
   const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 
   if (!serviceAccountEnv) {
