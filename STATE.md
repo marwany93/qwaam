@@ -1,11 +1,20 @@
 # Qwaam — Project State (Dynamic Memory)
 
-> **Last Updated: 2026-07-08**
+> **Last Updated: 2026-07-08 (Issue #5)**
 > Update this file at the end of every session via `UPDATE MEMORY`.
 
 ---
 
 ## ✅ Recently Completed
+
+- **Issue #5 — "trained before?" + optional previous-guide photos** (2026-07-08)
+  - New question **"هل تدربتِ قبل ذلك؟"** (Yes/No) + optional multi-photo upload of previous training guides. Photos **strictly optional everywhere** (no min even on "yes"), **max 5**, images-only, <5MB each. Present in **both** the client onboarding flow and the coach's manual add-client flow; coach can view the photos on the trainee detail page.
+  - **Data model** (`types/index.ts`): `OnboardingFormData` gains `trainedBefore?: boolean`, transport-only `previousGuidesFiles?: FileList`, and persisted `previousGuidesPhotos?: string[]`. Stored inside the top-level **`onboarding`** object (next to `sportsExperience`/`inbodyUrl`/`bodyPhotoUrl`). Kept in sync across the 3 places: `step4Schema` (Zod — `trainedBefore` `.catch(false)`, photos array **no `min(1)`**), `STEP_FIELDS[3]`, `OnboardingFormData`.
+  - **Onboarding (client)**: Step 4 (`StepGoals`) Yes/No control + conditional picker. Follows the existing pattern — FileList collected in the form, uploaded **once at final submit** in `OnboardingWizard.onFinalSubmit` via `uploadFile()` → `trainee_uploads/{uid}/previous_guides/...` (owner-write rule). Invalid files skipped; `previousGuidesPhotos` always an array.
+  - **Add-client (coach)**: same question + picker in `AddClientModal` (hidden `trainedBefore` input + `name="previousGuides"` multi-file). Coach can't write to trainee Storage per rules, so `addClient` uploads **server-side via Admin SDK** (`uploadGuidePhotosAdmin`) to `trainee_uploads/{uid}/previous_guides/...`, builds **getDownloadURL-style download-token URLs** (readable by assigned coach via `isAssignedCoach`), then writes `onboarding.{trainedBefore,previousGuidesPhotos}` on the new doc. Upload failure non-fatal.
+  - **Coach view**: `RegistrationCard.tsx` (new) on `admin/client/[id]/page.tsx` — trained-before answer + thumbnail grid + full-screen lightbox (ProgressGallery viewer pattern, no blur). Reads `onboarding.*` from the existing `getTraineeDetails` payload.
+  - **i18n**: `onboarding.step4.trainedBefore*/previousGuides*` + `coach.registration*/trainedBefore*/previousGuides*` (ar + en). **No `storage.rules` change.**
+  - **@smoke e2e**: `e2e/onboarding.spec.ts` + new public `onboarding` Playwright project — drives the wizard to Step 4, asserts the question renders and the uploader toggles on Yes/No. `data-testid`s: `trained-before-question`, `trained-before-yes/no`, `previous-guides-uploader`, `coach-registration-card`, `coach-guide-photos`. `tsc --noEmit` clean per commit (7 commits). ⚠️ Live emulator run still needs JDK 11+ (env has JDK 8); verified via `playwright test --list` + tsc.
 
 - **Playwright e2e on Firebase emulators** (2026-07-08)
   - Real e2e suite against the **Firebase emulators** (Auth 9099 / Firestore 8080 / Storage 9199 / UI 4000) with **seeded users** — fully isolated from prod, deterministic.

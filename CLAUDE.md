@@ -258,6 +258,30 @@ keyed `plan:{planId}:{rowId}` in `progressLogs`. Copy lives in the `nutrition` i
 namespace; eating-window fasting hours are computed via `fastingHours()`
 (`meal-utils.ts`), never stored.
 
+### Registration: "trained before?" + previous-guide photos (Issue #5)
+Two optional fields live inside the top-level **`onboarding`** object (alongside
+`sportsExperience`/`inbodyUrl`/`bodyPhotoUrl`):
+```ts
+onboarding.trainedBefore?: boolean;          // "هل تدربتِ قبل ذلك؟"
+onboarding.previousGuidesPhotos?: string[];  // guide-photo URLs (always an array, never null)
+```
+Photos are **always optional** (no minimum even when `trainedBefore` is true), max 5,
+images-only, <5MB each. Two write paths:
+- **Onboarding (client):** Step 4 (`StepGoals`) Yes/No + conditional multi-photo picker.
+  Files are collected in the RHF form and uploaded **once at final submit** (the uid
+  doesn't exist earlier) via `uploadFile()` → `trainee_uploads/{uid}/previous_guides/...`
+  (owner-write per `storage.rules`).
+- **Add-client (coach):** same question + picker in `AddClientModal`; the coach answers
+  on the client's behalf. The coach **cannot** write to the trainee's Storage, so
+  `addClient` uploads **server-side via the Admin SDK** (`uploadGuidePhotosAdmin`) and
+  builds getDownloadURL-style **download-token** URLs (readable by the assigned coach
+  via the existing `isAssignedCoach` rule).
+
+The coach views the answer + a thumbnail grid/lightbox in `RegistrationCard`
+(`admin/client/[id]/page.tsx`); data comes from `getTraineeDetails`. Labels live in the
+`onboarding.step4.trainedBefore*/previousGuides*` and `coach.registration*` i18n keys.
+**No `storage.rules` change was needed.**
+
 ---
 
 ## 4. Pricing Rules — COMPLETE BREAKDOWN
@@ -446,3 +470,4 @@ source of the role:
 | 2026-07-08 | **Testing** — Playwright e2e on Firebase emulators + seeded users. Emulator wiring behind flags (`NEXT_PUBLIC_USE_FIREBASE_EMULATOR` for client; `FIRESTORE_EMULATOR_HOST`/`FIREBASE_AUTH_EMULATOR_HOST` for admin — off by default, prod untouched). `emulators` block in `firebase.json`. Seed (`scripts/seed-emulator.ts`, safety-gated, dummy projectId — never reads `firebase-key.json`). `e2e/global-setup.ts` logs in per role → `storageState`; projects public/coach/traineeA/traineeB. Real specs replace broken blueprints; `@smoke` covers nutrition/library/schedule. `data-testid` anchors added. Scripts `test:e2e`/`test:e2e:smoke`/`emulators`; `tsx` devDep. **Needs JDK 11+.** See `docs/testing.md`. | `firebase.ts`, `firebase-admin.ts`, `firebase.json`, `.env.local.example`, `playwright.config.ts`, `scripts/seed-emulator.ts` (new), `e2e/*` (new), `docs/testing.md` (new), `package.json` |
 | 2026-07-08 | **Issue #3** — Manual meal plans connected to the client (Path B). `meal_plans` is now the trainee's diet source (read via `getAssignedMealPlan`, gated on `subscription.dietAdded`). Enriched `MealPlanMealRow` (description + full macros + stable `row_*` id + source), plan-level `eatingWindow`, legacy rows readable (no migration). New `meal-utils.ts` (normalizeMealRow/sumMacros/fastingHours). `createMealPlan` writes full macros + eatingWindow, mints row ids, maps `fat`→`fats`. Revived `MealPlanBuilder` (manual entry + saved-meal prefill + eating window + multi-day). New client `MealPlanTable` (desktop table / mobile cards, day selector, daily total, adherence toggle `plan:{planId}:{rowId}`). Diet Module gated: locked upsell / table / legacy fallback / awaiting. New `nutrition` i18n namespace (ar+en). `meals`+`assignedMeals` path kept for fallback. | `types/index.ts`, `meal-utils.ts` (new), `meal-plan-actions.ts`, `MealPlanBuilder.tsx`, `MealPlanTable.tsx` (new), `client/page.tsx`, `ar.json`, `en.json` |
 | 2026-07-08 | **Issue #2** — Exercise library organized by muscle group. Expanded `TargetMuscle` enum (Chest..Cardio) keeping legacy `Legs`/`Arms` valid (no backfill). New `exercise-taxonomy.ts` (MUSCLE_ORDER/MUSCLE_FORM_OPTIONS/MUSCLE_AR/EQUIPMENT_AR + label helpers). Reusable `ExerciseBrowser` (muscle-grouped accordion + equipment filter chips + search; view/select modes) now powers both the Exercises tab and the workout-builder picker. Add/edit dropdowns localized (store English). New `library` i18n namespace (ar+en). Deleted dead standalone `AddWorkoutModal.tsx`. | `types/index.ts`, `exercise-taxonomy.ts` (new), `library/ExerciseBrowser.tsx` (new), `LibraryContent.tsx`, `ar.json`, `en.json` |
+| 2026-07-08 | **Issue #5** — "هل تدربتِ قبل ذلك؟" (trained-before) question + optional previous-guide photos (always optional, max 5, images-only <5MB). Fields stored in the `onboarding` object: `trainedBefore: boolean` + `previousGuidesPhotos: string[]`. **Onboarding (client):** Step 4 (`StepGoals`) Yes/No + conditional multi-photo picker; files collected in the form and uploaded once at final submit via `uploadFile()` to `trainee_uploads/{uid}/previous_guides/...` (owner-write rule). **Add-client (coach):** same question + picker in `AddClientModal`; coach can't write to trainee Storage, so `addClient` uploads **server-side via Admin SDK** (`uploadGuidePhotosAdmin`) with getDownloadURL-style download-token URLs. **Coach view:** new `RegistrationCard` on the trainee detail page (answer + thumbnail grid + lightbox). New `onboarding.step4.trainedBefore*/previousGuides*` + `coach.registration*` i18n (ar+en). `@smoke` e2e (`onboarding.spec.ts` + new `onboarding` Playwright project). **No `storage.rules` change.** | `types/index.ts`, `onboarding-schema.ts`, `OnboardingWizard.tsx`, `StepGoals.tsx`, `admin-actions.ts`, `AddClientModal.tsx`, `RegistrationCard.tsx` (new), `admin/client/[id]/page.tsx`, `ar.json`, `en.json`, `e2e/onboarding.spec.ts` (new), `playwright.config.ts` |
