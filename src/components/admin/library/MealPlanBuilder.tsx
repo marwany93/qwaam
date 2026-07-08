@@ -7,7 +7,7 @@ import {
   deleteMealPlan,
 } from '@/actions/meal-plan-actions';
 import { getSavedMeals, getClients, type SavedMeal } from '@/actions/admin-actions';
-import type { MealPlan, MealPlanDay, QwaamUser } from '@/types';
+import type { MealPlan, MealPlanDay, MealType, QwaamUser } from '@/types';
 import {
   PlusIcon,
   TrashIcon,
@@ -263,10 +263,16 @@ function BuilderForm({
               meals: [
                 ...d.meals,
                 {
-                  mealType,
-                  savedMealId: meal.id,
-                  mealName: meal.title,
+                  // Placeholder id — the server reassigns a stable id at save time.
+                  id: `tmp-${d.meals.length}`,
+                  mealType: mealType as MealType,
+                  description: meal.title,
                   calories: meal.calories ?? 0,
+                  protein: meal.macros?.protein ?? 0,
+                  carbs: meal.macros?.carbs ?? 0,
+                  fats: meal.macros?.fat ?? 0, // map singular fat → canonical fats
+                  source: 'library' as const,
+                  savedMealId: meal.id,
                 },
               ],
             }
@@ -540,7 +546,7 @@ function DayCard({
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <span className="text-xs font-black text-text-muted shrink-0">{typeLabel}</span>
                   <span className="font-bold text-sm text-text-main truncate" dir="ltr" style={{ textAlign: 'right' }}>
-                    {m.mealName}
+                    {m.description || m.mealName}
                   </span>
                 </div>
                 <span className="text-xs font-black text-orange-700 shrink-0">{m.calories} kcal</span>

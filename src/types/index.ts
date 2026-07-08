@@ -80,16 +80,32 @@ export interface ProgressEntry {
 }
 
 // ── Meal Plans ─────────────────────────────────────────────────────────────────
-// Coach-built multi-day meal programs composed of saved custom_meals.
+// Coach-built single- or multi-day meal programs. Rows are authored either
+// manually (coach types the food + macros) or prefilled from a saved/Spoonacular
+// meal. Each row carries FULL macros so the client table needs no extra lookups.
+
+export interface MealPlanMealRow {
+  id: string;               // Stable per-row id (generated once at save time).
+                            // Keys adherence logs as `plan:{planId}:{id}` — never
+                            // reuse a meal-document id for this.
+  mealType: MealType;       // breakfast | lunch | dinner | snack
+  description: string;      // "What you eat" — free text the coach types
+  calories: number;
+  protein: number;          // grams
+  carbs: number;            // grams
+  fats: number;             // grams — plural, canonical (matches Meal.macros.fats)
+  source?: 'manual' | 'spoonacular' | 'library';
+  savedMealId?: string;     // Optional back-reference to a custom_meals doc
+  // ── Legacy (pre-enrichment) rows ──────────────────────────────────────────
+  // Old rows stored { mealType, savedMealId, mealName, calories } with no
+  // macros/description. Readers normalize via normalizeMealRow():
+  //   description ?? mealName ?? '—', and any missing macro → 0.
+  mealName?: string;
+}
 
 export interface MealPlanDay {
   dayName: string;          // e.g., "Day 1" or "Monday"
-  meals: {
-    mealType: string;       // e.g., "Breakfast", "Lunch", "Dinner", "Snack"
-    savedMealId: string;    // Reference to the custom_meals document ID
-    mealName: string;       // Denormalized title so UI doesn't need a join
-    calories: number;       // Denormalized calories for fast totals
-  }[];
+  meals: MealPlanMealRow[];
 }
 
 export interface MealPlan {
@@ -100,6 +116,9 @@ export interface MealPlan {
   description?: string;
   days: MealPlanDay[];
   totalCalories: number;    // Sum across all days/meals — computed server-side
+  // Intermittent-fasting eating window (optional, plan-level). "HH:MM" 24h.
+  // Fasting hours are computed for display (24 − window length), not stored.
+  eatingWindow?: { start: string; end: string } | null;
   createdAt: number;        // Millis (Firestore Timestamp toMillis)
 }
 
