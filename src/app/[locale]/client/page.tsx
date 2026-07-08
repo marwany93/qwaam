@@ -124,7 +124,7 @@ export default async function ClientDashboard({ params }: PageProps) {
   const scheduleEndStr = scheduleEndsAt != null ? formatDateRiyadh(scheduleEndsAt, locale) : null;
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-500 pb-10">
+    <div className="space-y-10 animate-in fade-in duration-500 pb-10" data-testid="client-dashboard">
 
       {/* ── Top alert — pending payment > schedule date alert > session balance ── */}
       {isPendingPayment ? (

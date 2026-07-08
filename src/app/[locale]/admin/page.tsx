@@ -62,7 +62,9 @@ export default async function AdminPage({ params }: PageProps) {
       </div>
 
       {/* ── Real-Time Reactive Roster List ── */}
-      <ClientsList coachUid={decodedClaims.uid} />
+      <div data-testid="clients-list">
+        <ClientsList coachUid={decodedClaims.uid} />
+      </div>
 
     </div>
   );
