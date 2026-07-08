@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Nutrition gate (locked)', () => {
   test('@smoke trainee without the add-on sees the locked state, not a plan', async ({ page }) => {
-    await page.goto('/ar/client');
+    await page.goto('/client');
     await expect(page.getByTestId('nutrition-locked')).toBeVisible();
     await expect(page.getByTestId('meal-plan-table')).toHaveCount(0);
   });

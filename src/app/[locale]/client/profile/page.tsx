@@ -30,6 +30,10 @@ import { Link } from '@/i18n/navigation';
 
 type PageProps = { params: Promise<{ locale: string }> };
 
+// Reads cookies() via getCurrentTrainee — always dynamic; silences the
+// build-time DYNAMIC_SERVER_USAGE notice (no behavior change).
+export const dynamic = 'force-dynamic';
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'profile' });

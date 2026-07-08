@@ -26,11 +26,13 @@ async function loginAndSave(
   const browser = await chromium.launch();
   const page = await browser.newPage({ baseURL });
   try {
-    await page.goto('/ar/login');
+    await page.goto('/login');
     await page.locator('input[type="email"]').fill(email);
     await page.locator('input[type="password"]').fill(password);
     await page.locator('button[type="submit"]').click();
-    // Login does window.location.href → /ar/admin (coach) or /ar/client (trainee).
+    // Login does window.location.href → /{locale}/admin|client, but next-intl
+    // localePrefix:'as-needed' strips the default-locale (ar) prefix, so the
+    // final URL is unprefixed (/admin, /client). Match with an optional /ar.
     await page.waitForURL(expectUrl, { timeout: 30_000 });
     await page.context().storageState({ path: file });
   } finally {
@@ -38,13 +40,17 @@ async function loginAndSave(
   }
 }
 
+// Locale-agnostic URL matchers (default locale ar is unprefixed under as-needed).
+const ADMIN_URL = /\/(?:ar\/)?admin(?:\/|\?|$)/;
+const CLIENT_URL = /\/(?:ar\/)?client(?:\/|\?|$)/;
+
 export default async function globalSetup(config: FullConfig) {
   const baseURL =
     config.projects.find((p) => p.use?.baseURL)?.use.baseURL ?? 'http://localhost:3000';
 
   fs.mkdirSync(AUTH_DIR, { recursive: true });
 
-  await loginAndSave(baseURL, SEED.coach.email, SEED.password, storageStateFor('coach'), /\/ar\/admin/);
-  await loginAndSave(baseURL, SEED.traineeA.email, SEED.password, storageStateFor('traineeA'), /\/ar\/client/);
-  await loginAndSave(baseURL, SEED.traineeB.email, SEED.password, storageStateFor('traineeB'), /\/ar\/client/);
+  await loginAndSave(baseURL, SEED.coach.email, SEED.password, storageStateFor('coach'), ADMIN_URL);
+  await loginAndSave(baseURL, SEED.traineeA.email, SEED.password, storageStateFor('traineeA'), CLIENT_URL);
+  await loginAndSave(baseURL, SEED.traineeB.email, SEED.password, storageStateFor('traineeB'), CLIENT_URL);
 }

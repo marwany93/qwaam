@@ -22,6 +22,11 @@ import { ONE_DAY_MS, formatDateRiyadh } from '@/lib/date-utils';
 
 type PageProps = { params: Promise<{ locale: string }> };
 
+// Reads cookies() via getCurrentTrainee — always server-rendered. Declaring it
+// explicitly silences the build-time DYNAMIC_SERVER_USAGE notice (no behavior
+// change; the route was already dynamic at runtime).
+export const dynamic = 'force-dynamic';
+
 export default async function ClientDashboard({ params }: PageProps) {
   const { locale } = await params;
   setRequestLocale(locale);

@@ -2,7 +2,9 @@ import { test, expect } from '@playwright/test';
 
 // Project: `public` — no stored session. Covers public pages + auth redirects.
 
-const PUBLIC_PAGES = ['/ar', '/ar/packages', '/ar/classes', '/ar/meals', '/ar/science', '/ar/login'];
+// Default locale (ar) is unprefixed under next-intl localePrefix:'as-needed'.
+const PUBLIC_PAGES = ['/', '/packages', '/classes', '/meals', '/science', '/login'];
+const LOGIN_URL = /\/(?:ar\/)?login(?:\/|\?|$)/;
 
 test.describe('Public pages', () => {
   for (const path of PUBLIC_PAGES) {
@@ -15,7 +17,7 @@ test.describe('Public pages', () => {
   }
 
   test('login page shows the login form', async ({ page }) => {
-    await page.goto('/ar/login');
+    await page.goto('/login');
     await expect(page.locator('input[type="email"]')).toBeVisible();
     await expect(page.locator('input[type="password"]')).toBeVisible();
     await expect(page.locator('button[type="submit"]')).toBeVisible();
@@ -24,12 +26,12 @@ test.describe('Public pages', () => {
 
 test.describe('Unauthenticated redirects', () => {
   test('/admin redirects to login', async ({ page }) => {
-    await page.goto('/ar/admin');
-    await expect(page).toHaveURL(/\/ar\/login/);
+    await page.goto('/admin');
+    await expect(page).toHaveURL(LOGIN_URL);
   });
 
   test('/client redirects to login', async ({ page }) => {
-    await page.goto('/ar/client');
-    await expect(page).toHaveURL(/\/ar\/login/);
+    await page.goto('/client');
+    await expect(page).toHaveURL(LOGIN_URL);
   });
 });
