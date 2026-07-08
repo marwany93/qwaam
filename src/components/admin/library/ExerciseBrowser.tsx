@@ -100,7 +100,7 @@ export default function ExerciseBrowser({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="exercise-accordion">
       {/* ── Search + equipment filter ─────────────────────────────────────── */}
       <div className="space-y-3">
         <div className="relative">

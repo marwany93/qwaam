@@ -358,7 +358,7 @@ export default async function ClientDashboard({ params }: PageProps) {
 
             {!dietAdded ? (
               /* Locked / upsell — nutrition add-on not purchased */
-              <div className="bg-white rounded-3xl p-8 border border-dashed border-qwaam-pink/30 text-center flex flex-col items-center justify-center min-h-[220px]" dir="rtl">
+              <div className="bg-white rounded-3xl p-8 border border-dashed border-qwaam-pink/30 text-center flex flex-col items-center justify-center min-h-[220px]" dir="rtl" data-testid="nutrition-locked">
                 <span className="text-4xl mb-4">🔒</span>
                 <h3 className="font-black text-text-main text-lg mb-2">{t('lockedTitle')}</h3>
                 <p className="font-bold text-text-muted text-sm max-w-md mx-auto">{t('locked')}</p>

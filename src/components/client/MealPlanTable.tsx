@@ -40,7 +40,7 @@ export default function MealPlanTable({
   const completedItemId = (rowId: string) => `plan:${plan.id}:${rowId}`;
 
   return (
-    <div className="space-y-4" dir="rtl">
+    <div className="space-y-4" dir="rtl" data-testid="meal-plan-table">
       {/* Eating window header */}
       {plan.eatingWindow && fasting != null && (
         <div className="bg-qwaam-pink-light border border-qwaam-pink/20 rounded-2xl px-5 py-3.5 flex items-center gap-2 text-sm font-black text-qwaam-pink">
@@ -114,7 +114,7 @@ export default function MealPlanTable({
             ))}
           </tbody>
           <tfoot>
-            <tr className="bg-qwaam-pink-light/50 border-t-2 border-qwaam-pink/20">
+            <tr className="bg-qwaam-pink-light/50 border-t-2 border-qwaam-pink/20" data-testid="meal-daily-total">
               <td className="px-4 py-3.5 font-black text-sm text-text-main" colSpan={2}>{t('dailyTotal')}</td>
               <td className="px-3 py-3.5 text-center font-black text-sm text-text-main" dir="ltr">{totals.calories}</td>
               <td className="px-3 py-3.5 text-center font-black text-sm text-red-600" dir="ltr">{totals.protein}g</td>

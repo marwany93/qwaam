@@ -9,4 +9,19 @@ test.describe('Trainee dashboard', () => {
     await expect(page).toHaveURL(/\/ar\/client/);
     await expect(page.getByTestId('client-dashboard')).toBeVisible();
   });
+
+  // Issue #3 — nutrition: dietAdded + assigned meal plan → table with daily total
+  test('@smoke shows the meal-plan table with a daily total', async ({ page }) => {
+    await page.goto('/ar/client');
+    await expect(page.getByTestId('meal-plan-table')).toBeVisible();
+    await expect(page.getByTestId('meal-daily-total').first()).toBeVisible();
+    // Locked state must NOT appear for a dietAdded trainee with a plan.
+    await expect(page.getByTestId('nutrition-locked')).toHaveCount(0);
+  });
+
+  // Issue #1 — schedule: active duration plan → ScheduleStatusCard with dates
+  test('@smoke shows the schedule status card', async ({ page }) => {
+    await page.goto('/ar/client');
+    await expect(page.getByTestId('schedule-status-card')).toBeVisible();
+  });
 });

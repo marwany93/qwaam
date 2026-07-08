@@ -43,6 +43,7 @@ export default function ScheduleStatusCard({
     <section
       className="bg-qwaam-white rounded-3xl border border-border-light shadow-sm p-6 sm:p-8 relative overflow-hidden group"
       dir="rtl"
+      data-testid="schedule-status-card"
     >
       <div className="absolute top-0 end-0 w-32 h-32 bg-qwaam-pink-light rounded-bl-full -z-10 opacity-50 group-hover:scale-110 transition-transform" />
 

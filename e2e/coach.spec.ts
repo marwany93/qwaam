@@ -8,4 +8,12 @@ test.describe('Coach dashboard', () => {
     await expect(page).toHaveURL(/\/ar\/admin/);
     await expect(page.getByTestId('clients-list')).toBeVisible();
   });
+
+  // Issue #2 — library: Exercises tab renders the muscle-grouped accordion
+  test('@smoke library Exercises tab shows the muscle-grouped accordion', async ({ page }) => {
+    await page.goto('/ar/admin/library');
+    // Exercises is the default tab; the browser (search + equipment filter + groups).
+    await expect(page.getByTestId('exercise-accordion')).toBeVisible();
+    await expect(page.getByPlaceholder(/بحث|Search/).first()).toBeVisible();
+  });
 });
