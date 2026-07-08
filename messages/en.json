@@ -104,6 +104,51 @@
     "title": "Meal Plans",
     "subtitle": "Scientifically designed meals to achieve your goals"
   },
+  "nutrition": {
+    "sectionTitle": "Your meal plan",
+    "lockedTitle": "Nutrition not enabled",
+    "locked": "Nutrition isn't included in your subscription. Add the nutrition package to access your meal plan.",
+    "awaiting": "Your coach is putting together your calorie plan now...",
+    "eatingWindow": "Eating window: {start} – {end} · {hours}h fasting",
+    "daySelector": "Day",
+    "dailyTotal": "Daily total",
+    "col": {
+      "meal": "Meal",
+      "description": "What you eat",
+      "calories": "Calories",
+      "protein": "Protein",
+      "carbs": "Carbs",
+      "fats": "Fats"
+    },
+    "mealType": {
+      "breakfast": "Breakfast",
+      "lunch": "Lunch",
+      "dinner": "Dinner",
+      "snack": "Snack"
+    },
+    "builder": {
+      "planTitle": "Meal plans",
+      "planSubtitle": "Create a meal plan (one or more days) and assign it to a trainee.",
+      "manualHeading": "Meals of the day",
+      "description": "Description (what you eat)",
+      "descriptionPlaceholder": "e.g. 100g grilled chicken breast + a bowl of salad",
+      "calories": "Calories",
+      "protein": "Protein (g)",
+      "carbs": "Carbs (g)",
+      "fats": "Fats (g)",
+      "addRow": "Add meal",
+      "removeRow": "Remove meal",
+      "prefillLabel": "Prefill from a saved meal",
+      "prefillPlaceholder": "— Choose a saved meal —",
+      "prefillHint": "Picking a saved meal fills the description and macros, which you can then edit.",
+      "eatingWindowTitle": "Eating window (optional)",
+      "eatingWindowHint": "For intermittent fasting — shown to the trainee above the meal table.",
+      "start": "From",
+      "end": "To",
+      "addDay": "Add day",
+      "removeDay": "Remove day"
+    }
+  },
   "science": {
     "title": "The Science Behind Qwaam",
     "subtitle": "Everything we do is backed by documented scientific evidence"
