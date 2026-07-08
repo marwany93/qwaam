@@ -7,6 +7,15 @@
 
 ## ✅ Recently Completed
 
+- **Playwright e2e on Firebase emulators** (2026-07-08)
+  - Real e2e suite against the **Firebase emulators** (Auth 9099 / Firestore 8080 / Storage 9199 / UI 4000) with **seeded users** — fully isolated from prod, deterministic.
+  - **Emulator wiring behind flags** (dev/prod untouched when off): `firebase.ts` connects client SDK + skips App Check only when `NEXT_PUBLIC_USE_FIREBASE_EMULATOR==='true'` (connect runs once, HMR-safe); `firebase-admin.ts` inits with a bare `projectId` (no key) when `FIRESTORE_EMULATOR_HOST`/`FIREBASE_AUTH_EMULATOR_HOST` are set (injected by `emulators:exec`). `emulators` block added to `firebase.json`. `.env.local.example` repopulated.
+  - **Seed** `scripts/seed-emulator.ts` (`npm run seed:emulator`, via `tsx`): coach + trainee A (duration schedule active, `dietAdded:true`, assigned single-day `meal_plan` w/ full macros + eating window) + trainee B (`dietAdded:false`) + 3 exercises. **Hard safety gate**: refuses unless emulator host vars present; dummy `projectId` only — never reads `firebase-key.json`. Shared IDs in `e2e/seed-data.ts` (no side effects).
+  - **Playwright auth** `e2e/global-setup.ts`: logs in once per role via the real `/ar/login` form, saves `storageState` per role to `e2e/.auth/` (gitignored). Projects `public`/`coach`/`traineeA`/`traineeB` reuse each session; `webServer` builds+starts with the emulator flag.
+  - **Specs** (replaced the broken blueprint stubs): public pages load + unauth redirects; coach login → `/admin` clients list; trainee A → `/client` dashboard. `@smoke`: nutrition table + daily total (A), schedule status card (A), library muscle-grouped accordion (coach), nutrition locked state (B). Stable `data-testid`s added: `clients-list`, `client-dashboard`, `meal-plan-table`, `meal-daily-total`, `nutrition-locked`, `exercise-accordion`, `schedule-status-card`.
+  - Scripts: `test:e2e` (`firebase emulators:exec "seed && playwright test"`), `test:e2e:smoke` (`--grep @smoke`), `emulators`. Docs in `docs/testing.md`. `tsc --noEmit` clean per commit (6 commits).
+  - ⚠️ **Requires JDK 11+** (17/21) for the emulators — local machine had JDK 8; first live `test:e2e` run happens after the Java upgrade. All code + configs are in place and verified as far as possible without the emulators (tsc, `playwright test --list`, seed safety-gate).
+
 - **Issue #3 — Manual meal plans connected to the client (Path B)** (2026-07-08)
   - **Path B**: `meal_plans` is now the source of the trainee's diet and is read by the client. Revived the previously-dead `MealPlanBuilder`; supports single-day and multi-day plans, manual authoring, and the +200 EGP nutrition gate is now actually enforced.
   - **Data model** (`types/index.ts`): `MealPlanMealRow` (new) enriches each plan row with `description` + full macros (`protein`/`carbs`/`fats`, plural) + a stable `id` + `source`. `MealPlanDay.meals` is now `MealPlanMealRow[]`. `MealPlan` gains optional plan-level `eatingWindow?: {start,end}` ("HH:MM" 24h). Legacy rows (`mealName`, no macros) stay readable — normalized to `description ?? mealName ?? '—'`, missing macros → 0. No migration.
