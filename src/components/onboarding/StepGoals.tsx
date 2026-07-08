@@ -9,6 +9,8 @@ import type { FullOnboardingData } from '@/lib/onboarding-schema';
 const GOAL_KEYS = ['fatBurn', 'gainMuscle', 'gainWeight'] as const;
 const SUPPLEMENT_KEYS = ['whey', 'creatine', 'preWorkout', 'vitamins', 'none'] as const;
 
+const MAX_GUIDE_PHOTOS = 5;
+
 export default function StepGoals({ maxWorkoutDays = 7 }: { maxWorkoutDays?: number }) {
   const t = useTranslations('onboarding');
   const { watch, setValue, register, formState: { errors } } = useFormContext<FullOnboardingData>();
@@ -16,6 +18,12 @@ export default function StepGoals({ maxWorkoutDays = 7 }: { maxWorkoutDays?: num
   const primaryGoal = watch('primaryGoal');
   const workoutDays = watch('workoutDaysPerWeek') || 3;
   const supplements: string[] = watch('currentSupplements') || [];
+  const trainedBefore = watch('trainedBefore') ?? false;
+  const guideFiles = watch('previousGuidesFiles') as FileList | undefined;
+  // Cap the preview at MAX_GUIDE_PHOTOS — the same cap the upload loop enforces.
+  const guidePreviews = guideFiles
+    ? Array.from(guideFiles).slice(0, MAX_GUIDE_PHOTOS)
+    : [];
 
   function toggleSupplement(key: string) {
     if (key === 'none') {
@@ -115,6 +123,78 @@ export default function StepGoals({ maxWorkoutDays = 7 }: { maxWorkoutDays?: num
           className={`${inputCls()} resize-none`}
         />
       </FormField>
+
+      {/* Trained before? — Yes/No + optional previous-guide photos */}
+      <FormField label={t('step4.trainedBeforeLabel')}>
+        <div data-testid="trained-before-question" className="grid grid-cols-2 gap-3">
+          {[
+            { val: true, label: t('step4.trainedBeforeYes') },
+            { val: false, label: t('step4.trainedBeforeNo') },
+          ].map(({ val, label }) => {
+            const isSelected = trainedBefore === val;
+            return (
+              <button
+                key={String(val)}
+                type="button"
+                data-testid={`trained-before-${val ? 'yes' : 'no'}`}
+                onClick={() => {
+                  setValue('trainedBefore', val, { shouldValidate: true });
+                  // Switching to "no" clears any picked guide files.
+                  if (!val) {
+                    setValue('previousGuidesFiles', undefined as any);
+                    setValue('previousGuidesPhotos', []);
+                  }
+                }}
+                className={`p-4 rounded-xl border-2 font-bold text-sm transition-all ${isSelected
+                  ? 'bg-qwaam-pink-light border-qwaam-pink text-qwaam-pink shadow-sm'
+                  : 'bg-gray-50/50 border-border-light text-text-muted hover:border-qwaam-pink/50'
+                  }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </FormField>
+
+      {/* Optional multi-photo picker — only when trained before === yes */}
+      {trainedBefore && (
+        <FormField label={t('step4.previousGuidesLabel')} hint={t('step4.previousGuidesHint')}>
+          <div data-testid="previous-guides-uploader" className="space-y-3">
+            <label className="relative flex flex-col items-center justify-center gap-2 p-5 rounded-xl border-2 border-dashed border-border-light bg-gray-50/50 hover:border-qwaam-pink/50 hover:bg-qwaam-pink-light/20 cursor-pointer transition-all">
+              <span className="text-3xl">🗂️</span>
+              <span className="text-sm font-bold text-text-muted text-center">
+                (اختياري) اضغطي لاختيار الصور — حتى {MAX_GUIDE_PHOTOS}
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="sr-only"
+                {...register('previousGuidesFiles')}
+              />
+            </label>
+
+            {guidePreviews.length > 0 && (
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                {guidePreviews.map((file, i) => (
+                  <div
+                    key={`${file.name}-${i}`}
+                    className="relative aspect-square rounded-lg overflow-hidden border border-border-light bg-gray-100"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt={file.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </FormField>
+      )}
 
       {/* Supplements */}
       <FormField

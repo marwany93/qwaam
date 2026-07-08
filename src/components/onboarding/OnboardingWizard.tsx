@@ -263,6 +263,24 @@ export default function OnboardingWizard({ initialSubscription }: { initialSubsc
         bodyPhotoUrl = await uploadFile(data.bodyPhotoFile[0], uid, 'body_photo');
       }
 
+      // Previous training-guide photos (optional, max 5). Same pattern as the
+      // inbody/body-photo uploads: the FileList was collected in Step 4 and is
+      // uploaded once here (the uid only exists after account creation). Images
+      // only, < 5MB each; invalid files are silently skipped. Path is nested
+      // under previous_guides/ so it still matches the trainee_uploads/{uid}/**
+      // Storage rule (owner write).
+      const previousGuidesPhotos: string[] = [];
+      if (data.trainedBefore && data.previousGuidesFiles?.length) {
+        const files = Array.from(data.previousGuidesFiles as FileList).slice(0, 5);
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          if (!file.type.startsWith('image/')) continue;
+          if (file.size > 5 * 1024 * 1024) continue;
+          const url = await uploadFile(file, uid, `previous_guides/guide_${i}`);
+          previousGuidesPhotos.push(url);
+        }
+      }
+
       // 6. Write complete document via Server Action.
       // Derive the initial session count from the chosen plan:
       //   - Live plans use `sessions` (e.g., home-live-12 → 12)
@@ -294,6 +312,8 @@ export default function OnboardingWizard({ initialSubscription }: { initialSubsc
           workoutDaysPerWeek: data.workoutDaysPerWeek,
           sportsExperience: data.sportsExperience ?? '',
           currentSupplements: data.currentSupplements,
+          trainedBefore: data.trainedBefore ?? false,
+          previousGuidesPhotos,
           // Step 5
           weight: data.weight,
           height: data.height,
