@@ -16,6 +16,7 @@ import {
   CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 import SessionManagerCard from '@/components/admin/SessionManagerCard';
+import RegistrationCard from '@/components/admin/RegistrationCard';
 import TraineeTabsWrapper from '@/components/admin/TraineeTabsWrapper';
 import { isAwaitingScheduleUpload } from '@/lib/subscription-utils';
 import PendingPaymentCard from '@/components/admin/PendingPaymentCard';
@@ -142,6 +143,12 @@ export default async function TraineeDetailPage({ params }: PageProps) {
           renewalRequestId={renewalRequest?.id}
         />
       )}
+
+      {/* ── Registration info (Issue #5) — trained-before answer + guide photos ── */}
+      <RegistrationCard
+        trainedBefore={(trainee as any).onboarding?.trainedBefore ?? false}
+        previousGuidesPhotos={(trainee as any).onboarding?.previousGuidesPhotos ?? []}
+      />
 
       {/* ── Trainee weight chart — coach-facing progress view ── */}
       <WeightChart data={weightHistory} title={`منحنى وزن ${trainee.name}`} />
