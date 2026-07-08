@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import {
   ClipboardDocumentCheckIcon,
   XMarkIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/solid';
 import type { OnboardingData } from '@/types';
 
@@ -23,6 +24,8 @@ interface Props {
 export default function RegistrationCard({ onboarding }: Props) {
   const t = useTranslations('coach');
   const [lightbox, setLightbox] = useState<string | null>(null);
+  // Collapsed by default so the card doesn't dominate the trainee detail page.
+  const [open, setOpen] = useState(false);
 
   const o = onboarding ?? {};
   const yesNo = (v?: boolean) => (v ? t('yes') : t('no'));
@@ -156,14 +159,24 @@ export default function RegistrationCard({ onboarding }: Props) {
         data-testid="coach-registration-card"
         className="bg-white rounded-3xl border border-border-light shadow-sm p-6 sm:p-8 space-y-4"
       >
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <span className="w-10 h-10 rounded-2xl bg-qwaam-pink-light text-qwaam-pink flex items-center justify-center border border-qwaam-pink/20">
+        {/* Header — click to expand/collapse. Title + icon stay visible. */}
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          data-testid="registration-toggle"
+          className="w-full flex items-center gap-3 text-right"
+        >
+          <span className="w-10 h-10 rounded-2xl bg-qwaam-pink-light text-qwaam-pink flex items-center justify-center border border-qwaam-pink/20 shrink-0">
             <ClipboardDocumentCheckIcon className="w-5 h-5" />
           </span>
-          <h3 className="text-lg font-black text-text-main">{t('registrationTitle')}</h3>
-        </div>
+          <h3 className="text-lg font-black text-text-main flex-1">{t('registrationTitle')}</h3>
+          <ChevronDownIcon
+            className={`w-5 h-5 text-text-muted transition-transform duration-200 shrink-0 ${open ? 'rotate-180' : ''}`}
+          />
+        </button>
 
+        {open && (
         <div data-testid="coach-onboarding-section" className="space-y-4">
           {/* ── Personal ── */}
           {hasPersonal && (
@@ -301,6 +314,7 @@ export default function RegistrationCard({ onboarding }: Props) {
             </div>
           )}
         </div>
+        )}
       </section>
 
       {/* Lightbox */}
