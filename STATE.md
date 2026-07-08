@@ -1,11 +1,22 @@
 # Qwaam — Project State (Dynamic Memory)
 
-> **Last Updated: 2026-07-08 (Issue #6)**
+> **Last Updated: 2026-07-08 (Issue #7)**
 > Update this file at the end of every session via `UPDATE MEMORY`.
 
 ---
 
 ## ✅ Recently Completed
+
+- **Issue #7 — simplify the "Add exercise to library" form** (2026-07-08)
+  - The library is a **catalog**: the add/edit exercise form now keeps only `nameAr`, `nameEn`, `targetMuscle`, `equipment`, optional `videoUrl`. The four training defaults (`defaultSets`/`defaultReps`/`defaultWeightLevel`/`defaultRest`) were removed **from the form**; sets/reps/weight/rest are entered **per-workout** in the workout builder.
+  - **Type** (`types/index.ts`): the four `default*` fields are now **optional** on `Exercise` (kept, not removed — existing docs are grandfathered, no migration).
+  - **Server** (`library-actions.ts`): `addExercise` no longer requires `defaultSets`/`defaultReps` (only name/muscle/equipment). `updateExercise` merges the kept fields, preserving any existing `default*`.
+  - **Workout builder** (`LibraryContent.tsx` `AddWorkoutModal`): pre-fill + input placeholders fall back to standard constants (`STD_SETS=3`, `STD_REPS='10-12'`, `STD_WEIGHT='medium'`, `STD_REST=60`) when an exercise has no library default (was `?? ''` / `String(undefined)`). Coach overrides per-workout as intended; `addWorkout` persists the overrides.
+  - **Display safety**: `ExerciseBrowser` view-mode stat chips only render present values (no `undefined`); the trainee dashboard `sets×reps` badge (`client/page.tsx`) renders only when both override values exist. The client reads the **stored per-workout overrides**, never the library defaults — so removing library defaults blanks nothing existing.
+  - **@smoke**: new coach test asserts the add-exercise form shows only the four kept fields (removed labels absent). `data-testid="exercise-form"` added. `tsc --noEmit` clean per commit.
+
+- **Coach UX — collapsible RegistrationCard** (2026-07-08)
+  - The trainee "بيانات التسجيل" card is **collapsed by default** so the full onboarding data (Issue #6) doesn't dominate the detail page. Accessible header **button** (`aria-expanded`) with a rotating chevron toggles it; title + icon stay visible. Issue #6 `@smoke` now expands the card (`registration-toggle`) before asserting the values.
 
 - **Issue #6 — surface the FULL onboarding data to the coach** (2026-07-08)
   - Problem: everything the trainee entered at onboarding (personal, health, goals/training, sports experience, supplements, InBody/body photo, measurements) was stored in `users/{uid}.onboarding` and already returned by `getTraineeDetails`, but only the Issue #5 additions (trained-before + guide photos) were shown. **Display-only fix — no change to how onboarding is stored.**
