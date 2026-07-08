@@ -36,6 +36,11 @@ export const step4Schema = z.object({
   workoutDaysPerWeek: z.coerce.number({ message: 'يجب أن يكون رقماً' }).min(1, 'يوم واحد على الأقل').max(7, '7 أيام كحد أقصى'),
   sportsExperience: z.string().optional(),
   currentSupplements: z.array(z.string()).min(1, 'الرجاء اختيار خيار واحد على الأقل'),
+  // "هل تدربت قبل ذلك؟" — optional-with-default (like hasInjuries). Photos are
+  // ALWAYS optional: no min(1) on the array even when trainedBefore is true.
+  trainedBefore: z.boolean().catch(false),
+  previousGuidesFiles: z.any().optional(),               // FileList — validated manually in the component
+  previousGuidesPhotos: z.array(z.string()).optional().default([]),
 });
 
 const optNum = z.preprocess((val) => {

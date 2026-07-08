@@ -32,7 +32,7 @@ const STEP_FIELDS: (keyof FullOnboardingData)[][] = [
   ['email'],
   ['name', 'dateOfBirth', 'phone', 'maritalStatus'],
   ['hasInjuries', 'hasChronicDiseases', 'isSmoker'],
-  ['primaryGoal', 'workoutDaysPerWeek', 'currentSupplements'],
+  ['primaryGoal', 'workoutDaysPerWeek', 'currentSupplements', 'trainedBefore'],
   ['weight', 'height', 'bodyDescription', 'inbodyFile'],
   ['password'],
 ];
@@ -126,6 +126,8 @@ export default function OnboardingWizard({ initialSubscription }: { initialSubsc
       workoutDaysPerWeek: initialSubscription?.planId?.includes('sched') ? maxWorkoutDays : 3,
       currentSupplements: [],
       chronicDiseases: [],
+      trainedBefore: false,
+      previousGuidesPhotos: [],
     },
     mode: 'onTouched',
   });

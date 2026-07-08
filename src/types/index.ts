@@ -259,6 +259,9 @@ export interface OnboardingFormData {
   workoutDaysPerWeek: number;
   sportsExperience?: string;
   currentSupplements: string[];
+  trainedBefore?: boolean;            // "هل تدربت قبل ذلك؟" — optional (defaults false)
+  previousGuidesFiles?: FileList;     // transport-only (like inbodyFile) — not persisted
+  previousGuidesPhotos?: string[];    // uploaded guide-photo URLs — persisted under onboarding.previousGuidesPhotos
   // Step 5
   weight: number;
   height: number;
