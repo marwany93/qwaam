@@ -107,14 +107,28 @@ export interface MealPlan {
 // The atomic building block library — individual movements the coach curates.
 
 export type TargetMuscle =
+  // ── Canonical taxonomy (see MUSCLE_ORDER in src/lib/exercise-taxonomy.ts) ──
   | 'Chest'
   | 'Back'
-  | 'Legs'
-  | 'Core'
-  | 'Arms'
+  | 'Trapezius'
   | 'Shoulders'
+  | 'Biceps'
+  | 'Triceps'
+  | 'Forearms'
+  | 'Abs'
+  | 'Core'
   | 'Glutes'
-  | 'Full Body';
+  | 'Quadriceps'
+  | 'Hamstrings'
+  | 'Adductors'
+  | 'Abductors'
+  | 'Calves'
+  | 'Full Body'
+  | 'Cardio'
+  // ── Legacy (deprecated) — kept so existing exercise docs stay valid. NOT
+  //    offered in the add/edit dropdown; re-tagged by coaches over time. ──
+  | 'Legs'
+  | 'Arms';
 
 export type Equipment =
   | 'Bodyweight'
