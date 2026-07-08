@@ -27,6 +27,12 @@ export default defineConfig({
       testMatch: ['**/public.spec.ts'],
       use: { ...devices['Desktop Chrome'] },
     },
+    // Onboarding wizard — public, no stored session (Issue #5 smoke).
+    {
+      name: 'onboarding',
+      testMatch: ['**/onboarding.spec.ts'],
+      use: { ...devices['Desktop Chrome'] },
+    },
     // Coach-authenticated specs (admin dashboard, library).
     {
       name: 'coach',
