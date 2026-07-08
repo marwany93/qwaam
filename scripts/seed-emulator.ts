@@ -14,6 +14,7 @@ import { initializeApp, getApps } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { addOneMonth } from '../src/lib/date-utils';
+import { SEED } from '../e2e/seed-data';
 
 // ── Hard safety gate ────────────────────────────────────────────────────────
 const AUTH_HOST = process.env.FIREBASE_AUTH_EMULATOR_HOST;
@@ -28,15 +29,7 @@ if (!AUTH_HOST || !FS_HOST) {
 }
 
 const PROJECT_ID = process.env.GCLOUD_PROJECT || 'qwaam-test';
-const PASSWORD = 'Test123!';
-
-// Deterministic identities the Playwright specs rely on.
-export const SEED = {
-  coach: { uid: 'coach-e2e', email: 'coach@qwaam.test' },
-  traineeA: { uid: 'trainee-a-e2e', email: 'traineeA@qwaam.test' },
-  traineeB: { uid: 'trainee-b-e2e', email: 'traineeB@qwaam.test' },
-  password: PASSWORD,
-};
+const PASSWORD = SEED.password;
 
 const app = getApps().length ? getApps()[0] : initializeApp({ projectId: PROJECT_ID });
 const auth = getAuth(app);
