@@ -17,6 +17,17 @@
     "awaitingScheduleBadge": "No schedule yet",
     "awaitingScheduleTooltip": "The trainee has paid and their subscription is active, but no training schedule has been uploaded yet — their month starts the day the schedule is uploaded."
   },
+  "library": {
+    "searchPlaceholder": "Search exercises...",
+    "allEquipment": "All equipment",
+    "noResults": "No matching exercises",
+    "added": "Added",
+    "watchVideo": "Watch",
+    "sets": "Sets",
+    "reps": "Reps",
+    "rest": "Rest",
+    "legacyTag": "Legacy tag"
+  },
   "nav": {
     "home": "Home",
     "packages": "Packages",

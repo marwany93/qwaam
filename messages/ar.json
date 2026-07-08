@@ -17,6 +17,17 @@
     "awaitingScheduleBadge": "لم يُرفع الجدول بعد",
     "awaitingScheduleTooltip": "دفع المتدرّب واشتراكه مُفعّل، ولم تُرفع خطته التدريبية بعد — تبدأ مدة اشتراكه من يوم رفع الجدول."
   },
+  "library": {
+    "searchPlaceholder": "ابحث عن تمرين...",
+    "allEquipment": "كل المعدات",
+    "noResults": "لا توجد تمارين مطابقة",
+    "added": "مضاف",
+    "watchVideo": "شاهد الشرح",
+    "sets": "جولات",
+    "reps": "تكرارات",
+    "rest": "راحة",
+    "legacyTag": "تصنيف قديم"
+  },
   "nav": {
     "home": "الرئيسية",
     "packages": "الباقات",
