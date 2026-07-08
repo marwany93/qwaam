@@ -1,11 +1,19 @@
 # Qwaam — Project State (Dynamic Memory)
 
-> **Last Updated: 2026-07-08 (Issue #5)**
+> **Last Updated: 2026-07-08 (Issue #6)**
 > Update this file at the end of every session via `UPDATE MEMORY`.
 
 ---
 
 ## ✅ Recently Completed
+
+- **Issue #6 — surface the FULL onboarding data to the coach** (2026-07-08)
+  - Problem: everything the trainee entered at onboarding (personal, health, goals/training, sports experience, supplements, InBody/body photo, measurements) was stored in `users/{uid}.onboarding` and already returned by `getTraineeDetails`, but only the Issue #5 additions (trained-before + guide photos) were shown. **Display-only fix — no change to how onboarding is stored.**
+  - **Types** (`types/index.ts`): new `OnboardingData` interface (the stored shape — all fields optional) + `QwaamUser.onboarding?: OnboardingData`. Lets the detail page drop its `(trainee as any)` cast.
+  - **UI**: expanded the existing `RegistrationCard.tsx` (NOT a duplicate) to render the full onboarding object in labelled sections — Personal / Health / Goals & Training / Body & measurements — plus the folded-in trained-before answer + guide-photo grid/lightbox. InBody + body-photo shown as thumbnails reusing the same lightbox. Read-only; enum + boolean values mapped to localized labels (`single/married`, `fatBurn/gainMuscle/gainWeight`, yes/no). Empty/optional handling: per-section `has*` predicates omit empty sections, `Row` collapses empty values, conditional rows for `injuryDetails` (only if `hasInjuries`), `chronicDiseases` (only if `hasChronicDiseases`), and measurements grid (only present numeric values). Numbers `dir="ltr"`.
+  - `admin/client/[id]/page.tsx` now passes `onboarding={trainee.onboarding}` (no new fetch — reuses `getTraineeDetails`).
+  - **i18n**: `coach` namespace gains section titles, field labels, measurement labels, and value maps (ar + en).
+  - **Seed + @smoke**: seeded trainee A with a representative `onboarding` object across all sections; new coach `@smoke` test asserts the detail page renders the trainee's values (`onboarding-phone` = 01001234567, `maritalStatus` = متزوجة, `primaryGoal` = حرق الدهون, `workoutDaysPerWeek` = 4). New `data-testid`s: `coach-onboarding-section`, `onboarding-section-*`, `onboarding-<field>`. `tsc --noEmit` clean per commit (5 commits); test discovered via `playwright test --list`. ⚠️ Live emulator run still needs JDK 11+ (env has JDK 8).
 
 - **Issue #5 — "trained before?" + optional previous-guide photos** (2026-07-08)
   - New question **"هل تدربتِ قبل ذلك؟"** (Yes/No) + optional multi-photo upload of previous training guides. Photos **strictly optional everywhere** (no min even on "yes"), **max 5**, images-only, <5MB each. Present in **both** the client onboarding flow and the coach's manual add-client flow; coach can view the photos on the trainee detail page.
