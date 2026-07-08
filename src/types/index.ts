@@ -42,6 +42,13 @@ export interface QwaamUser {
       activatedAt?: number;                // millis — set by confirmTraineePayment
       paymentScreenshotUrl?: string;
       paymentScreenshotAt?: number;        // millis — set by updatePaymentScreenshot
+      // ── Month-based Schedule plans (duration model) ──────────────────────────
+      // Only present on Schedule plans that have moved to the duration model.
+      // Absent (or 'session') = legacy session-count model (grandfathered).
+      billingModel?: 'session' | 'duration';
+      scheduleStartAt?: number | null;     // millis — day coach uploads schedule; null = awaiting upload
+      scheduleEndsAt?: number | null;      // millis — addOneMonth(scheduleStartAt); null until anchored
+      renewalReminderSentAt?: number | null; // millis — dedupes the 7-day reminder; reset to null on renewal
     } | null;
   };
 }

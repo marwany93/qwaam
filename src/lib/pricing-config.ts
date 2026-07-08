@@ -95,6 +95,19 @@ export function findPlanById(planId: string): Plan | undefined {
 }
 
 /**
+ * True for Schedule plans (defined by `days`, no `sessions`).
+ * This is the single discriminator used across the app to branch between the
+ * month-based duration model (Schedule) and the session-count model (Live).
+ * Falls back to a planId heuristic when the plan isn't in the config (e.g. an
+ * old id no longer listed) so grandfathered subs still classify correctly.
+ */
+export function isSchedulePlan(planId: string): boolean {
+  const plan = findPlanById(planId);
+  if (plan) return plan.days != null && plan.sessions == null;
+  return planId.includes('sched');
+}
+
+/**
  * Extracts the maximum workout days allowed by a plan.
  * - Schedule plans: uses the `days` field directly (e.g., home-sched-5 → 5)
  * - Live plans: extracts the trailing number from the ID as a fallback (sessions count)
