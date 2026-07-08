@@ -326,7 +326,9 @@ export default async function ClientDashboard({ params }: PageProps) {
                           <li key={ex.exerciseId || idx} className="flex items-center justify-between gap-2 text-sm bg-gray-50 rounded-xl px-3 py-2 border border-border-light/50">
                             <span className="font-bold text-text-main truncate">{ex.nameAr || ex.exerciseId}</span>
                             <div className="flex items-center gap-2 shrink-0 text-xs font-bold text-text-muted">
-                              <span>{ex.sets}×{ex.reps}</span>
+                              {/* Per-workout override values (Issue #7). Guarded so a
+                                  workout built without sets/reps never shows "undefined×undefined". */}
+                              {ex.sets != null && ex.reps && <span>{ex.sets}×{ex.reps}</span>}
                               {ex.videoUrl && (
                                 <WorkoutVideoButton
                                   videoUrl={ex.videoUrl}
