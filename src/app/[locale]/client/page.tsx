@@ -11,7 +11,10 @@ import TraineeWeightChartCard from '@/components/client/TraineeWeightChartCard';
 import ProgressGallery from '@/components/client/ProgressGallery';
 import ReLoginButton from '@/components/client/ReLoginButton';
 import SessionAlert from '@/components/client/SessionAlert';
+import ScheduleAlert from '@/components/client/ScheduleAlert';
+import ScheduleStatusCard from '@/components/client/ScheduleStatusCard';
 import DashboardTabs from '@/components/client/DashboardTabs';
+import { ONE_DAY_MS, formatDateRiyadh } from '@/lib/date-utils';
 // import { getAdminAuth } from '@/lib/firebase-admin';
 
 type PageProps = { params: Promise<{ locale: string }> };
@@ -68,22 +71,50 @@ export default async function ClientDashboard({ params }: PageProps) {
 
   const isPendingPayment = trainee.traineeData?.subscription?.status === 'pending_payment';
 
+  // ── Month-based Schedule (duration model) derived state ──────────────────────
+  // Only Schedule plans on the new model carry billingModel='duration'. Legacy
+  // schedule clients (no marker) fall through to the session-count UI below.
+  const sub = trainee.traineeData?.subscription;
+  const isDurationSchedule = sub?.billingModel === 'duration';
+  const scheduleStartAt = sub?.scheduleStartAt ?? null;
+  const scheduleEndsAt = sub?.scheduleEndsAt ?? null;
+  const nowMs = Date.now();
+
+  const scheduleAwaiting = isDurationSchedule && scheduleStartAt == null;
+  const msLeft = scheduleEndsAt != null ? scheduleEndsAt - nowMs : null;
+  const scheduleEnded = isDurationSchedule && scheduleEndsAt != null && nowMs >= scheduleEndsAt;
+  const scheduleAboutToEnd =
+    isDurationSchedule && msLeft != null && msLeft > 0 && msLeft <= 7 * ONE_DAY_MS;
+  const scheduleDaysRemaining = msLeft != null && msLeft > 0 ? Math.ceil(msLeft / ONE_DAY_MS) : 0;
+  const scheduleTotalDays =
+    scheduleStartAt != null && scheduleEndsAt != null
+      ? Math.max(1, Math.round((scheduleEndsAt - scheduleStartAt) / ONE_DAY_MS))
+      : 0;
+  const scheduleProgressPct =
+    scheduleTotalDays > 0
+      ? Math.min(100, Math.max(0, Math.round(((scheduleTotalDays - scheduleDaysRemaining) / scheduleTotalDays) * 100)))
+      : 0;
+  const scheduleStartStr = scheduleStartAt != null ? formatDateRiyadh(scheduleStartAt, locale) : null;
+  const scheduleEndStr = scheduleEndsAt != null ? formatDateRiyadh(scheduleEndsAt, locale) : null;
+
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-10">
 
-      {/* ── Session balance alert — hidden when pending_payment banner is already shown ── */}
-      {trainee.sessionTracking && !isPendingPayment && (
-        <SessionAlert
-          sessionsRemaining={trainee.sessionTracking.remainingSessions ?? 0}
-        />
-      )}
-
-      {/* ── Pending payment banner — only when subscription is awaiting verification ── */}
-      {isPendingPayment && (
+      {/* ── Top alert — pending payment > schedule date alert > session balance ── */}
+      {isPendingPayment ? (
         <PendingPaymentBanner
           amountPaid={trainee.traineeData?.subscription?.amountPaid}
           initialScreenshotUrl={trainee.traineeData?.subscription?.paymentScreenshotUrl}
         />
+      ) : isDurationSchedule ? (
+        // Date-based alert for month plans — only when ending within 7 days or ended
+        (scheduleEnded || scheduleAboutToEnd) && scheduleEndStr && (
+          <ScheduleAlert endDate={scheduleEndStr} ended={scheduleEnded} />
+        )
+      ) : (
+        trainee.sessionTracking && (
+          <SessionAlert sessionsRemaining={trainee.sessionTracking.remainingSessions ?? 0} />
+        )
       )}
 
       {/* ── Graphic Greeting Banner ── */}
@@ -164,8 +195,23 @@ export default async function ClientDashboard({ params }: PageProps) {
         {/* Center Content: Interactive Cards */}
         <div className="lg:col-span-2 space-y-12">
 
-          {/* ── Trainee Session Progress Widget ── (from main branch) */}
-          {trainee.sessionTracking && trainee.sessionTracking.totalSessions > 0 && (
+          {/* ── Month-based Schedule widget (duration model) — replaces the session
+                 widget for these plans. Hidden while pending payment. ── */}
+          {isDurationSchedule && !isPendingPayment && (
+            <ScheduleStatusCard
+              uid={trainee.uid}
+              awaiting={scheduleAwaiting}
+              ended={scheduleEnded}
+              aboutToEnd={scheduleAboutToEnd}
+              startDate={scheduleStartStr}
+              endDate={scheduleEndStr}
+              daysRemaining={scheduleDaysRemaining}
+              progressPct={scheduleProgressPct}
+            />
+          )}
+
+          {/* ── Trainee Session Progress Widget ── (Live + legacy session model) */}
+          {!isDurationSchedule && trainee.sessionTracking && trainee.sessionTracking.totalSessions > 0 && (
             <section className="bg-qwaam-white rounded-3xl border border-border-light shadow-sm p-6 sm:p-8 relative overflow-hidden group">
               {/* Background decoration */}
               <div className="absolute top-0 end-0 w-32 h-32 bg-qwaam-pink-light rounded-bl-full -z-10 opacity-50 group-hover:scale-110 transition-transform" />

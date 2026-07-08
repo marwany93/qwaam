@@ -1,4 +1,17 @@
 {
+  "schedule": {
+    "heading": "Your monthly subscription",
+    "awaitingTitle": "Waiting for your schedule",
+    "awaiting": "Your subscription is active. Waiting for your coach to upload your training schedule — your subscription month starts the day the schedule is uploaded.",
+    "activeCard": "Your training schedule started on {startDate} and runs until {endDate}.",
+    "motivation": "Sticking to your training days this month is the key to results — every session you commit to brings you closer to your goal and to better health.",
+    "daysRemaining": "{days} days left",
+    "aboutToEndTitle": "Your subscription is ending soon",
+    "reminder": "Your subscription is ending soon — it ends on {endDate}. Renew now to continue without interruption and keep your progress.",
+    "endedTitle": "Your subscription has ended",
+    "ended": "Your subscription ended on {endDate}. Renew now to continue without interruption and keep your progress.",
+    "reminderSubject": "Your Qwaam subscription is ending soon"
+  },
   "nav": {
     "home": "Home",
     "packages": "Packages",
