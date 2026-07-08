@@ -74,6 +74,32 @@ async function main() {
     email: SEED.traineeA.email,
     createdAt: FieldValue.serverTimestamp(),
     sessionTracking: { totalSessions: 0, remainingSessions: 0, planStatus: 'active' },
+    // Representative onboarding answers across every display section, so the
+    // coach trainee-detail @smoke test can assert the RegistrationCard renders
+    // the trainee's real values.
+    onboarding: {
+      dateOfBirth: '1996-04-12',
+      phone: '01001234567',
+      maritalStatus: 'married',
+      isPregnant: false,
+      isNursing: false,
+      hasChildren: true,
+      hasInjuries: true,
+      injuryDetails: 'إصابة قديمة في الركبة اليمنى',
+      hasChronicDiseases: false,
+      chronicDiseases: [],
+      isSmoker: false,
+      primaryGoal: 'fatBurn',
+      workoutDaysPerWeek: 4,
+      sportsExperience: 'سنة سباحة',
+      currentSupplements: ['فيتامين د', 'أوميجا 3'],
+      trainedBefore: true,
+      previousGuidesPhotos: [],
+      weight: 72,
+      height: 165,
+      bodyDescription: 'دهون في منطقة البطن والأرداف',
+      measurements: { chest: 92, waist: 78, glutes: 100 },
+    },
     traineeData: {
       assignedCoachUid: SEED.coach.uid,
       assignedWorkouts: [],
