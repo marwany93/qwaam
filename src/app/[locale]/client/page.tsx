@@ -1,6 +1,9 @@
-import { setRequestLocale } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { getCurrentTrainee, fetchMyWorkouts, fetchMyMeals, getProgressHistory } from '@/actions/client-actions';
+import { getAssignedMealPlan } from '@/actions/meal-plan-actions';
 import { getMyProgressLogsByDate } from '@/actions/progress-actions';
+import { normalizeMealRow } from '@/lib/meal-utils';
+import MealPlanTable from '@/components/client/MealPlanTable';
 import ClientChat from '@/components/client/ClientChat';
 import ProgressToggleButton from '@/components/client/ProgressToggleButton';
 import RenewalWizard from '@/components/client/RenewalWizard';
@@ -47,19 +50,42 @@ export default async function ClientDashboard({ params }: PageProps) {
   const todayDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
 
   // Parallel Document Materializations
-  const [workouts, meals, progressLogs, progressHistoryRes] = await Promise.all([
+  const [workouts, meals, progressLogs, progressHistoryRes, mealPlanRes] = await Promise.all([
     fetchMyWorkouts(assignedWorkoutIds),
     fetchMyMeals(assignedMealIds),
     getMyProgressLogsByDate(todayDate),
     getProgressHistory(),
+    getAssignedMealPlan(),
   ]);
   const weightHistory = progressHistoryRes.data ?? [];
+
+  // ── Nutrition (Path B): gated meal-plan read + localized copy ────────────────
+  const t = await getTranslations('nutrition');
+  const dietAdded = mealPlanRes.dietAdded;
+  const mealPlan = mealPlanRes.plan;
+  const mealDoneIds = progressLogs.filter(p => p.type === 'meal').map(p => p.itemId);
+  const mealDoneSet = new Set(mealDoneIds);
 
   const firstName = trainee.name.split(' ')[0] || 'بطل';
 
   // Completion counts derived from today's server-fetched progress logs
   const completedWorkouts = progressLogs.filter(p => p.type === 'workout').length;
-  const completedMeals    = progressLogs.filter(p => p.type === 'meal').length;
+
+  // Meal-progress source for the "today" summary mirrors the gated Diet Module:
+  //   locked → hidden; plan present → its first day's rows; else legacy assignedMeals.
+  let mealsTotal = 0;
+  let mealsCompleted = 0;
+  if (!dietAdded) {
+    mealsTotal = 0;
+    mealsCompleted = 0;
+  } else if (mealPlan) {
+    const firstDayRows = (mealPlan.days[0]?.meals ?? []).map((m, i) => normalizeMealRow(m, 0, i));
+    mealsTotal = firstDayRows.length;
+    mealsCompleted = firstDayRows.filter(r => mealDoneSet.has(`plan:${mealPlan.id}:${r.id}`)).length;
+  } else {
+    mealsTotal = meals.length;
+    mealsCompleted = progressLogs.filter(p => p.type === 'meal').length;
+  }
 
   // Maps Firestore meal type keys → Arabic label + motivating emoji
   const mealTypeMap: Record<string, { label: string; icon: string }> = {
@@ -135,7 +161,7 @@ export default async function ClientDashboard({ params }: PageProps) {
         todayContent={
           <>
       {/* Daily Progress Summary — high priority, top of Today tab */}
-      {(workouts.length > 0 || meals.length > 0) && (
+      {(workouts.length > 0 || mealsTotal > 0) && (
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-border-light shadow-sm" dir="rtl">
           <h2 className="text-base font-black text-text-main mb-5 flex items-center gap-2">
             <span className="w-8 h-8 rounded-xl bg-qwaam-pink-light flex items-center justify-center text-sm border border-qwaam-pink/20">📊</span>
@@ -169,19 +195,19 @@ export default async function ClientDashboard({ params }: PageProps) {
               <div className="flex justify-between items-center mb-2">
                 <span className="text-xs font-black text-text-muted uppercase tracking-wider">الوجبات</span>
                 <span className="text-sm font-black text-yellow-600">
-                  {completedMeals} <span className="text-text-muted font-bold">/ {meals.length}</span>
+                  {mealsCompleted} <span className="text-text-muted font-bold">/ {mealsTotal}</span>
                 </span>
               </div>
               <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-yellow-400 rounded-full transition-all duration-500"
-                  style={{ width: meals.length === 0 ? '0%' : `${Math.round((completedMeals / meals.length) * 100)}%` }}
+                  style={{ width: mealsTotal === 0 ? '0%' : `${Math.round((mealsCompleted / mealsTotal) * 100)}%` }}
                 />
               </div>
               <p className="text-[11px] font-bold text-text-muted mt-1.5">
-                {completedMeals === meals.length && meals.length > 0
+                {mealsCompleted === mealsTotal && mealsTotal > 0
                   ? '🎉 التزمت بكل وجباتك اليوم!'
-                  : `${meals.length - completedMeals} وجبة متبقية`}
+                  : `${mealsTotal - mealsCompleted} وجبة متبقية`}
               </p>
             </div>
 
@@ -320,21 +346,34 @@ export default async function ClientDashboard({ params }: PageProps) {
             )}
           </section>
 
-          {/* Diet Module */}
+          {/* Diet Module — gated behind the +200 EGP nutrition add-on (dietAdded).
+                Enforcement point #2 (getAssignedMealPlan is #1). */}
           <section>
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 bg-yellow-50 rounded-2xl flex items-center justify-center text-xl shrink-0 border border-yellow-200 text-yellow-600 font-black shadow-sm">
                 🥗
               </div>
-              <h2 className="text-2xl font-black text-text-main">النظام الغذائي المخصص</h2>
+              <h2 className="text-2xl font-black text-text-main">{t('sectionTitle')}</h2>
             </div>
 
-            {meals.length === 0 ? (
+            {!dietAdded ? (
+              /* Locked / upsell — nutrition add-on not purchased */
+              <div className="bg-white rounded-3xl p-8 border border-dashed border-qwaam-pink/30 text-center flex flex-col items-center justify-center min-h-[220px]" dir="rtl">
+                <span className="text-4xl mb-4">🔒</span>
+                <h3 className="font-black text-text-main text-lg mb-2">{t('lockedTitle')}</h3>
+                <p className="font-bold text-text-muted text-sm max-w-md mx-auto">{t('locked')}</p>
+              </div>
+            ) : mealPlan ? (
+              /* Path B — assigned meal plan as a table */
+              <MealPlanTable plan={mealPlan} todayDate={todayDate} completedItemIds={mealDoneIds} />
+            ) : meals.length === 0 ? (
+              /* dietAdded but nothing assigned yet — awaiting state */
               <div className="bg-white rounded-3xl p-8 border border-dashed border-border-light text-center flex flex-col items-center justify-center min-h-[220px]">
                 <span className="text-4xl opacity-50 grayscale mb-4">🕒</span>
-                <p className="font-bold text-text-muted text-sm max-w-[200px]">مدربك يقوم بصياغة نظام السعرات الخاص بك الآن...</p>
+                <p className="font-bold text-text-muted text-sm max-w-[200px]">{t('awaiting')}</p>
               </div>
             ) : (
+              /* Grandfather fallback — legacy assignedMeals cards (no plan yet) */
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 {meals.map(m => (
                   <div key={m.id} className="bg-white rounded-3xl border border-border-light shadow-sm flex flex-col overflow-hidden group hover:shadow-md hover:-translate-y-1 transition-all">
