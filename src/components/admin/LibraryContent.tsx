@@ -78,6 +78,14 @@ const WEIGHT_LEVEL_AR: Record<WeightLevel, string> = {
   bodyweight: 'وزن الجسم', light: 'خفيف', medium: 'متوسط', heavy: 'ثقيل', max: 'أقصى جهد',
 };
 
+// Standard per-workout defaults used by the workout builder when a catalog
+// exercise carries no library default* (Issue #7 — library is a catalog). The
+// coach can override each value per-workout; these are just sensible starts.
+const STD_SETS = 3;
+const STD_REPS = '10-12';
+const STD_WEIGHT: WeightLevel = 'medium';
+const STD_REST = 60;
+
 // ── Exercise Form (shared by Add + Edit modals) ───────────────────────────────
 
 // Issue #7 — the library form is a catalog: only name/muscle/equipment/link.
@@ -230,10 +238,10 @@ function AddWorkoutModal({ open, onClose, exercises }: {
       }
       return [...prev, {
         exerciseId: ex.id,
-        sets: ex.defaultSets ?? '',
-        reps: ex.defaultReps ?? '',
-        weightLevel: ex.defaultWeightLevel ?? 'medium',
-        rest: ex.defaultRest ?? '',
+        sets: ex.defaultSets ?? STD_SETS,
+        reps: ex.defaultReps ?? STD_REPS,
+        weightLevel: ex.defaultWeightLevel ?? STD_WEIGHT,
+        rest: ex.defaultRest ?? STD_REST,
         notes: '',
       }];
     });
@@ -323,11 +331,11 @@ function AddWorkoutModal({ open, onClose, exercises }: {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       <div>
                         <label className={labelCls}>جولات</label>
-                        <input className={inputCls} type="number" min={1} value={row.sets} onChange={e => updateRow(row.exerciseId, 'sets', e.target.value)} placeholder={String(picked.defaultSets)} />
+                        <input className={inputCls} type="number" min={1} value={row.sets} onChange={e => updateRow(row.exerciseId, 'sets', e.target.value)} placeholder={String(picked.defaultSets ?? STD_SETS)} />
                       </div>
                       <div>
                         <label className={labelCls}>تكرارات</label>
-                        <input className={inputCls} dir="ltr" value={row.reps} onChange={e => updateRow(row.exerciseId, 'reps', e.target.value)} placeholder={picked.defaultReps} />
+                        <input className={inputCls} dir="ltr" value={row.reps} onChange={e => updateRow(row.exerciseId, 'reps', e.target.value)} placeholder={picked.defaultReps ?? STD_REPS} />
                       </div>
                       <div>
                         <label className={labelCls}>الثقل</label>
@@ -337,7 +345,7 @@ function AddWorkoutModal({ open, onClose, exercises }: {
                       </div>
                       <div>
                         <label className={labelCls}>راحة (ث)</label>
-                        <input className={inputCls} type="number" min={0} value={row.rest} onChange={e => updateRow(row.exerciseId, 'rest', e.target.value)} placeholder={String(picked.defaultRest)} />
+                        <input className={inputCls} type="number" min={0} value={row.rest} onChange={e => updateRow(row.exerciseId, 'rest', e.target.value)} placeholder={String(picked.defaultRest ?? STD_REST)} />
                       </div>
                       <div className="col-span-2 sm:col-span-4">
                         <label className={labelCls}>ملاحظات (اختياري)</label>
