@@ -80,16 +80,16 @@ const WEIGHT_LEVEL_AR: Record<WeightLevel, string> = {
 
 // ── Exercise Form (shared by Add + Edit modals) ───────────────────────────────
 
+// Issue #7 — the library form is a catalog: only name/muscle/equipment/link.
+// Per-workout sets/reps/weight/rest are entered in the workout builder.
 type ExerciseFormState = {
   nameAr: string; nameEn: string; targetMuscle: TargetMuscle;
   equipment: Equipment; videoUrl: string;
-  defaultSets: number; defaultReps: string;
-  defaultWeightLevel: WeightLevel; defaultRest: number;
 };
 
 const EMPTY_EXERCISE_FORM: ExerciseFormState = {
   nameAr: '', nameEn: '', targetMuscle: 'Chest', equipment: 'Bodyweight',
-  videoUrl: '', defaultSets: 3, defaultReps: '10-12', defaultWeightLevel: 'medium', defaultRest: 60,
+  videoUrl: '',
 };
 
 function ExerciseForm({
@@ -106,7 +106,7 @@ function ExerciseForm({
   const locale = useLocale();
 
   return (
-    <form onSubmit={e => { e.preventDefault(); onSubmit(form); }} className="space-y-5">
+    <form onSubmit={e => { e.preventDefault(); onSubmit(form); }} className="space-y-5" data-testid="exercise-form">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>اسم التمرين (عربي)</label>
@@ -127,24 +127,6 @@ function ExerciseForm({
           <select className={selectCls} value={form.equipment} onChange={e => set('equipment', e.target.value)}>
             {EQUIPMENT_LIST.map(eq => <option key={eq} value={eq}>{equipmentLabel(eq, locale)}</option>)}
           </select>
-        </div>
-        <div>
-          <label className={labelCls}>عدد الجولات الافتراضي</label>
-          <input className={inputCls} type="number" min={1} required value={form.defaultSets} onChange={e => set('defaultSets', +e.target.value)} />
-        </div>
-        <div>
-          <label className={labelCls}>نطاق التكرارات (مثال: 10-12)</label>
-          <input className={inputCls} required dir="ltr" value={form.defaultReps} onChange={e => set('defaultReps', e.target.value)} placeholder="10-12" />
-        </div>
-        <div>
-          <label className={labelCls}>مستوى الثقل الافتراضي</label>
-          <select className={selectCls} value={form.defaultWeightLevel} onChange={e => set('defaultWeightLevel', e.target.value)}>
-            {WEIGHT_LEVELS.map(w => <option key={w} value={w}>{WEIGHT_LEVEL_AR[w]}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={labelCls}>وقت الراحة (ثانية)</label>
-          <input className={inputCls} type="number" min={0} required value={form.defaultRest} onChange={e => set('defaultRest', +e.target.value)} />
         </div>
         <div className="sm:col-span-2">
           <label className={labelCls}>رابط الفيديو (YouTube - اختياري)</label>
@@ -204,10 +186,6 @@ function EditExerciseModal({ exercise, onClose }: { exercise: Exercise; onClose:
     targetMuscle:       exercise.targetMuscle,
     equipment:          exercise.equipment,
     videoUrl:           exercise.videoUrl ?? '',
-    defaultSets:        exercise.defaultSets ?? 3,
-    defaultReps:        exercise.defaultReps ?? '10-12',
-    defaultWeightLevel: exercise.defaultWeightLevel ?? 'medium',
-    defaultRest:        exercise.defaultRest ?? 60,
   };
 
   return (

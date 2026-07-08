@@ -27,14 +27,11 @@ export async function getExercises(): Promise<Exercise[]> {
 export async function addExercise(payload: Omit<Exercise, 'id' | 'createdAt'>) {
   await verifyAdminAccess();
 
+  // Issue #7 — the library form is a catalog: only name/muscle/equipment/link
+  // are required. Per-workout sets/reps/weight/rest are entered later in the
+  // workout builder, so default* are no longer required here.
   if (!payload.nameAr || !payload.nameEn || !payload.targetMuscle || !payload.equipment) {
     return { error: 'يرجى تعبئة جميع الحقول الإلزامية للتمرين.' };
-  }
-  if (!payload.defaultSets || payload.defaultSets < 1) {
-    return { error: 'عدد الجولات يجب أن يكون رقماً موجباً.' };
-  }
-  if (!payload.defaultReps) {
-    return { error: 'يرجى تحديد نطاق التكرارات.' };
   }
 
   try {
