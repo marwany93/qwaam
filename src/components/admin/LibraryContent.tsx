@@ -204,10 +204,10 @@ function EditExerciseModal({ exercise, onClose }: { exercise: Exercise; onClose:
     targetMuscle:       exercise.targetMuscle,
     equipment:          exercise.equipment,
     videoUrl:           exercise.videoUrl ?? '',
-    defaultSets:        exercise.defaultSets,
-    defaultReps:        exercise.defaultReps,
-    defaultWeightLevel: exercise.defaultWeightLevel,
-    defaultRest:        exercise.defaultRest,
+    defaultSets:        exercise.defaultSets ?? 3,
+    defaultReps:        exercise.defaultReps ?? '10-12',
+    defaultWeightLevel: exercise.defaultWeightLevel ?? 'medium',
+    defaultRest:        exercise.defaultRest ?? 60,
   };
 
   return (

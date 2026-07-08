@@ -171,10 +171,13 @@ export interface Exercise {
   targetMuscle: TargetMuscle;
   equipment: Equipment;
   videoUrl?: string; // YouTube / Shorts link
-  defaultSets: number;
-  defaultReps: string; // e.g., "10-12" or "AMRAP"
-  defaultWeightLevel: WeightLevel;
-  defaultRest: number; // seconds
+  // Per-exercise training defaults are OPTIONAL (Issue #7): the library is a
+  // catalog — sets/reps/weight/rest are entered per-workout in the workout
+  // builder. Existing exercises keep these (grandfathered); new ones omit them.
+  defaultSets?: number;
+  defaultReps?: string; // e.g., "10-12" or "AMRAP"
+  defaultWeightLevel?: WeightLevel;
+  defaultRest?: number; // seconds
   createdAt: number | Timestamp;
 }
 

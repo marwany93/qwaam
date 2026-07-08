@@ -245,11 +245,15 @@ function CardBody({
           {equipmentLabel(ex.equipment, locale)}
         </span>
       </div>
-      <div className="grid grid-cols-3 gap-2 text-center mt-auto">
-        <StatChip label={statLabels.sets} value={String(ex.defaultSets)} />
-        <StatChip label={statLabels.reps} value={ex.defaultReps} ltr />
-        <StatChip label={statLabels.rest} value={`${ex.defaultRest}ث`} ltr />
-      </div>
+      {/* Training defaults are optional (Issue #7) — only show chips that exist
+          so catalog-only exercises (no defaults) don't render "undefined". */}
+      {(ex.defaultSets != null || ex.defaultReps || ex.defaultRest != null) && (
+        <div className="grid grid-cols-3 gap-2 text-center mt-auto">
+          {ex.defaultSets != null && <StatChip label={statLabels.sets} value={String(ex.defaultSets)} />}
+          {ex.defaultReps && <StatChip label={statLabels.reps} value={ex.defaultReps} ltr />}
+          {ex.defaultRest != null && <StatChip label={statLabels.rest} value={`${ex.defaultRest}ث`} ltr />}
+        </div>
+      )}
       {ex.videoUrl && (
         <a
           href={ex.videoUrl}
