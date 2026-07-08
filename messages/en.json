@@ -10,7 +10,8 @@
     "reminder": "Your subscription is ending soon — it ends on {endDate}. Renew now to continue without interruption and keep your progress.",
     "endedTitle": "Your subscription has ended",
     "ended": "Your subscription ended on {endDate}. Renew now to continue without interruption and keep your progress.",
-    "reminderSubject": "Your Qwaam subscription is ending soon"
+    "reminderSubject": "Your Qwaam subscription is ending soon",
+    "renewCta": "Renew now"
   },
   "nav": {
     "home": "Home",

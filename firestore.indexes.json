@@ -56,6 +56,15 @@
         { "fieldPath": "traineeUid", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "role", "order": "ASCENDING" },
+        { "fieldPath": "traineeData.subscription.billingModel", "order": "ASCENDING" },
+        { "fieldPath": "traineeData.subscription.scheduleEndsAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
