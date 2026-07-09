@@ -1,10 +1,19 @@
 import { test, expect } from '@playwright/test';
+import { initializeApp, getApps } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 import { SEED } from './seed-data';
 
 // Project: `coach` — reuses the coach storageState from global-setup.
 // Default locale (ar) is unprefixed under next-intl localePrefix:'as-needed'.
 
 const ADMIN_URL = /\/(?:ar\/)?admin(?:\/|\?|$)/;
+
+function adminDb() {
+  const app = getApps().length
+    ? getApps()[0]
+    : initializeApp({ projectId: process.env.GCLOUD_PROJECT || 'qwaam-test' });
+  return getFirestore(app);
+}
 
 test.describe('Coach dashboard', () => {
   test('lands on /admin with the clients list rendered', async ({ page }) => {
@@ -62,5 +71,63 @@ test.describe('Coach dashboard', () => {
     await expect(form.getByText(/نطاق التكرارات/)).toHaveCount(0);
     await expect(form.getByText('مستوى الثقل الافتراضي')).toHaveCount(0);
     await expect(form.getByText(/وقت الراحة/)).toHaveCount(0);
+  });
+
+  // ── Issue #11 — coach schedule card (dates) instead of the session card ──────
+
+  // (a) Duration schedule trainee → date card, NOT the session card / log button.
+  test('@smoke duration schedule trainee shows the start/end date card, not sessions', async ({ page }) => {
+    await page.goto(`/admin/client/${SEED.traineeA.uid}`);
+
+    await expect(page.getByTestId('schedule-manager-card')).toBeVisible();
+    await expect(page.getByTestId('schedule-start-date')).toBeVisible();
+    await expect(page.getByTestId('schedule-end-date')).toBeVisible();
+
+    // The session card and its "log session" button must be gone for schedule plans.
+    await expect(page.getByText('متابعة الحصص')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /تسجيل حضور حصة/ })).toHaveCount(0);
+  });
+
+  // (b) Grandfathered schedule trainee (session model) → "no start" state, then
+  // setting a date converts them to the duration model.
+  test('@smoke grandfathered schedule trainee: set start date converts to duration', async ({ page }) => {
+    await page.goto(`/admin/client/${SEED.traineeGF.uid}`);
+
+    // Schedule plan but no start date → the "no start date" state + date control.
+    await expect(page.getByTestId('schedule-manager-card')).toBeVisible();
+    await expect(page.getByTestId('schedule-no-start')).toBeVisible();
+
+    // Pick a real start date, save → confirm (conversion) → confirm.
+    await page.getByTestId('schedule-date-input').fill('2026-07-01');
+    await page.getByTestId('schedule-save-btn').click();
+    await expect(page.getByTestId('schedule-confirm')).toBeVisible();
+    await page.getByTestId('schedule-confirm-yes').click();
+
+    // Card now shows the dates (period active).
+    await expect(page.getByTestId('schedule-start-date')).toBeVisible({ timeout: 15_000 });
+
+    // Firestore: converted to duration + anchored + session count zeroed.
+    await expect
+      .poll(async () => {
+        const snap = await adminDb().collection('users').doc(SEED.traineeGF.uid).get();
+        const sub = snap.data()?.traineeData?.subscription;
+        return sub?.billingModel;
+      }, { timeout: 15_000 })
+      .toBe('duration');
+    const snap = await adminDb().collection('users').doc(SEED.traineeGF.uid).get();
+    const data = snap.data();
+    expect(typeof data?.traineeData?.subscription?.scheduleStartAt).toBe('number');
+    expect(typeof data?.traineeData?.subscription?.scheduleEndsAt).toBe('number');
+    expect(data?.sessionTracking?.totalSessions).toBe(0);
+    expect(data?.sessionTracking?.remainingSessions).toBe(0);
+  });
+
+  // (c) LIVE trainee → still the session card, unchanged.
+  test('@smoke live trainee still shows the session card', async ({ page }) => {
+    await page.goto(`/admin/client/${SEED.traineeLive.uid}`);
+
+    await expect(page.getByText('متابعة الحصص')).toBeVisible();
+    await expect(page.getByRole('button', { name: /تسجيل حضور حصة/ })).toBeVisible();
+    await expect(page.getByTestId('schedule-manager-card')).toHaveCount(0);
   });
 });

@@ -58,6 +58,8 @@ async function main() {
   await upsertUser(SEED.traineeB.uid, SEED.traineeB.email, 'trainee');
   await upsertUser(SEED.traineeC.uid, SEED.traineeC.email, 'trainee');
   await upsertUser(SEED.traineeD.uid, SEED.traineeD.email, 'trainee');
+  await upsertUser(SEED.traineeGF.uid, SEED.traineeGF.email, 'trainee');
+  await upsertUser(SEED.traineeLive.uid, SEED.traineeLive.email, 'trainee');
 
   // ── Coach doc ─────────────────────────────────────────────────────────────
   await db.collection('users').doc(SEED.coach.uid).set({
@@ -204,6 +206,53 @@ async function main() {
     },
   });
 
+  // ── Trainee GF — grandfathered SCHEDULE plan on the SESSION model (Issue #11) ──
+  // Schedule plan, but NO billingModel and a live session count → the coach card
+  // must show the "no start date" state and let the coach convert it.
+  await db.collection('users').doc(SEED.traineeGF.uid).set({
+    uid: SEED.traineeGF.uid,
+    role: 'trainee',
+    name: 'سارة القديمة',
+    email: SEED.traineeGF.email,
+    createdAt: FieldValue.serverTimestamp(),
+    sessionTracking: { totalSessions: 4, remainingSessions: 3, planStatus: 'active' },
+    traineeData: {
+      assignedCoachUid: SEED.coach.uid,
+      assignedWorkouts: [],
+      assignedMeals: [],
+      subscription: {
+        planId: 'home-sched-4',
+        amountPaid: '350',
+        dietAdded: false,
+        status: 'active',
+        createdAt: nowIso,
+        // No billingModel / scheduleStartAt → grandfathered session model.
+      },
+    },
+  });
+
+  // ── Trainee Live — LIVE plan, keeps the session card (Issue #11 case c) ──────
+  await db.collection('users').doc(SEED.traineeLive.uid).set({
+    uid: SEED.traineeLive.uid,
+    role: 'trainee',
+    name: 'متدربة لايف',
+    email: SEED.traineeLive.email,
+    createdAt: FieldValue.serverTimestamp(),
+    sessionTracking: { totalSessions: 8, remainingSessions: 5, planStatus: 'active' },
+    traineeData: {
+      assignedCoachUid: SEED.coach.uid,
+      assignedWorkouts: [],
+      assignedMeals: [],
+      subscription: {
+        planId: 'home-live-8',
+        amountPaid: '550',
+        dietAdded: false,
+        status: 'active',
+        createdAt: nowIso,
+      },
+    },
+  });
+
   // ── Discount leads (wheel results) for server-authoritative price tests ───
   // Deterministic doc ids so re-seeding is idempotent (set, not add).
   for (const [id, lead] of Object.entries(SEED.leads)) {
@@ -249,7 +298,7 @@ async function main() {
     });
   }
 
-  console.log('[seed] done — 1 coach, 4 trainees, 1 meal_plan, 3 exercises, 3 discount_leads, 1 renewal_request.');
+  console.log('[seed] done — 1 coach, 6 trainees, 1 meal_plan, 3 exercises, 3 discount_leads, 1 renewal_request.');
 }
 
 main()

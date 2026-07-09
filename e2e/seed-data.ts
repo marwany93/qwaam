@@ -12,6 +12,11 @@ export const SEED = {
   // D = onboarding/first-subscription flow (NO renewal_requests doc).
   traineeC: { uid: 'trainee-c-e2e', email: 'traineeC@qwaam.test' },
   traineeD: { uid: 'trainee-d-e2e', email: 'traineeD@qwaam.test' },
+  // Issue #11 coach schedule-card tests (viewed by the coach; no own login).
+  // GF = grandfathered SCHEDULE plan on the session model (no billingModel).
+  // Live = LIVE plan (must keep the session card).
+  traineeGF: { uid: 'trainee-gf-e2e', email: 'traineeGF@qwaam.test' },
+  traineeLive: { uid: 'trainee-live-e2e', email: 'traineeLive@qwaam.test' },
   // A deliberately old/stale receipt URL seeded on C's pending renewal request,
   // so a banner re-upload must visibly replace it.
   staleReceiptUrl: 'https://example.com/OLD-receipt-do-not-show.png',
