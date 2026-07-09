@@ -17,7 +17,7 @@ import SessionAlert from '@/components/client/SessionAlert';
 import ScheduleAlert from '@/components/client/ScheduleAlert';
 import ScheduleStatusCard from '@/components/client/ScheduleStatusCard';
 import DashboardTabs from '@/components/client/DashboardTabs';
-import { ONE_DAY_MS, formatDateRiyadh } from '@/lib/date-utils';
+import { computeScheduleDisplay } from '@/lib/schedule-display';
 // import { getAdminAuth } from '@/lib/firebase-admin';
 
 type PageProps = { params: Promise<{ locale: string }> };
@@ -111,22 +111,17 @@ export default async function ClientDashboard({ params }: PageProps) {
   const scheduleEndsAt = sub?.scheduleEndsAt ?? null;
   const nowMs = Date.now();
 
-  const scheduleAwaiting = isDurationSchedule && scheduleStartAt == null;
-  const msLeft = scheduleEndsAt != null ? scheduleEndsAt - nowMs : null;
-  const scheduleEnded = isDurationSchedule && scheduleEndsAt != null && nowMs >= scheduleEndsAt;
-  const scheduleAboutToEnd =
-    isDurationSchedule && msLeft != null && msLeft > 0 && msLeft <= 7 * ONE_DAY_MS;
-  const scheduleDaysRemaining = msLeft != null && msLeft > 0 ? Math.ceil(msLeft / ONE_DAY_MS) : 0;
-  const scheduleTotalDays =
-    scheduleStartAt != null && scheduleEndsAt != null
-      ? Math.max(1, Math.round((scheduleEndsAt - scheduleStartAt) / ONE_DAY_MS))
-      : 0;
-  const scheduleProgressPct =
-    scheduleTotalDays > 0
-      ? Math.min(100, Math.max(0, Math.round(((scheduleTotalDays - scheduleDaysRemaining) / scheduleTotalDays) * 100)))
-      : 0;
-  const scheduleStartStr = scheduleStartAt != null ? formatDateRiyadh(scheduleStartAt, locale) : null;
-  const scheduleEndStr = scheduleEndsAt != null ? formatDateRiyadh(scheduleEndsAt, locale) : null;
+  // Shared derivation (single source of truth — also used by the coach card).
+  const sd = computeScheduleDisplay(scheduleStartAt, scheduleEndsAt, locale, nowMs);
+  // These three keep their prior `isDurationSchedule &&` gating so legacy
+  // schedule clients (no marker) never trip the date-based states.
+  const scheduleAwaiting = isDurationSchedule && sd.awaiting;
+  const scheduleEnded = isDurationSchedule && sd.ended;
+  const scheduleAboutToEnd = isDurationSchedule && sd.aboutToEnd;
+  const scheduleDaysRemaining = sd.daysRemaining;
+  const scheduleProgressPct = sd.progressPct;
+  const scheduleStartStr = sd.startDate;
+  const scheduleEndStr = sd.endDate;
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-10" data-testid="client-dashboard">
