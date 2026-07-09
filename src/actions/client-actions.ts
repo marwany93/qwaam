@@ -414,10 +414,30 @@ export async function updatePaymentScreenshot(url: string) {
     }
 
     const db = getAdminDb();
+
+    // Always refresh the subscription screenshot — this is what the coach reads
+    // on the onboarding/first-subscription path (no renewal_requests doc exists).
     await db.collection('users').doc(decoded.uid).update({
       'traineeData.subscription.paymentScreenshotUrl': url,
       'traineeData.subscription.paymentScreenshotAt': new Date(),
     });
+
+    // Renewal path (Issue #9): the coach's PendingPaymentCard reads
+    // `renewalRequest.proofUrl` FIRST, so a banner re-upload must ALSO refresh
+    // the trainee's most-recent PENDING renewal request — otherwise the coach
+    // keeps seeing the original wizard receipt and never sees the re-upload.
+    // No pending request (first-subscription case) → update nothing else; we
+    // must NOT create a renewal_requests doc where there wasn't one.
+    const pending = await db
+      .collection('renewal_requests')
+      .where('traineeUid', '==', decoded.uid)
+      .where('status', '==', 'pending')
+      .orderBy('createdAt', 'desc')
+      .limit(1)
+      .get();
+    if (!pending.empty) {
+      await pending.docs[0].ref.update({ proofUrl: url, updatedAt: new Date() });
+    }
 
     return { success: true };
   } catch (err: any) {

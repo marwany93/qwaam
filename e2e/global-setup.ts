@@ -13,7 +13,7 @@ import path from 'path';
 import { SEED } from './seed-data';
 
 export const AUTH_DIR = path.join(__dirname, '.auth');
-export const storageStateFor = (role: 'coach' | 'traineeA' | 'traineeB') =>
+export const storageStateFor = (role: 'coach' | 'traineeA' | 'traineeB' | 'traineeC' | 'traineeD') =>
   path.join(AUTH_DIR, `${role}.json`);
 
 async function loginAndSave(
@@ -34,7 +34,42 @@ async function loginAndSave(
     // localePrefix:'as-needed' strips the default-locale (ar) prefix, so the
     // final URL is unprefixed (/admin, /client). Match with an optional /ar.
     await page.waitForURL(expectUrl, { timeout: 30_000 });
-    await page.context().storageState({ path: file });
+
+    // Firebase Auth persists the signed-in user in IndexedDB
+    // (firebaseLocalStorageDb → firebaseLocalStorage store, key
+    // `firebase:authUser:…`). The write is async, so capturing storageState too
+    // early races the flush and leaves `auth.currentUser` null in the restored
+    // context (the payment-receipt upload reads it). Wait until the record
+    // exists, THEN capture IndexedDB (default storageState omits it).
+    await page.waitForFunction(
+      () =>
+        new Promise<boolean>((resolve) => {
+          let req: IDBOpenDBRequest;
+          try {
+            req = indexedDB.open('firebaseLocalStorageDb');
+          } catch {
+            resolve(false);
+            return;
+          }
+          req.onsuccess = () => {
+            try {
+              const store = req.result
+                .transaction('firebaseLocalStorage', 'readonly')
+                .objectStore('firebaseLocalStorage');
+              const keysReq = store.getAllKeys();
+              keysReq.onsuccess = () =>
+                resolve(keysReq.result.some((k) => String(k).includes('authUser')));
+              keysReq.onerror = () => resolve(false);
+            } catch {
+              resolve(false);
+            }
+          };
+          req.onerror = () => resolve(false);
+        }),
+      { timeout: 15_000 },
+    );
+
+    await page.context().storageState({ path: file, indexedDB: true });
   } finally {
     await browser.close();
   }
@@ -53,4 +88,6 @@ export default async function globalSetup(config: FullConfig) {
   await loginAndSave(baseURL, SEED.coach.email, SEED.password, storageStateFor('coach'), ADMIN_URL);
   await loginAndSave(baseURL, SEED.traineeA.email, SEED.password, storageStateFor('traineeA'), CLIENT_URL);
   await loginAndSave(baseURL, SEED.traineeB.email, SEED.password, storageStateFor('traineeB'), CLIENT_URL);
+  await loginAndSave(baseURL, SEED.traineeC.email, SEED.password, storageStateFor('traineeC'), CLIENT_URL);
+  await loginAndSave(baseURL, SEED.traineeD.email, SEED.password, storageStateFor('traineeD'), CLIENT_URL);
 }

@@ -624,10 +624,14 @@ export async function getPendingRenewalRequest(
   if (!traineeUid) return null;
 
   const db = getAdminDb();
+  // Most-recent pending request (Issue #9): a trainee can have more than one
+  // pending renewal_requests doc; without orderBy the picked doc was arbitrary,
+  // so the coach could see a stale receipt. createdAt DESC + limit(1) is exact.
   const snap = await db
     .collection('renewal_requests')
     .where('traineeUid', '==', traineeUid)
     .where('status', '==', 'pending')
+    .orderBy('createdAt', 'desc')
     .limit(1)
     .get();
 

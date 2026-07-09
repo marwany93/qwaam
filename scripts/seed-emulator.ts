@@ -56,6 +56,8 @@ async function main() {
   await upsertUser(SEED.coach.uid, SEED.coach.email, 'coach');
   await upsertUser(SEED.traineeA.uid, SEED.traineeA.email, 'trainee');
   await upsertUser(SEED.traineeB.uid, SEED.traineeB.email, 'trainee');
+  await upsertUser(SEED.traineeC.uid, SEED.traineeC.email, 'trainee');
+  await upsertUser(SEED.traineeD.uid, SEED.traineeD.email, 'trainee');
 
   // ── Coach doc ─────────────────────────────────────────────────────────────
   await db.collection('users').doc(SEED.coach.uid).set({
@@ -146,6 +148,62 @@ async function main() {
     },
   });
 
+  // ── Trainee C — RENEWAL flow, pending payment + a pending renewal request ──
+  // The coach reads renewal_requests.proofUrl FIRST, so this proves a banner
+  // re-upload refreshes what the coach actually sees (Issue #9).
+  await db.collection('users').doc(SEED.traineeC.uid).set({
+    uid: SEED.traineeC.uid,
+    role: 'trainee',
+    name: 'متدربة ج',
+    email: SEED.traineeC.email,
+    createdAt: FieldValue.serverTimestamp(),
+    sessionTracking: { totalSessions: 0, remainingSessions: 0, planStatus: 'finished' },
+    traineeData: {
+      assignedCoachUid: SEED.coach.uid,
+      assignedWorkouts: [],
+      assignedMeals: [],
+      subscription: {
+        planId: 'home-live-8',
+        amountPaid: '550',
+        dietAdded: false,
+        status: 'pending_payment',
+        createdAt: nowIso,
+        paymentScreenshotUrl: SEED.staleReceiptUrl,
+        paymentScreenshotAt: now,
+      },
+    },
+  });
+  await db.collection('renewal_requests').doc('renewal-c-e2e').set({
+    traineeUid: SEED.traineeC.uid,
+    planId: 'home-live-8',
+    amount: 550,
+    proofUrl: SEED.staleReceiptUrl,
+    status: 'pending',
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  // ── Trainee D — onboarding/first-sub flow, pending payment, NO renewal doc ──
+  await db.collection('users').doc(SEED.traineeD.uid).set({
+    uid: SEED.traineeD.uid,
+    role: 'trainee',
+    name: 'متدربة د',
+    email: SEED.traineeD.email,
+    createdAt: FieldValue.serverTimestamp(),
+    sessionTracking: { totalSessions: 0, remainingSessions: 0, planStatus: 'active' },
+    traineeData: {
+      assignedCoachUid: SEED.coach.uid,
+      assignedWorkouts: [],
+      assignedMeals: [],
+      subscription: {
+        planId: 'gym-live-8',
+        amountPaid: '450',
+        dietAdded: false,
+        status: 'pending_payment',
+        createdAt: nowIso,
+      },
+    },
+  });
+
   // ── Discount leads (wheel results) for server-authoritative price tests ───
   // Deterministic doc ids so re-seeding is idempotent (set, not add).
   for (const [id, lead] of Object.entries(SEED.leads)) {
@@ -191,7 +249,7 @@ async function main() {
     });
   }
 
-  console.log('[seed] done — 1 coach, 2 trainees, 1 meal_plan, 3 exercises, 3 discount_leads.');
+  console.log('[seed] done — 1 coach, 4 trainees, 1 meal_plan, 3 exercises, 3 discount_leads, 1 renewal_request.');
 }
 
 main()

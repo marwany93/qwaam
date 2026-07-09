@@ -7,6 +7,14 @@ export const SEED = {
   coach: { uid: 'coach-e2e', email: 'coach@qwaam.test' },
   traineeA: { uid: 'trainee-a-e2e', email: 'traineeA@qwaam.test' },
   traineeB: { uid: 'trainee-b-e2e', email: 'traineeB@qwaam.test' },
+  // Pending-payment trainees for the Issue #9 receipt re-upload tests.
+  // C = RENEWAL flow (has a pending renewal_requests doc the coach reads first).
+  // D = onboarding/first-subscription flow (NO renewal_requests doc).
+  traineeC: { uid: 'trainee-c-e2e', email: 'traineeC@qwaam.test' },
+  traineeD: { uid: 'trainee-d-e2e', email: 'traineeD@qwaam.test' },
+  // A deliberately old/stale receipt URL seeded on C's pending renewal request,
+  // so a banner re-upload must visibly replace it.
+  staleReceiptUrl: 'https://example.com/OLD-receipt-do-not-show.png',
   password: 'Test123!',
   // Recorded wheel discounts (discount_leads) for the server-authoritative
   // pricing @smoke tests. Emails are stored lowercased/trimmed exactly as

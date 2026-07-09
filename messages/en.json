@@ -238,6 +238,23 @@
     "requestSentSuccessfully": "Request sent! Your coach will contact you shortly.",
     "requestingSession": "Sending request...",
     "sessionRequestPending": "Awaiting payment confirmation",
+    "pendingPayment": {
+      "header": "Your receipt has been received and is being reviewed by your coach. No need to re-upload — it'll be confirmed soon.",
+      "badge": "Under review",
+      "uploadedTitle": "Receipt received ✓",
+      "updatedSuccess": "Image updated successfully.",
+      "viewImage": "View uploaded image",
+      "replaceImage": "Replace image",
+      "uploadHint": "After transferring, upload a screenshot of your receipt to speed up activation:",
+      "uploadCta": "Upload payment receipt",
+      "uploading": "Uploading...",
+      "autoActivateNote": "Your content will be activated automatically once the coach reviews the transfer.",
+      "errImageOnly": "Please choose an image only.",
+      "errTooLarge": "Image must be smaller than 5 MB.",
+      "errSession": "Your session expired. Please sign in again.",
+      "errSaveFailed": "Failed to save the link.",
+      "errUploadFailed": "Image upload failed. Please try again."
+    },
     "renewal": {
       "title": "Buy More Sessions",
       "step1": "Select Plan",

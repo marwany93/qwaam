@@ -51,6 +51,18 @@ export default defineConfig({
       testMatch: ['**/nutrition-locked.spec.ts'],
       use: { ...devices['Desktop Chrome'], storageState: storageStateFor('traineeB') },
     },
+    // Trainee C — pending payment + a pending renewal request (Issue #9 renewal re-upload).
+    {
+      name: 'traineeC',
+      testMatch: ['**/payment-renewal.spec.ts'],
+      use: { ...devices['Desktop Chrome'], storageState: storageStateFor('traineeC') },
+    },
+    // Trainee D — pending payment, first-subscription (no renewal request).
+    {
+      name: 'traineeD',
+      testMatch: ['**/payment-onboarding.spec.ts'],
+      use: { ...devices['Desktop Chrome'], storageState: storageStateFor('traineeD') },
+    },
   ],
 
   // Build + start the app with the client emulator flag ON. The Admin SDK picks

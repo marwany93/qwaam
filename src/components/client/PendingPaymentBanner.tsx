@@ -1,6 +1,8 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
+import { useTranslations } from 'next-intl';
+import { onAuthStateChanged } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage, auth } from '@/lib/firebase';
 import { updatePaymentScreenshot } from '@/actions/client-actions';
@@ -25,11 +27,20 @@ interface Props {
  *   - A "proof of payment" upload button so the admin can verify the transfer
  */
 export default function PendingPaymentBanner({ amountPaid, initialScreenshotUrl }: Props) {
+  const t = useTranslations('client.pendingPayment');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(initialScreenshotUrl ?? null);
   const [uploading, setUploading] = useState(false);
+  const [justUpdated, setJustUpdated] = useState(false);
   const [, startTx] = useTransition();
   const [error, setError] = useState('');
+  // Track the client-SDK auth uid. On a cold page load the SDK hydrates the
+  // signed-in user from IndexedDB asynchronously, so `auth.currentUser` can be
+  // null for a beat — uploading before it's ready hits Storage rules unauthed
+  // and shows a spurious "session expired". Gate the control on this instead.
+  const [currentUid, setCurrentUid] = useState<string | null>(auth.currentUser?.uid ?? null);
+  useEffect(() => onAuthStateChanged(auth, (u) => setCurrentUid(u?.uid ?? null)), []);
+  const authReady = !!currentUid;
 
   const handlePickFile = () => fileInputRef.current?.click();
 
@@ -41,21 +52,22 @@ export default function PendingPaymentBanner({ amountPaid, initialScreenshotUrl 
 
     // Guardrails: 5 MB cap, image MIME only
     if (!file.type.startsWith('image/')) {
-      setError('يرجى اختيار صورة فقط.');
+      setError(t('errImageOnly'));
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setError('حجم الصورة يجب أن يكون أقل من 5 ميجابايت.');
+      setError(t('errTooLarge'));
       return;
     }
 
-    const uid = auth.currentUser?.uid;
+    const uid = currentUid ?? auth.currentUser?.uid;
     if (!uid) {
-      setError('انتهت الجلسة. أعيدي تسجيل الدخول.');
+      setError(t('errSession'));
       return;
     }
 
     setError('');
+    setJustUpdated(false);
     setUploading(true);
 
     try {
@@ -69,19 +81,21 @@ export default function PendingPaymentBanner({ amountPaid, initialScreenshotUrl 
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
 
-      // 2. Persist the URL to Firestore via server action
+      // 2. Persist the URL to Firestore via server action. On the renewal flow
+      // this also refreshes the pending renewal_requests.proofUrl the coach reads.
       startTx(async () => {
         const res = await updatePaymentScreenshot(url);
         if (res.success) {
           setUploadedUrl(url);
+          setJustUpdated(true);
         } else {
-          setError(res.error || 'فشل حفظ الرابط.');
+          setError(res.error || t('errSaveFailed'));
         }
         setUploading(false);
       });
     } catch (err) {
       console.error('Upload failed:', err);
-      setError('فشل رفع الصورة. حاولي مجدداً.');
+      setError(t('errUploadFailed'));
       setUploading(false);
     }
   };
@@ -101,11 +115,11 @@ export default function PendingPaymentBanner({ amountPaid, initialScreenshotUrl 
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <h3 className="font-black text-text-main text-base sm:text-lg">
-              في انتظار تأكيد الدفع
+            <h3 className="font-black text-text-main text-base sm:text-lg" data-testid="pending-header">
+              {t('header')}
             </h3>
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 text-[10px] font-black uppercase tracking-wider">
-              معلّقة
+              {t('badge')}
             </span>
           </div>
 
@@ -134,19 +148,25 @@ export default function PendingPaymentBanner({ amountPaid, initialScreenshotUrl 
           <div className="mt-5 pt-4 border-t border-qwaam-yellow/40">
             <input
               ref={fileInputRef}
+              data-testid="payment-proof-input"
               type="file"
               accept="image/*"
               onChange={handleFileChange}
               className="hidden"
-              disabled={uploading}
+              disabled={uploading || !authReady}
             />
 
             {uploadedUrl ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm font-black text-green-700">
                   <CheckCircleIcon className="w-5 h-5" />
-                  تم رفع الصورة، سيتم التأكيد قريباً
+                  {t('uploadedTitle')}
                 </div>
+                {justUpdated && (
+                  <p data-testid="payment-updated" className="text-xs font-bold text-green-700">
+                    {t('updatedSuccess')}
+                  </p>
+                )}
                 <div className="flex items-center gap-3 flex-wrap">
                   <a
                     href={uploadedUrl}
@@ -155,38 +175,38 @@ export default function PendingPaymentBanner({ amountPaid, initialScreenshotUrl 
                     className="inline-flex items-center gap-1.5 text-xs font-bold text-qwaam-pink hover:text-pink-600 transition-colors"
                   >
                     <PhotoIcon className="w-4 h-4" />
-                    عرض الصورة المرفوعة
+                    {t('viewImage')}
                   </a>
                   <button
                     type="button"
                     onClick={handlePickFile}
-                    disabled={uploading}
-                    className="text-xs font-bold text-text-muted hover:text-text-main underline underline-offset-2 transition-colors"
+                    disabled={uploading || !authReady}
+                    className="text-xs font-bold text-text-muted hover:text-text-main underline underline-offset-2 transition-colors disabled:opacity-50"
                   >
-                    استبدال الصورة
+                    {t('replaceImage')}
                   </button>
                 </div>
               </div>
             ) : (
               <div className="space-y-2">
                 <p className="text-xs font-bold text-text-muted leading-relaxed">
-                  بعد التحويل، ارفعي صورة من إيصال الدفع لتسريع التفعيل:
+                  {t('uploadHint')}
                 </p>
                 <button
                   type="button"
                   onClick={handlePickFile}
-                  disabled={uploading}
+                  disabled={uploading || !authReady}
                   className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-qwaam-pink text-white font-black text-sm shadow-md shadow-qwaam-pink/20 hover:bg-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {uploading ? (
                     <>
                       <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      جاري الرفع...
+                      {t('uploading')}
                     </>
                   ) : (
                     <>
                       <ArrowUpTrayIcon className="w-4 h-4" />
-                      رفع صورة إيصال الدفع
+                      {t('uploadCta')}
                     </>
                   )}
                 </button>
@@ -202,7 +222,7 @@ export default function PendingPaymentBanner({ amountPaid, initialScreenshotUrl 
           </div>
 
           <p className="text-[11px] font-bold text-text-muted mt-3 leading-relaxed">
-            سيتم تفعيل المحتوى تلقائياً بمجرد مراجعة المدرّب للتحويل.
+            {t('autoActivateNote')}
           </p>
         </div>
       </div>
