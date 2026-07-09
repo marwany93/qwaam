@@ -146,6 +146,17 @@ async function main() {
     },
   });
 
+  // ── Discount leads (wheel results) for server-authoritative price tests ───
+  // Deterministic doc ids so re-seeding is idempotent (set, not add).
+  for (const [id, lead] of Object.entries(SEED.leads)) {
+    await db.collection('discount_leads').doc(`lead-${id}-e2e`).set({
+      email: lead.email,
+      phone: lead.phone,
+      discountPercentage: lead.discountPercentage,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  }
+
   // ── Meal plan for trainee A (single day, full macros, eating window) ──────
   const rows = [
     { id: 'row_seed_bf', mealType: 'breakfast', description: '3 بيضات مسلوقة + شريحة توست أسمر', calories: 320, protein: 24, carbs: 22, fats: 14, source: 'manual' },
@@ -180,7 +191,7 @@ async function main() {
     });
   }
 
-  console.log('[seed] done — 1 coach, 2 trainees, 1 meal_plan, 3 exercises.');
+  console.log('[seed] done — 1 coach, 2 trainees, 1 meal_plan, 3 exercises, 3 discount_leads.');
 }
 
 main()

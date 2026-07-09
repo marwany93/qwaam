@@ -10,7 +10,8 @@ import { ResetPasswordTemplate } from '@/emails/ResetPasswordTemplate';
 import { sendNotification } from '@/actions/notification-actions';
 import { WelcomeTemplate } from '@/emails/WelcomeTemplate';
 import { headers } from 'next/headers';
-import { findPlanById, isSchedulePlan } from '@/lib/pricing-config';
+import { findPlanById, isSchedulePlan, NUTRITION_ADDON_PRICE } from '@/lib/pricing-config';
+import { getRecordedDiscount } from '@/actions/discount-actions';
 import { serializeFirestoreData } from '@/lib/firestore-serialize';
 
 // تهيئة Resend
@@ -197,6 +198,30 @@ export async function submitOnboarding(uid: string, docPayload: Record<string, a
     // Schedule plans use the month-based duration model — sessions are NOT
     // tracked (the coach's first schedule upload anchors the month later).
     const schedule = planId ? isSchedulePlan(planId) : false;
+
+    // ── Server-authoritative FIRST-subscription price (Issue #8 security fix) ──
+    // The client sends amountPaid derived from URL total/discount, which a user
+    // can tamper with (people forced 43–64% by editing the URL). We IGNORE those
+    // values and recompute the price on the SERVER: official plan price (+200 if
+    // the diet add-on is selected) × (1 − discount), where `discount` is the real
+    // value the wheel recorded in `discount_leads` for this contact, hard-capped
+    // at 40%. No matching lead → 0 (official price). Fully automatic — no coach
+    // approval. Renewals are untouched (they already use plan.price).
+    const sub = docPayload?.traineeData?.subscription;
+    if (sub && planId) {
+      const plan = findPlanById(planId);
+      if (plan) {
+        const official = plan.price + (sub.dietAdded ? NUTRITION_ADDON_PRICE : 0);
+        const discount = await getRecordedDiscount(
+          docPayload?.email,
+          docPayload?.onboarding?.phone,
+        );
+        // Round per the existing rule (Math.round, matching the UI preview).
+        sub.amountPaid = String(Math.round(official * (1 - discount / 100)));
+      }
+      // Unknown planId → leave amountPaid as submitted: there is no official
+      // price to apply, and an invalid plan is an abuse/bug case the coach catches.
+    }
 
     let initialSessions = Number(docPayload.planSessions);
 

@@ -1,6 +1,7 @@
 'use server';
 
 import { getAdminDb } from '@/lib/firebase-admin';
+import { DISCOUNT_CAP } from '@/lib/pricing-config';
 
 // ── Weighted Discount Algorithm ────────────────────────────────────────────────
 // Weights: 20% → 50%, 25% → 30%, 30% → 15%, 40% → 5%
@@ -81,5 +82,57 @@ export async function spinDiscountWheel(email: string, phone: string): Promise<
   } catch (err: any) {
     console.error('[spinDiscountWheel] error:', err);
     return { success: false, error: 'حدث خطأ غير متوقع. حاولي مرة أخرى.' };
+  }
+}
+
+/**
+ * Server-authoritative discount lookup for the FIRST-subscription price.
+ * ─────────────────────────────────────────────────────────────────────
+ * Reads the real discount the wheel recorded at spin time from
+ * `discount_leads` — NEVER from anything the client/URL sent. Matches a lead
+ * by email (trimmed + lowercased, exactly as `spinDiscountWheel` stores it) OR
+ * by phone (trimmed). Guarantees:
+ *   - No matching lead (spun with a different contact, or never spun) → 0
+ *     (official price). Fully automatic, no coach approval.
+ *   - Multiple matching leads with differing values → take the LOWEST, to be
+ *     safe (never hand out the more generous one on ambiguity).
+ *   - Hard cap at DISCOUNT_CAP (40%) regardless of what is stored.
+ *   - Any error → 0 (fail closed to official price).
+ *
+ * Returns an integer-ish percentage in [0, 40].
+ */
+export async function getRecordedDiscount(
+  email?: string | null,
+  phone?: string | null,
+): Promise<number> {
+  const trimmedEmail = (email ?? '').trim().toLowerCase();
+  const trimmedPhone = (phone ?? '').trim();
+  if (!trimmedEmail && !trimmedPhone) return 0;
+
+  try {
+    const db = getAdminDb();
+    const leads = db.collection('discount_leads');
+
+    const [byEmail, byPhone] = await Promise.all([
+      trimmedEmail ? leads.where('email', '==', trimmedEmail).get() : null,
+      trimmedPhone ? leads.where('phone', '==', trimmedPhone).get() : null,
+    ]);
+
+    const values: number[] = [];
+    for (const snap of [byEmail, byPhone]) {
+      if (!snap) continue;
+      for (const doc of snap.docs) {
+        const v = Number(doc.data().discountPercentage);
+        if (Number.isFinite(v) && v > 0) values.push(v);
+      }
+    }
+    if (!values.length) return 0;
+
+    // Lowest on ambiguity + hard cap at 40%.
+    const lowest = Math.min(...values);
+    return Math.max(0, Math.min(lowest, DISCOUNT_CAP));
+  } catch (err) {
+    console.error('[getRecordedDiscount] error (failing closed to 0):', err);
+    return 0;
   }
 }

@@ -24,6 +24,11 @@ export interface PlanCategory {
 
 export const NUTRITION_ADDON_PRICE = 200; // EGP
 
+// Max spin-the-wheel discount. The wheel never awards above this, and the
+// server-side price recompute (submitOnboarding) hard-caps against it too — a
+// defence-in-depth ceiling so a bad/tampered lead value can never exceed 40%.
+export const DISCOUNT_CAP = 40;
+
 export const PRICING_CONFIG: PlanCategory[] = [
   // ── HOME + LIVE ──────────────────────────
   {
