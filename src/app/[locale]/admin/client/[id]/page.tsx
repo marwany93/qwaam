@@ -16,7 +16,9 @@ import {
   CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 import SessionManagerCard from '@/components/admin/SessionManagerCard';
+import ScheduleManagerCard from '@/components/admin/ScheduleManagerCard';
 import RegistrationCard from '@/components/admin/RegistrationCard';
+import { isSchedulePlan } from '@/lib/pricing-config';
 import TraineeTabsWrapper from '@/components/admin/TraineeTabsWrapper';
 import { isAwaitingScheduleUpload } from '@/lib/subscription-utils';
 import PendingPaymentCard from '@/components/admin/PendingPaymentCard';
@@ -121,14 +123,28 @@ export default async function TraineeDetailPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* Session Manager Card (Takes 1 column) */}
+        {/* Session vs. Schedule card (Takes 1 column). Schedule plans (incl.
+            grandfathered session-model ones) get the month date card instead of
+            the session counter — fully replaced, so no "12/12" flashes. */}
         <div className="lg:col-span-1 h-full">
-          <SessionManagerCard 
-            traineeUid={traineeUid}
-            totalSessions={trainee.sessionTracking?.totalSessions ?? 12}
-            remainingSessions={trainee.sessionTracking?.remainingSessions ?? 12}
-            planStatus={trainee.sessionTracking?.planStatus ?? 'active'}
-          />
+          {isSchedulePlan(trainee.traineeData?.subscription?.planId ?? '') ? (
+            <ScheduleManagerCard
+              traineeUid={traineeUid}
+              planId={trainee.traineeData!.subscription!.planId}
+              billingModel={trainee.traineeData?.subscription?.billingModel}
+              status={trainee.traineeData?.subscription?.status}
+              scheduleStartAt={trainee.traineeData?.subscription?.scheduleStartAt ?? null}
+              scheduleEndsAt={trainee.traineeData?.subscription?.scheduleEndsAt ?? null}
+              locale={locale}
+            />
+          ) : (
+            <SessionManagerCard
+              traineeUid={traineeUid}
+              totalSessions={trainee.sessionTracking?.totalSessions ?? 12}
+              remainingSessions={trainee.sessionTracking?.remainingSessions ?? 12}
+              planStatus={trainee.sessionTracking?.planStatus ?? 'active'}
+            />
+          )}
         </div>
 
       </div>
