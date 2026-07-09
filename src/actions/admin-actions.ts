@@ -8,6 +8,7 @@ import { notificationService } from '@/lib/notification-service';
 import { FieldValue } from 'firebase-admin/firestore';
 import { findPlanById, isSchedulePlan } from '@/lib/pricing-config';
 import { serializeFirestoreData } from '@/lib/firestore-serialize';
+import { addOneMonth } from '@/lib/date-utils';
 import { randomUUID } from 'crypto';
 
 /**
@@ -411,6 +412,57 @@ export async function overrideTraineeSessions(
   } catch (error) {
     console.error('Error overriding sessions:', error);
     return { success: false, error: 'حدث خطأ أثناء التعديل اليدوي' };
+  }
+}
+
+/**
+ * Coach sets/edits the month-based Schedule START date (Issue #11).
+ * ─────────────────────────────────────────────────────────────────
+ * Writes `scheduleStartAt=dateMs` and recomputes `scheduleEndsAt=addOneMonth`.
+ * Also moves the trainee onto the duration model (`billingModel='duration'`) and
+ * zeroes `sessionTracking` — so a grandfathered (session-model) Schedule trainee
+ * is converted to the month model by the coach picking a real start date, and no
+ * stale session count renders anywhere.
+ *
+ * STRICTLY schedule-only: rejects Live plans (and missing/invalid plans) so a
+ * Live trainee can never be converted. Mirrors `overrideTraineeSessions`.
+ */
+export async function setScheduleStartDate(traineeUid: string, dateMs: number) {
+  await verifyAdminAccess();
+  if (!traineeUid) return { success: false, error: 'معرّف المتدرب مطلوب.' };
+  if (typeof dateMs !== 'number' || !Number.isFinite(dateMs)) {
+    return { success: false, error: 'تاريخ غير صالح.' };
+  }
+
+  const db = getAdminDb();
+  try {
+    const traineeRef = db.collection('users').doc(traineeUid);
+    const snap = await traineeRef.get();
+    if (!snap.exists) return { success: false, error: 'المتدرب غير موجود.' };
+
+    const planId: string | undefined = snap.data()?.traineeData?.subscription?.planId;
+    if (!planId || !isSchedulePlan(planId)) {
+      // Guard: never convert a Live (or unknown) plan to the duration model.
+      return { success: false, error: 'تعديل تاريخ البدء متاح لباقات الجدول فقط.' };
+    }
+
+    await traineeRef.update({
+      'traineeData.subscription.billingModel': 'duration',
+      'traineeData.subscription.scheduleStartAt': dateMs,
+      'traineeData.subscription.scheduleEndsAt': addOneMonth(dateMs),
+      'traineeData.subscription.renewalReminderSentAt': null,
+      'sessionTracking.totalSessions': 0,
+      'sessionTracking.remainingSessions': 0,
+      'sessionTracking.planStatus': 'active',
+      'sessionTracking.lastRenewedAt': new Date(),
+    });
+
+    revalidatePath(`/admin/client/${traineeUid}`);
+    revalidatePath('/client');
+    return { success: true };
+  } catch (error) {
+    console.error('Error setting schedule start date:', error);
+    return { success: false, error: 'حدث خطأ أثناء ضبط تاريخ البدء.' };
   }
 }
 

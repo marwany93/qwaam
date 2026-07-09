@@ -64,7 +64,27 @@
     "mRightCalf": "Right calf",
     "mLeftCalf": "Left calf",
     "mRightArm": "Right arm",
-    "mLeftArm": "Left arm"
+    "mLeftArm": "Left arm",
+    "scheduleManager": {
+      "heading": "Monthly schedule subscription",
+      "startLabel": "Start date",
+      "endLabel": "End date",
+      "daysRemaining": "{days} days remaining",
+      "ended": "Subscription period ended",
+      "active": "Subscription active",
+      "noStartTitle": "No start date set yet",
+      "noStartDesc": "Monthly schedule plan with no start date. Set the real start date to begin the month (it auto-starts on the first schedule upload).",
+      "pickLabel": "Set start date",
+      "pickRealDateHint": "Pick the trainee's real start date (not necessarily today if she started training earlier).",
+      "saveCta": "Save start date",
+      "editCta": "Edit start date",
+      "saving": "Saving...",
+      "confirmConvertTitle": "Confirm switch to the monthly model",
+      "confirmConvertBody": "This trainee will move to the monthly subscription model: she'll see a date countdown instead of sessions, and be enrolled in renewal reminders. Make sure the start date is correct.",
+      "confirmYes": "Yes, convert & save",
+      "confirmCancel": "Cancel",
+      "genericError": "Something went wrong while saving."
+    }
   },
   "library": {
     "searchPlaceholder": "Search exercises...",
