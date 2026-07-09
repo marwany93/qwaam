@@ -35,6 +35,13 @@ lighthouse-report.json
 *_REPORT.md
 _bmad*/
 
+# Documentation / memory — LOCAL ONLY, never pushed (single-machine memory workflow)
+# CLAUDE.md, STATE.md, docs/, SRS.md, README.md, instructions.* all stay on disk only.
+*.md
+docs/
+instructions.md
+instructions.txt
+
 # OS files
 .DS_Store
 Thumbs.db
